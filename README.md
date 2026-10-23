@@ -82,6 +82,7 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 
 ## Sorties et usage au quotidien (étape 4)
 
+- **Ranger toute une pile** (après un scan d'inventaire de toute la collection) : applique le rangement, puis onglet **Scanner → 📦 Ranger mes CD**. Rescanne chaque CD de la pile : l'appli affiche en grand son emplacement (meuble, niveau, devant/derrière, n°), ses voisins, et le compte comme rangé (compteur « 312 / 700 rangés »). « Ordre de la rangée » donne la liste complète pour remettre chaque étagère dans l'ordre. Pas besoin de faire des lots pendant le scan.
 - **Où est ce CD ?** Onglet Collection : tape quelques lettres de l'artiste ou du titre. Chaque CD affiche son emplacement (📍 « Billy · niv. 2 · devant · n° 12 »). Sa fiche montre un petit dessin du meuble avec la rangée en surbrillance.
 - **Plan imprimable** (Rangement → 🖨️) : meuble par meuble, rangée par rangée, la liste numérotée des CD. « Imprimer » ouvre la fenêtre d'impression : choisis « Enregistrer au format PDF » pour un fichier.
 - **Étiquettes intercalaires** (Rangement → 🏷️) : « Rock — A à G »… une par thème et par rangée, par lettre ou par thème. Deux formats : étiquettes 63,5 × 33,9 mm (24 par page A4) ou intercalaires 12 × 14 cm (2 par page) à coller sur du carton.

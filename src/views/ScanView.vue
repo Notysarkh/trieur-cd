@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
 import ScanQueueItem from '../components/ScanQueueItem.vue'
+import ShelvingPanel from '../components/ShelvingPanel.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { ScanItem } from '../db/types'
@@ -10,7 +12,15 @@ import { hasDiscogsToken } from '../services/discogs'
 import { addScan, isReady, retryErrors, sendUnknownToReview, validateReady } from '../services/scanQueue'
 import { saveSetting, settings } from '../services/settings'
 
-// Écran de scan : caméra (ou saisie du code), file d'attente, validation groupée.
+// Écran de scan, en deux modes :
+// - « Ajouter » : caméra (ou saisie du code), file d'attente, validation groupée ;
+// - « Ranger » : chaque CD rescanné affiche son emplacement dans les meubles (après un scan d'inventaire).
+
+const route = useRoute()
+const router = useRouter()
+const mode = ref<'ajouter' | 'ranger'>(route.query.mode === 'ranger' ? 'ranger' : 'ajouter')
+watch(mode, (m) => void router.replace({ query: m === 'ranger' ? { mode: 'ranger' } : {} }))
+const shelving = ref<InstanceType<typeof ShelvingPanel>>()
 
 const queue = useLiveQuery(() => db.scans.orderBy('scannedAt').reverse().toArray(), [] as ScanItem[])
 const ownedAlbums = useLiveQuery(
@@ -43,6 +53,11 @@ function show(text: string, cls: string) {
 const paused = ref(false)
 
 async function onCode(code: string) {
+  if (mode.value === 'ranger') {
+    signal((await shelving.value?.handle(code)) ?? 'warn')
+    if (!settings.burstMode) paused.value = true
+    return
+  }
   const result = await addScan(code)
   if (result === 'ajoute') {
     signal('ok')
@@ -79,6 +94,12 @@ async function validate() {
   }
 }
 
+/** Depuis le mode rangement : un CD inconnu est ajouté à la file du mode « Ajouter ». */
+async function addFromShelving(code: string) {
+  mode.value = 'ajouter'
+  await onCode(code)
+}
+
 async function unknownToReview() {
   const n = await sendUnknownToReview()
   show(`${n} code${n > 1 ? 's' : ''} envoyé${n > 1 ? 's' : ''} dans « À vérifier ».`, 'notice-ok')
@@ -89,12 +110,21 @@ async function unknownToReview() {
   <main class="page stack">
     <h1>Scanner mes CD</h1>
 
-    <p v-if="!hasDiscogsToken()" class="notice small">
+    <div class="modes" role="tablist" aria-label="Mode du scanner">
+      <button role="tab" class="chip" :class="{ active: mode === 'ajouter' }" :aria-selected="mode === 'ajouter'" @click="mode = 'ajouter'">
+        ➕ Ajouter des CD
+      </button>
+      <button role="tab" class="chip" :class="{ active: mode === 'ranger' }" :aria-selected="mode === 'ranger'" @click="mode = 'ranger'">
+        📦 Ranger mes CD
+      </button>
+    </div>
+
+    <p v-if="mode === 'ajouter' && !hasDiscogsToken()" class="notice small">
       Astuce : ajoute ton jeton Discogs dans les <RouterLink to="/reglages">Réglages</RouterLink> pour de meilleurs
       genres et plus de CD reconnus.
     </p>
 
-    <BarcodeScanner :paused="paused" @detected="onCode" @resume="paused = false" />
+    <BarcodeScanner :paused="paused" :compact="mode === 'ranger'" @detected="onCode" @resume="paused = false" />
 
     <form class="row" @submit.prevent="submitTyped">
       <input
@@ -105,10 +135,10 @@ async function unknownToReview() {
         placeholder="…ou tape le code-barres"
         aria-label="Code-barres"
       />
-      <button class="btn" type="submit">Ajouter</button>
+      <button class="btn" type="submit">{{ mode === 'ranger' ? 'Chercher' : 'Ajouter' }}</button>
     </form>
 
-    <label class="row small">
+    <label v-if="mode === 'ajouter'" class="row small">
       <input
         type="checkbox"
         :checked="settings.burstMode"
@@ -117,9 +147,11 @@ async function unknownToReview() {
       Mode rafale : la caméra reste active, les scans s'enchaînent
     </label>
 
+    <ShelvingPanel v-if="mode === 'ranger'" ref="shelving" @add="addFromShelving" />
+
     <p v-if="message" class="notice" :class="message.cls" role="status">{{ message.text }}</p>
 
-    <section v-if="queue.length" class="stack">
+    <section v-if="mode === 'ajouter' && queue.length" class="stack">
       <h2>File d'attente ({{ queue.length }})</h2>
       <p class="muted small">
         {{ counts.prets }} prêt{{ counts.prets > 1 ? 's' : '' }}
@@ -143,6 +175,18 @@ async function unknownToReview() {
         <ScanQueueItem v-for="item in queue" :key="item.id" :item="item" :owned-albums="ownedAlbums" />
       </ul>
     </section>
-    <p v-else class="muted">La file est vide. Scanne un premier CD !</p>
+    <p v-else-if="mode === 'ajouter'" class="muted">La file est vide. Scanne un premier CD !</p>
   </main>
 </template>
+
+<style scoped>
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.modes .chip {
+  padding: 10px;
+  font-weight: 600;
+}
+</style>

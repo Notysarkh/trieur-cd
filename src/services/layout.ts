@@ -53,10 +53,35 @@ export async function applyLayout(plan: Plan, layout: Layout): Promise<void> {
   const updates = cds.flatMap((cd) => {
     const p = layout.placement.get(cd.id)
     if (p?.slotId === cd.location?.slotId && p?.position === cd.location?.position) return []
-    return [{ key: cd.id, changes: { location: p, updatedAt: now } }]
+    return [{ key: cd.id, changes: { location: p, shelvedAt: undefined, updatedAt: now } }]
   })
   await db.cds.bulkUpdate(updates)
   await saveSetting('layoutAppliedAt', now)
+}
+
+export interface LocationParts {
+  furniture: string
+  level: number
+  column?: number
+  layer?: string
+  side?: string
+  position: number
+}
+
+/** Emplacement découpé en morceaux (meuble, niveau, devant/derrière, position). */
+export function locationParts(cd: Cd): LocationParts | null {
+  const loc = cd.location
+  const f = loc && settings.furniture.find((x) => x.id === loc.furnitureId)
+  if (!loc || !f) return null
+  const [level, column, layer, depthRow] = loc.slotId.split(':')[1].split('-').map(Number)
+  return {
+    furniture: f.name,
+    level,
+    column: f.columns > 1 ? column : undefined,
+    layer: f.layers > 1 ? (layer === 1 ? 'couche du haut' : 'couche du bas') : undefined,
+    side: f.depthRows > 1 ? (depthRow === 1 ? 'devant' : 'derrière') : undefined,
+    position: loc.position,
+  }
 }
 
 /** Emplacement court, pour les listes : « Billy · niv. 3 · derrière · n° 12 ». */
@@ -95,6 +120,7 @@ export async function placeCd(cd: Cd, ins: Insertion, plan: Plan): Promise<void>
     await db.cds.update(cd.id, {
       location: { furnitureId: ins.slot.furnitureId, slotId: ins.slot.id, position: ins.position },
       themeId: plan.placement.get(cd.id)?.themeId,
+      shelvedAt: now,
       updatedAt: now,
     })
   })

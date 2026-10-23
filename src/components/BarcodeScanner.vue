@@ -11,7 +11,7 @@ import { perf, recordScanFrame } from '../services/perf'
 // - Un code n'est accepté que s'il est lu 2 fois de suite et que sa clé de contrôle est bonne :
 //   cela évite presque toutes les erreurs de lecture.
 
-const props = defineProps<{ paused?: boolean }>()
+const props = defineProps<{ paused?: boolean; compact?: boolean }>()
 const emit = defineEmits<{ detected: [code: string]; resume: [] }>()
 
 type Detector = { detect(source: HTMLCanvasElement): Promise<{ rawValue: string }[]> }
@@ -207,7 +207,7 @@ defineExpose({ start, stop })
 
 <template>
   <div class="scanner">
-    <div class="viewport" :class="{ hidden: status !== 'running' && status !== 'starting' }">
+    <div class="viewport" :class="{ hidden: status !== 'running' && status !== 'starting', compact }">
       <video ref="video" muted playsinline></video>
       <div class="guide" :class="{ ok: !!flash }"></div>
       <div v-if="flash" class="flash">✓ {{ flash }}</div>
@@ -246,6 +246,9 @@ defineExpose({ start, stop })
   background: #000;
   border-radius: var(--radius);
   overflow: hidden;
+}
+.viewport.compact {
+  max-height: 26vh;
 }
 .viewport.hidden {
   display: none;

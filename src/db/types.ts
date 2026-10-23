@@ -75,6 +75,8 @@ export interface Cd {
   shelfOrder?: number
   /** Emplacement dans les meubles (rempli à l'étape 3). */
   location?: { furnitureId: string; slotId: string; position: number }
+  /** Date à laquelle le CD a été physiquement posé à son emplacement (mode rangement du scanner). */
+  shelvedAt?: number
   notes?: string
   createdAt: number
   updatedAt: number
