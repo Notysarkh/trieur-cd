@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { canonicalBarcode, isValidGtin } from '../lib/barcode'
 import { unlockAudio } from '../lib/feedback'
+import { perf, recordScanFrame } from '../services/perf'
 
 // Lecteur de code-barres par la caméra.
 //
@@ -13,7 +14,7 @@ import { unlockAudio } from '../lib/feedback'
 const props = defineProps<{ paused?: boolean }>()
 const emit = defineEmits<{ detected: [code: string]; resume: [] }>()
 
-type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> }
+type Detector = { detect(source: HTMLCanvasElement): Promise<{ rawValue: string }[]> }
 
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e']
 
@@ -26,7 +27,10 @@ function getDetector(): Promise<Detector> {
     if (Native) {
       try {
         const supported: string[] = await Native.getSupportedFormats()
-        if (supported.includes('ean_13')) return new Native({ formats: FORMATS }) as Detector
+        if (supported.includes('ean_13')) {
+          perf.scanner.engine = 'natif'
+          return new Native({ formats: FORMATS }) as Detector
+        }
       } catch {
         // on bascule sur ZXing
       }
@@ -36,6 +40,7 @@ function getDetector(): Promise<Detector> {
     prepareZXingModule({
       overrides: { locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? wasmUrl : prefix + path) },
     })
+    perf.scanner.engine = 'ZXing'
     return new BarcodeDetector({ formats: FORMATS as never }) as Detector
   })()
   return detectorPromise
@@ -100,19 +105,48 @@ function stop() {
   if (status.value !== 'error') status.value = 'idle'
 }
 
-/** Analyse une image toutes les 150 ms environ. */
+// Pour ménager le téléphone :
+// - on n'analyse que la bande centrale de l'image (là où est le cadre), réduite à 960 pixels de large ;
+// - on attend entre deux analyses au moins 2 fois le temps de la précédente (minimum 200 ms) :
+//   un téléphone lent analyse moins souvent au lieu d'être saturé ;
+// - on fait une pause d'1,5 s dès que tu touches l'écran ailleurs que sur la vidéo,
+//   pour que tes boutons répondent tout de suite.
+const crop = document.createElement('canvas')
+let pausedUntil = 0
+function onPointerDown(e: PointerEvent) {
+  if (!(e.target instanceof Element) || !e.target.closest('.viewport')) pausedUntil = Date.now() + 1500
+}
+
+/** Copie la bande centrale de l'image vidéo dans un petit canevas. */
+function grabBand(v: HTMLVideoElement): HTMLCanvasElement {
+  const vw = v.videoWidth
+  const vh = v.videoHeight
+  const cw = vw * 0.9
+  const ch = vh * 0.5
+  const scale = Math.min(1, 960 / cw)
+  crop.width = Math.round(cw * scale)
+  crop.height = Math.round(ch * scale)
+  crop.getContext('2d', { willReadFrequently: true })!.drawImage(v, vw * 0.05, vh * 0.25, cw, ch, 0, 0, crop.width, crop.height)
+  return crop
+}
+
 async function tick() {
   if (status.value !== 'running') return
   const v = video.value
-  if (!props.paused && v && v.readyState >= 2) {
+  let delay = 200
+  if (!props.paused && v && v.readyState >= 2 && v.videoWidth && Date.now() >= pausedUntil && !document.hidden) {
+    const start = performance.now()
     try {
       const detector = await getDetector()
-      handle((await detector.detect(v)).map((r) => r.rawValue))
+      handle((await detector.detect(grabBand(v))).map((r) => r.rawValue))
     } catch {
       // image illisible : on passe à la suivante
     }
+    const took = performance.now() - start
+    delay = Math.max(200, took * 2)
+    recordScanFrame(took, delay)
   }
-  timer = setTimeout(tick, 150)
+  timer = setTimeout(tick, delay)
 }
 
 function handle(rawCodes: string[]) {
@@ -158,9 +192,13 @@ function onVisibility() {
   }
 }
 
-onMounted(() => document.addEventListener('visibilitychange', onVisibility))
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibility)
+  document.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true })
+})
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibility)
+  document.removeEventListener('pointerdown', onPointerDown, { capture: true })
   stop()
 })
 
@@ -225,7 +263,7 @@ video {
   bottom: 32%;
   border: 3px solid rgba(255, 255, 255, 0.85);
   border-radius: 10px;
-  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
   transition: border-color 0.15s;
 }
 .guide.ok {

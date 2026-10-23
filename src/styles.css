@@ -51,6 +51,12 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Pas de délai ni de zoom au double-tap sur mobile : les boutons réagissent tout de suite. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -122,6 +128,10 @@ a {
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.92);
 }
 .btn:disabled {
   opacity: 0.5;

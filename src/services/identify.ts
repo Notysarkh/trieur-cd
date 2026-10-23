@@ -3,6 +3,7 @@ import { canonicalBarcode, sameBarcode } from '../lib/barcode'
 import { formatFromDiscogs, formatFromMusicBrainz } from '../lib/formats'
 import { cleanDiscogsArtist, guessSortName } from '../lib/sortName'
 import { normalizeText, similarity, titleCase, yearFrom } from '../lib/text'
+import type { Priority } from '../lib/throttle'
 import * as discogs from './discogs'
 import * as mb from './musicbrainz'
 import { settings } from './settings'
@@ -250,19 +251,19 @@ export async function identifyBarcode(rawBarcode: string): Promise<IdentifyResul
   const code = canonicalBarcode(rawBarcode)
 
   // 1. MusicBrainz : on ne garde que les éditions dont le code est exactement le bon.
-  const mbReleases = (await mb.searchReleasesByBarcode(code)).filter((r) => sameBarcode(r.barcode ?? '', code))
-
-  // 2. Discogs (si un jeton est configuré). Une panne Discogs ne bloque pas l'identification.
-  let dgResults: discogs.DgSearchResult[] = []
-  let discogsStatus: 'ok' | 'non_configure' | 'indisponible' = 'non_configure'
-  if (discogs.hasDiscogsToken()) {
-    try {
-      dgResults = await discogs.searchByBarcode(code)
-      discogsStatus = 'ok'
-    } catch {
-      discogsStatus = 'indisponible'
-    }
-  }
+  // 2. Discogs (si un jeton est configuré), interrogé EN MÊME TEMPS que MusicBrainz pour gagner du temps.
+  //    Une panne Discogs ne bloque pas l'identification.
+  type DiscogsAnswer = { status: 'ok' | 'non_configure' | 'indisponible'; results: discogs.DgSearchResult[] }
+  const discogsSearch: Promise<DiscogsAnswer> = discogs.hasDiscogsToken()
+    ? discogs.searchByBarcode(code).then(
+        (results) => ({ status: 'ok', results }),
+        () => ({ status: 'indisponible', results: [] }),
+      )
+    : Promise.resolve({ status: 'non_configure', results: [] })
+  const [mbAll, dg] = await Promise.all([mb.searchReleasesByBarcode(code), discogsSearch])
+  const dgResults = dg.results
+  const discogsStatus = dg.status
+  const mbReleases = mbAll.filter((r) => sameBarcode(r.barcode ?? '', code))
 
   const candidates: Candidate[] = []
 
@@ -322,20 +323,25 @@ export async function identifyBarcode(rawBarcode: string): Promise<IdentifyResul
  * l'année de première sortie de l'album (pour le tri chronologique) et ses genres.
  * Coûte une requête de plus, donc on ne le fait que pour la proposition retenue.
  */
-export async function enrichCandidate(c: Candidate): Promise<Candidate> {
+export async function enrichCandidate(c: Candidate, priority: Priority = 'normal'): Promise<Candidate> {
   const draft: CdDraft = { ...c.draft }
-  if (draft.mbReleaseGroupId) {
-    const rg = await mb.lookupReleaseGroup(draft.mbReleaseGroupId)
+  // Les demandes à MusicBrainz et à Discogs partent en même temps ; on applique ensuite les réponses dans l'ordre.
+  const [rg, master, dgText] = await Promise.all([
+    draft.mbReleaseGroupId ? mb.lookupReleaseGroup(draft.mbReleaseGroupId, priority) : null,
+    !draft.mbReleaseGroupId && draft.discogsMasterId && discogs.hasDiscogsToken()
+      ? discogs.getMaster(draft.discogsMasterId, priority)
+      : null,
+    // Discogs ne connaît pas ce code-barres : on cherche l'album par artiste + titre pour ses styles.
+    needsDiscogsText(draft) ? discogs.searchByText(draft.artist, draft.title, priority).catch(() => null) : null,
+  ])
+  if (rg) {
     draft.year = yearFrom(rg['first-release-date']) ?? draft.year
     if (rg['secondary-types']?.length) draft.releaseTypes = rg['secondary-types']
     if (!draft.genres.length) draft.genres = topNames(rg.genres, 3)
     if (!draft.styles.length) draft.styles = topNames(rg.tags, 5)
-  } else if (draft.discogsMasterId && discogs.hasDiscogsToken()) {
-    const master = await discogs.getMaster(draft.discogsMasterId)
-    draft.year = master.year || draft.year
   }
-  // Discogs ne connaît pas ce code-barres : on cherche l'album par artiste + titre pour ses styles.
-  await completeWithDiscogs(draft)
+  if (master) draft.year = master.year || draft.year
+  if (dgText) applyDiscogsText(draft, dgText)
   // Le genre a pu être trouvé entre-temps : on recalcule la confiance.
   if (c.factors) return { ...makeCandidate(c.key, draft, { ...c.factors, hasGenre: hasGenre(draft) }), enriched: true }
   return { key: c.key, draft, enriched: true }
@@ -347,19 +353,28 @@ export async function enrichCandidate(c: Candidate): Promise<Candidate> {
  * Ne touche pas à l'indice de confiance (ce n'est pas une confirmation du code-barres).
  */
 export async function completeWithDiscogs(draft: CdDraft): Promise<boolean> {
-  if (!discogs.hasDiscogsToken() || draft.discogsReleaseId || draft.discogsMasterId || draft.isCompilation) return false
-  if (!draft.artist || draft.artist === 'Inconnu') return false
+  if (!needsDiscogsText(draft)) return false
   try {
-    const results = await discogs.searchByText(draft.artist, draft.title)
-    // Mémorise que la recherche a été faite, pour que « Compléter » ne la refasse pas.
-    draft.discogsCheckedAt = Date.now()
-    const match = findDiscogsMatch(draft, results)
-    if (!match) return false
-    mergeDiscogs(draft, match)
-    return true
+    return applyDiscogsText(draft, await discogs.searchByText(draft.artist, draft.title))
   } catch {
     return false
   }
+}
+
+/** Une recherche Discogs par artiste + titre serait-elle utile pour cette fiche ? */
+function needsDiscogsText(draft: CdDraft): boolean {
+  if (!discogs.hasDiscogsToken() || draft.discogsReleaseId || draft.discogsMasterId || draft.isCompilation) return false
+  return !!draft.artist && draft.artist !== 'Inconnu'
+}
+
+/** Applique le résultat d'une recherche Discogs par artiste + titre. Renvoie vrai si la fiche a été complétée. */
+function applyDiscogsText(draft: CdDraft, results: discogs.DgSearchResult[]): boolean {
+  // Mémorise que la recherche a été faite, pour que « Compléter » ne la refasse pas.
+  draft.discogsCheckedAt = Date.now()
+  const match = findDiscogsMatch(draft, results)
+  if (!match) return false
+  mergeDiscogs(draft, match)
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +384,7 @@ export async function completeWithDiscogs(draft: CdDraft): Promise<boolean> {
 export async function searchByText(artist: string, title: string): Promise<Candidate[]> {
   const [mbGroups, dgResults] = await Promise.all([
     mb.searchReleaseGroups(artist, title),
-    discogs.hasDiscogsToken() ? discogs.searchByText(artist, title).catch(() => []) : Promise.resolve([]),
+    discogs.hasDiscogsToken() ? discogs.searchByText(artist, title, 'high').catch(() => []) : Promise.resolve([]),
   ])
   const candidates: Candidate[] = []
   const usedDiscogs = new Set<number>()

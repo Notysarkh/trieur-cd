@@ -34,6 +34,17 @@ const counts = computed(() => {
   return c
 })
 
+// Texte de recherche de chaque CD, préparé une seule fois (et non à chaque lettre tapée).
+const haystacks = computed(
+  () =>
+    new Map(
+      cds.value.map((cd) => [
+        cd.id,
+        normalizeText([cd.artist, cd.artistSort, cd.title, cd.label, ...cd.genres, ...cd.styles, cd.year].join(' ')),
+      ]),
+    ),
+)
+
 const filtered = computed(() => {
   const status = props.reviewMode ? 'a_verifier' : statusFilter.value
   const q = normalizeText(search.value)
@@ -44,9 +55,7 @@ const filtered = computed(() => {
     // Recherche sur l'artiste, le titre, le label, les genres… et le code-barres.
     list = list.filter((cd) => {
       if (qDigits.length >= 5 && cd.barcode?.includes(qDigits)) return true
-      const haystack = normalizeText(
-        [cd.artist, cd.artistSort, cd.title, cd.label, ...cd.genres, ...cd.styles, cd.year].join(' '),
-      )
+      const haystack = haystacks.value.get(cd.id) ?? ''
       return q.split(' ').every((word) => haystack.includes(word))
     })
   }

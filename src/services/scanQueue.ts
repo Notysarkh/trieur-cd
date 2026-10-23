@@ -104,7 +104,8 @@ async function enrichChosen(item: ScanItem): Promise<void> {
   if (!chosen || chosen.enriched) return
   let enriched: Candidate
   try {
-    enriched = await enrichCandidate(chosen)
+    // Un choix que tu viens de faire passe avant le reste de la file.
+    enriched = await enrichCandidate(chosen, item.chosenByUser ? 'high' : 'normal')
   } catch {
     // Pas grave : on garde les infos déjà obtenues (l'année sera celle de l'édition).
     enriched = { ...chosen, enriched: true }

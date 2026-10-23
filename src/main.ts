@@ -4,10 +4,12 @@ import { router } from './router'
 import { loadSettings } from './services/settings'
 import { recoverQueue } from './services/scanQueue'
 import { requestPersistentStorage } from './db/database'
+import { startPerfMonitoring } from './services/perf'
 import './styles.css'
 
 // Point de départ de l'appli : on charge les réglages, puis on affiche l'interface.
 async function start() {
+  startPerfMonitoring()
   await loadSettings()
   createApp(App).use(router).mount('#app')
   // Reprend les identifications laissées en suspens à la dernière fermeture.

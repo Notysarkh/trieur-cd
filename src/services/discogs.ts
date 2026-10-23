@@ -1,5 +1,5 @@
 import { barcodeVariants } from '../lib/barcode'
-import { Throttle, throttledJson } from '../lib/throttle'
+import { Throttle, throttledJson, type Priority } from '../lib/throttle'
 import { settings } from './settings'
 
 // Accès à Discogs (https://www.discogs.com), qui a des genres/styles plus fins que MusicBrainz
@@ -9,7 +9,8 @@ import { settings } from './settings'
 // - Limite Discogs : 60 requêtes par minute → on espace les appels d'1 seconde.
 
 const API = 'https://api.discogs.com'
-const throttle = new Throttle(1000)
+/** File d'attente Discogs (exportée pour le diagnostic). */
+export const dgThrottle = new Throttle(1000)
 
 export interface DgSearchResult {
   id: number
@@ -40,11 +41,14 @@ export function hasDiscogsToken(): boolean {
   return settings.discogsToken.trim().length > 0
 }
 
-function get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+function get<T>(path: string, params: Record<string, string> = {}, priority: Priority = 'normal'): Promise<T> {
   const query = new URLSearchParams(params)
-  return throttledJson<T>(throttle, `${API}${path}${query.size ? '?' + query : ''}`, {
-    headers: { Authorization: `Discogs token=${settings.discogsToken.trim()}` },
-  })
+  return throttledJson<T>(
+    dgThrottle,
+    `${API}${path}${query.size ? '?' + query : ''}`,
+    { headers: { Authorization: `Discogs token=${settings.discogsToken.trim()}` } },
+    priority,
+  )
 }
 
 /** Éditions Discogs pour ce code-barres. On essaie les deux écritures (avec/sans 0 initial). */
@@ -62,29 +66,33 @@ export async function searchByBarcode(barcode: string): Promise<DgSearchResult[]
 }
 
 /** Recherche d'albums (« masters ») par artiste et titre ; à défaut, d'éditions. */
-export async function searchByText(artist: string, title: string): Promise<DgSearchResult[]> {
+export async function searchByText(
+  artist: string,
+  title: string,
+  priority: Priority = 'normal',
+): Promise<DgSearchResult[]> {
   const params: Record<string, string> = { per_page: '15' }
   if (artist.trim()) params.artist = artist.trim()
   if (title.trim()) params.release_title = title.trim()
-  const masters = await get<{ results?: DgSearchResult[] }>('/database/search', { ...params, type: 'master' })
+  const masters = await get<{ results?: DgSearchResult[] }>('/database/search', { ...params, type: 'master' }, priority)
   if (masters.results?.length) return masters.results
-  const releases = await get<{ results?: DgSearchResult[] }>('/database/search', {
-    ...params,
-    type: 'release',
-    format: 'CD',
-  })
+  const releases = await get<{ results?: DgSearchResult[] }>(
+    '/database/search',
+    { ...params, type: 'release', format: 'CD' },
+    priority,
+  )
   return releases.results ?? []
 }
 
 /** Fiche « master » (l'album, toutes éditions confondues) : donne l'année de sortie d'origine. */
-export function getMaster(id: number): Promise<DgMaster> {
-  return get<DgMaster>(`/masters/${id}`)
+export function getMaster(id: number, priority: Priority = 'normal'): Promise<DgMaster> {
+  return get<DgMaster>(`/masters/${id}`, {}, priority)
 }
 
 /** Vérifie que le jeton fonctionne (utilisé dans les Réglages). */
 export async function testToken(): Promise<boolean> {
   try {
-    await get('/oauth/identity')
+    await get('/oauth/identity', {}, 'high')
     return true
   } catch {
     return false

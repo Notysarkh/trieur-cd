@@ -82,4 +82,19 @@ describe('file d’attente espacée', () => {
     expect(times[1] - times[0]).toBeGreaterThanOrEqual(45)
     expect(times[2] - times[1]).toBeGreaterThanOrEqual(45)
   })
+
+  it('fait passer tes demandes avant le travail de fond', async () => {
+    const throttle = new Throttle(20)
+    const order: string[] = []
+    const job = (name: string) => async () => void order.push(name)
+    const all = [
+      throttle.run(job('fond 1')),
+      throttle.run(job('fond 2')),
+      throttle.run(job('fond 3')),
+      throttle.run(job('toi'), 'high'),
+    ]
+    await Promise.all(all)
+    // « fond 1 » était déjà parti ; ta demande passe juste après.
+    expect(order).toEqual(['fond 1', 'toi', 'fond 2', 'fond 3'])
+  })
 })

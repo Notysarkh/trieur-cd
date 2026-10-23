@@ -1,5 +1,5 @@
 import { barcodeVariants } from '../lib/barcode'
-import { Throttle, throttledJson } from '../lib/throttle'
+import { Throttle, throttledJson, type Priority } from '../lib/throttle'
 
 // Accès à MusicBrainz (https://musicbrainz.org), la base musicale libre.
 //
@@ -11,7 +11,8 @@ import { Throttle, throttledJson } from '../lib/throttle'
 //   le nôtre passe. Le vrai garde-fou, c'est la limite par adresse IP, que la file respecte.
 
 const API = 'https://musicbrainz.org/ws/2'
-const throttle = new Throttle(1100)
+/** File d'attente MusicBrainz (exportée pour le diagnostic). */
+export const mbThrottle = new Throttle(1100)
 
 /** Identifiant MusicBrainz réservé aux compilations multi-artistes. */
 export const VARIOUS_ARTISTS_ID = '89ad4ac3-39f7-470e-963a-56509c546377'
@@ -57,9 +58,9 @@ export interface MbReleaseGroup {
   genres?: MbTag[]
 }
 
-function get<T>(path: string, params: Record<string, string>): Promise<T> {
+function get<T>(path: string, params: Record<string, string>, priority: Priority = 'normal'): Promise<T> {
   const query = new URLSearchParams({ ...params, fmt: 'json' })
-  return throttledJson<T>(throttle, `${API}/${path}?${query}`, { headers: { Accept: 'application/json' } })
+  return throttledJson<T>(mbThrottle, `${API}/${path}?${query}`, { headers: { Accept: 'application/json' } }, priority)
 }
 
 /** Échappe un texte pour la recherche MusicBrainz (syntaxe Lucene). */
@@ -80,16 +81,17 @@ export async function searchReleaseGroups(artist: string, title: string): Promis
   if (title.trim()) parts.push(`releasegroup:${quote(title.trim())}`)
   if (artist.trim()) parts.push(`artist:${quote(artist.trim())}`)
   if (!parts.length) return []
-  const data = await get<{ 'release-groups'?: MbReleaseGroup[] }>('release-group/', {
-    query: parts.join(' AND '),
-    limit: '15',
-  })
+  const data = await get<{ 'release-groups'?: MbReleaseGroup[] }>(
+    'release-group/',
+    { query: parts.join(' AND '), limit: '15' },
+    'high',
+  )
   return data['release-groups'] ?? []
 }
 
 /** Détails d'un album : date de première sortie et genres. */
-export function lookupReleaseGroup(id: string): Promise<MbReleaseGroup> {
-  return get<MbReleaseGroup>(`release-group/${id}`, { inc: 'genres+tags+artist-credits' })
+export function lookupReleaseGroup(id: string, priority: Priority = 'normal'): Promise<MbReleaseGroup> {
+  return get<MbReleaseGroup>(`release-group/${id}`, { inc: 'genres+tags+artist-credits' }, priority)
 }
 
 export interface MbArtist {

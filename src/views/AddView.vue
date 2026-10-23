@@ -3,9 +3,9 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CdForm from '../components/CdForm.vue'
 import CoverImage from '../components/CoverImage.vue'
+import PhotoCapture from '../components/PhotoCapture.vue'
 import { db } from '../db/database'
 import type { Candidate, CdDraft } from '../db/types'
-import { photoToThumbnail } from '../lib/image'
 import { FORMAT_LABELS } from '../lib/formats'
 import { addCd, updateCd } from '../services/collection'
 import { hasDiscogsToken } from '../services/discogs'
@@ -45,10 +45,6 @@ if (cdId) {
   })
 }
 
-async function onPhoto(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) photo.value = await photoToThumbnail(file)
-}
 
 async function search() {
   if (!artist.value.trim() && !title.value.trim()) return
@@ -69,7 +65,7 @@ const picking = ref<string>()
 
 async function pick(c: Candidate) {
   picking.value = c.key
-  const full = await enrichCandidate(c).catch(() => c)
+  const full = await enrichCandidate(c, 'high').catch(() => c)
   picking.value = undefined
   draft.value = {
     ...full.draft,
@@ -129,13 +125,8 @@ async function save() {
       <section class="card stack">
         <h2>1. Photo de la pochette (facultatif)</h2>
         <p class="muted small">Elle te servira de repère et remplacera la pochette si aucune n'est trouvée en ligne.</p>
-        <div class="row">
-          <CoverImage v-if="photo" :photo="photo" :size="96" label="Photo" />
-          <label class="btn">
-            📷 {{ photo ? 'Reprendre la photo' : 'Prendre une photo' }}
-            <input type="file" accept="image/*" capture="environment" hidden @change="onPhoto" />
-          </label>
-        </div>
+        <CoverImage v-if="photo" :photo="photo" :size="96" label="Photo" />
+        <PhotoCapture :has-photo="!!photo" @photo="photo = $event" />
       </section>
 
       <section class="card stack">

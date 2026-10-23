@@ -9,6 +9,7 @@ import { buildCsv, importCsv } from '../services/csvExport'
 import { testToken } from '../services/discogs'
 import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
+import DiagnosticPanel from '../components/DiagnosticPanel.vue'
 
 // Réglages : jeton Discogs, épaisseurs, sauvegarde, effacement.
 
@@ -227,6 +228,8 @@ async function wipeAll() {
       <p class="small muted">Ne s'applique qu'aux CD ajoutés ensuite (chaque fiche garde son épaisseur, modifiable).</p>
       <button class="btn btn-small" @click="resetThickness">Valeurs par défaut</button>
     </section>
+
+    <DiagnosticPanel />
 
     <section class="card stack">
       <h2>Effacer</h2>
