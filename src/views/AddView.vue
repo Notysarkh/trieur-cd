@@ -34,6 +34,7 @@ const title = ref('')
 const searching = ref(false)
 const searchError = ref('')
 const results = ref<Candidate[] | null>(null)
+const searchWarnings = ref<string[]>([])
 
 // Si on corrige un CD existant, on pré-remplit la recherche avec ce qu'on sait déjà.
 if (cdId) {
@@ -50,8 +51,11 @@ async function search() {
   if (!artist.value.trim() && !title.value.trim()) return
   searching.value = true
   searchError.value = ''
+  searchWarnings.value = []
   try {
-    results.value = await searchByText(artist.value, title.value)
+    const found = await searchByText(artist.value, title.value)
+    results.value = found.candidates
+    searchWarnings.value = found.warnings
   } catch (e) {
     searchError.value = e instanceof Error ? e.message : 'Recherche impossible.'
   } finally {
@@ -139,7 +143,8 @@ async function save() {
           </button>
         </form>
         <p v-if="!hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
-        <p v-if="searchError" class="notice notice-danger">{{ searchError }}</p>
+        <p v-if="searchError" class="notice notice-danger">{{ searchError }} Réessaie dans quelques secondes.</p>
+        <p v-for="w in searchWarnings" :key="w" class="notice notice-warn small">{{ w }} Résultats partiels.</p>
 
         <template v-if="results">
           <p v-if="!results.length" class="notice">Aucun résultat. Essaie avec moins de mots, ou passe à la saisie manuelle.</p>

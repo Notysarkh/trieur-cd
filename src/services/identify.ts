@@ -381,11 +381,25 @@ function applyDiscogsText(draft: CdDraft, results: discogs.DgSearchResult[]): bo
 // Recherche texte (plan B quand il n'y a pas de code-barres)
 // ---------------------------------------------------------------------------
 
-export async function searchByText(artist: string, title: string): Promise<Candidate[]> {
-  const [mbGroups, dgResults] = await Promise.all([
+export interface TextSearchResult {
+  candidates: Candidate[]
+  /** Problèmes rencontrés (ex. MusicBrainz surchargé), à afficher. */
+  warnings: string[]
+}
+
+export async function searchByText(artist: string, title: string): Promise<TextSearchResult> {
+  // Les deux bases sont interrogées en même temps ; si l'une échoue, on garde les résultats de l'autre.
+  const [mbAnswer, dgAnswer] = await Promise.allSettled([
     mb.searchReleaseGroups(artist, title),
-    discogs.hasDiscogsToken() ? discogs.searchByText(artist, title, 'high').catch(() => []) : Promise.resolve([]),
+    discogs.hasDiscogsToken() ? discogs.searchByText(artist, title, 'high') : Promise.resolve([]),
   ])
+  const warnings: string[] = []
+  const reason = (r: PromiseRejectedResult) => (r.reason instanceof Error ? r.reason.message : 'erreur')
+  if (mbAnswer.status === 'rejected') warnings.push(`MusicBrainz n'a pas répondu (${reason(mbAnswer)}).`)
+  if (dgAnswer.status === 'rejected') warnings.push(`Discogs n'a pas répondu (${reason(dgAnswer)}).`)
+  if (mbAnswer.status === 'rejected' && dgAnswer.status === 'rejected') throw new Error(warnings.join(' '))
+  const mbGroups = mbAnswer.status === 'fulfilled' ? mbAnswer.value : []
+  const dgResults = dgAnswer.status === 'fulfilled' ? dgAnswer.value : []
   const candidates: Candidate[] = []
   const usedDiscogs = new Set<number>()
   for (const rg of mbGroups) {
@@ -401,5 +415,5 @@ export async function searchByText(artist: string, title: string): Promise<Candi
   for (const d of dgResults) {
     if (!usedDiscogs.has(d.id)) candidates.push(makeCandidate(`dg:${d.id}`, draftFromDiscogs(d)))
   }
-  return candidates
+  return { candidates, warnings }
 }

@@ -84,29 +84,44 @@ export class HttpError extends Error {
   }
 }
 
+/** Au-delà de ce délai, on abandonne une requête (service qui ne répond plus). */
+const TIMEOUT_MS = 12_000
+
 /**
  * Appelle une adresse en passant par la file `throttle`.
- * Si le service répond « trop de requêtes » (503 ou 429), on patiente puis on réessaie (3 fois max).
+ * Si le service répond « surchargé » (503 ou 429), on patiente puis on réessaie :
+ * 3 fois pour le travail de fond, 1 seule fois quand c'est toi qui attends (priorité haute),
+ * pour ne pas te laisser 12 secondes devant un écran figé.
  */
 export async function throttledJson<T>(
   throttle: Throttle,
   url: string,
   init: RequestInit = {},
   priority: Priority = 'normal',
-  retries = 3,
+  retries = priority === 'high' ? 1 : 3,
 ): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await throttle.run(
       () =>
-        fetch(url, init).catch(() => {
-          throw new Error('Pas de réponse du service (connexion internet ?)')
+        fetch(url, {
+          ...init,
+          signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(TIMEOUT_MS) : undefined,
+        }).catch((e: unknown) => {
+          throw new Error(
+            e instanceof DOMException && e.name === 'TimeoutError'
+              ? 'Le service met trop de temps à répondre.'
+              : 'Pas de réponse du service (connexion internet ?)',
+          )
         }),
       priority,
     )
     if (res.ok) return (await res.json()) as T
     if ((res.status === 503 || res.status === 429) && attempt < retries) {
-      await sleep(2000 * (attempt + 1))
+      await sleep((priority === 'high' ? 1500 : 2000) * (attempt + 1))
       continue
+    }
+    if (res.status === 503 || res.status === 429) {
+      throw new HttpError(res.status, 'Le service est surchargé pour le moment.')
     }
     throw new HttpError(res.status, `Le service a répondu ${res.status} (${res.statusText || 'erreur'})`)
   }
