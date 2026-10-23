@@ -4,6 +4,24 @@ Application web installable (PWA) pour scanner ses CD, les identifier automatiqu
 
 Tout fonctionne **dans le navigateur** : pas de serveur, pas de compte, données stockées sur l'appareil.
 
+**Adresse de l'appli : https://notysarkh.github.io/trieur-cd/**
+
+## Installer l'appli sur le téléphone
+
+- **Android (Chrome)** : ouvre l'adresse ci-dessus, menu ⋮ → *Installer l'application* (ou *Ajouter à l'écran d'accueil*).
+- **iPhone (Safari)** : ouvre l'adresse, bouton *Partager* (carré avec une flèche) → *Sur l'écran d'accueil*.
+
+L'appli s'ouvre alors en plein écran comme une vraie application et fonctionne hors ligne pour la consultation (il faut internet pour identifier les CD).
+
+À savoir :
+- les données restent sur chaque appareil : le téléphone et le PC ont chacun leur collection. Pour passer de l'un à l'autre : Réglages → *Exporter*, puis *Importer* sur l'autre appareil ;
+- le jeton Discogs se saisit sur chaque appareil (il n'est jamais transféré) ;
+- l'adresse en ligne et la version de développement (localhost) sont deux « appareils » différents : leurs données ne se mélangent pas.
+
+## Mettre à jour l'appli en ligne
+
+Chaque modification envoyée sur GitHub (branche `main`) est testée puis publiée automatiquement en 2 minutes environ (onglet *Actions* du dépôt https://github.com/Notysarkh/trieur-cd). L'appli installée se met à jour toute seule à la prochaine ouverture.
+
 ## Où en est le projet
 
 | Étape | Contenu | État |
@@ -40,7 +58,7 @@ npm run dev:phone
 3. Si Windows demande d'autoriser Node.js sur le réseau, accepte pour les **réseaux privés**.
 4. Onglet **Scanner** → *Démarrer la caméra* → autorise la caméra.
 
-Limite de ce mode de test : à cause du certificat « maison », le téléphone refusera d'**installer** l'appli et de la faire marcher **hors ligne**. Ces deux fonctions ne marcheront qu'une fois l'appli mise en ligne gratuitement sur GitHub Pages (le fichier `.github/workflows/deploy.yml` est déjà prêt). Le mode hors ligne a été vérifié sur PC, avec `npm run build` puis `npm run preview`.
+Limite de ce mode de test : à cause du certificat « maison », le téléphone refusera d'**installer** l'appli et de la faire marcher **hors ligne**. Pour ces deux fonctions, utilise l'adresse en ligne ci-dessus. Le mode hors ligne a été vérifié sur PC, avec `npm run build` puis `npm run preview`.
 
 ## Classement (étape 2)
 
