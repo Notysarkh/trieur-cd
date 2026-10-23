@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Icône de l'appli : un CD stylisé sur fond bleu nuit -->
+  <rect width="512" height="512" rx="96" fill="#1d2740"/>
+  <circle cx="256" cy="256" r="170" fill="#e8b04b"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#1d2740" stroke-opacity=".18" stroke-width="10"/>
+  <circle cx="256" cy="256" r="110" fill="none" stroke="#1d2740" stroke-opacity=".18" stroke-width="10"/>
+  <circle cx="256" cy="256" r="52" fill="#f5f2ea"/>
+  <circle cx="256" cy="256" r="20" fill="#1d2740"/>
+</svg>

@@ -1,0 +1,321 @@
+/* Styles communs de l'appli. Pensés d'abord pour le téléphone (gros boutons), puis élargis pour le PC. */
+
+:root {
+  --bg: #f5f2ea;
+  --surface: #ffffff;
+  --surface-2: #ece7db;
+  --text: #1b1f2a;
+  --muted: #5d6475;
+  --border: #d9d2c3;
+  --primary: #1d2740;
+  --primary-text: #ffffff;
+  --accent: #e8b04b;
+  --ok: #2f7d4f;
+  --ok-bg: #e2f2e7;
+  --warn: #9a5b00;
+  --warn-bg: #fdf0d6;
+  --danger: #b3261e;
+  --danger-bg: #fbe3e1;
+  --info-bg: #e3e9f6;
+  --radius: 12px;
+  --nav-height: 64px;
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151d;
+    --surface: #1b2030;
+    --surface-2: #252b3d;
+    --text: #eceef3;
+    --muted: #a3a9b8;
+    --border: #333a50;
+    --primary: #e8b04b;
+    --primary-text: #12151d;
+    --ok: #7fd19c;
+    --ok-bg: #1d3427;
+    --warn: #f3c46b;
+    --warn-bg: #3a2e14;
+    --danger: #ff8a80;
+    --danger-bg: #3d1d1b;
+    --info-bg: #222b42;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0.25rem 0 1rem;
+}
+h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+a {
+  color: inherit;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 16px calc(var(--nav-height) + 32px + env(safe-area-inset-bottom));
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.875rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Boutons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn-big {
+  min-height: 64px;
+  font-size: 1.15rem;
+  width: 100%;
+}
+.btn-small {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.875rem;
+}
+
+/* Champs de saisie */
+label.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+}
+input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  accent-color: var(--primary);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-grid .full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Pastilles de statut */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.badge-info {
+  background: var(--info-bg);
+  color: var(--text);
+}
+
+/* Messages */
+.notice {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--info-bg);
+}
+.notice-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.notice-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.notice-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Listes de CD */
+.cd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cd-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+}
+.cd-row .title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-row .artist {
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Puces de filtre */
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Impression (plan de rangement, étiquettes) : fond blanc, pas de barre de navigation ni de boutons. */
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f2f2f2;
+    --text: #000;
+    --muted: #444;
+    --border: #bbb;
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+  }
+  .tabbar,
+  .offline,
+  .no-print {
+    display: none !important;
+  }
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

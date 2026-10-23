@@ -1,0 +1,46 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "trieur-cd",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "trieur-cd-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173
+    },
+    {
+      "name": "trieur-cd-pages",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--base",
+        "/trieur-cd/",
+        "--port",
+        "4175",
+        "--strictPort"
+      ],
+      "port": 4175
+    }
+  ]
+}
