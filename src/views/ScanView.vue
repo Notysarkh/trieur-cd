@@ -54,8 +54,8 @@ const paused = ref(false)
 
 async function onCode(code: string) {
   if (mode.value === 'ranger') {
+    // La caméra se met en pause tant que la fiche « Où le ranger » est ouverte (voir @open).
     signal((await shelving.value?.handle(code)) ?? 'warn')
-    if (!settings.burstMode) paused.value = true
     return
   }
   const result = await addScan(code)
@@ -147,7 +147,7 @@ async function unknownToReview() {
       Mode rafale : la caméra reste active, les scans s'enchaînent
     </label>
 
-    <ShelvingPanel v-if="mode === 'ranger'" ref="shelving" @add="addFromShelving" />
+    <ShelvingPanel v-if="mode === 'ranger'" ref="shelving" @add="addFromShelving" @open="paused = $event" />
 
     <p v-if="message" class="notice" :class="message.cls" role="status">{{ message.text }}</p>
 

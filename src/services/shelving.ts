@@ -3,28 +3,24 @@ import type { Cd } from '../db/types'
 import { canonicalBarcode } from '../lib/barcode'
 import { findByBarcode } from './collection'
 
-// Mode « rangement » du scanner : on rescanne chaque CD de la pile, l'appli dit où le poser
-// et le compte comme rangé. Pratique après un scan d'inventaire de toute la collection.
+// Mode « rangement » du scanner : on rescanne chaque CD de la pile, l'appli ouvre sa fiche
+// « Où le ranger », et tu confirmes avec « Rangé ✓ ».
 
-export interface ShelvingResult {
+export interface ShelvingLookup {
   code: string
   /** Les CD de la collection qui portent ce code (souvent 1 ; 2 s'il y a un doublon). */
   cds: Cd[]
-  /** Le CD compté comme rangé par ce scan (le premier exemplaire pas encore rangé). */
-  shelved?: Cd
+  /** Le CD à ranger : le premier exemplaire pas encore rangé. */
+  target?: Cd
 }
 
-/** Cherche le CD scanné et le compte comme rangé s'il a un emplacement. */
-export async function shelveByBarcode(raw: string): Promise<ShelvingResult> {
+/** Cherche le CD scanné (sans rien modifier). */
+export async function lookupForShelving(raw: string): Promise<ShelvingLookup> {
   const code = canonicalBarcode(raw)
-  const cds = (await findByBarcode(code)).sort((a, b) => (a.location?.slotId ?? '').localeCompare(b.location?.slotId ?? ''))
-  // S'il y a plusieurs exemplaires, on range d'abord celui qui ne l'est pas encore.
-  const target = cds.find((c) => c.location && !c.shelvedAt) ?? cds.find((c) => c.location)
-  if (target && !target.shelvedAt) {
-    await setShelved(target.id, true)
-    target.shelvedAt = Date.now()
-  }
-  return { code, cds, shelved: target }
+  const cds = await findByBarcode(code)
+  // S'il y a plusieurs exemplaires, on propose d'abord celui qui n'est pas encore rangé.
+  const target = cds.find((c) => !c.shelvedAt) ?? cds[0]
+  return { code, cds, target }
 }
 
 /** Marque (ou démarque) un CD comme posé à sa place. */

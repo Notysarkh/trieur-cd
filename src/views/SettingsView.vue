@@ -204,6 +204,12 @@ async function wipeAll() {
         />
         Bip et vibration à chaque code lu
       </label>
+      <label class="field">
+        Fiche « Où le ranger » : nombre de CD affichés avant et après dans la liste théorique
+        <select :value="settings.whereWindow" @change="saveSetting('whereWindow', Number(($event.target as HTMLSelectElement).value))">
+          <option v-for="n in [1, 2, 3, 4, 5]" :key="n" :value="n">{{ n }} avant / {{ n }} après</option>
+        </select>
+      </label>
     </section>
 
     <section class="card stack">

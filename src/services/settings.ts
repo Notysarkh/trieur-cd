@@ -15,6 +15,8 @@ export interface Settings {
   burstMode: boolean
   /** Son et vibration à chaque code lu. */
   feedback: boolean
+  /** Fiche « Où le ranger » : nombre de CD affichés avant et après dans la liste théorique. */
+  whereWindow: number
   /** Règles de classement (thèmes, artistes forcés…). */
   classification: ClassificationRules
   /** Date du dernier classement appliqué (0 = jamais). */
@@ -32,6 +34,7 @@ const DEFAULTS: Settings = {
   thickness: { ...DEFAULT_THICKNESS },
   burstMode: true,
   feedback: true,
+  whereWindow: 2,
   classification: defaultRules(),
   classificationAppliedAt: 0,
   furniture: defaultFurniture(),

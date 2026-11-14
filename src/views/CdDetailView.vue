@@ -7,11 +7,9 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
 import { deleteCd, shelvedDate, updateCd } from '../services/collection'
-import LocationMap from '../components/LocationMap.vue'
-import { buildPlan } from '../classification/engine'
+import WhereToShelve from '../components/WhereToShelve.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import type { ArtistInfo } from '../db/types'
-import { insertionFor, locationLabel, placeCd } from '../services/layout'
+import { locationLabel } from '../services/layout'
 import { settings } from '../services/settings'
 
 // Fiche d'un CD : consultation et modification.
@@ -38,18 +36,7 @@ watch(
 )
 
 // --- Emplacement dans les meubles (lu en direct : se met à jour après « C'est rangé ») ---
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
-const artistInfos = useLiveQuery(
-  async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
-  new Map<string, ArtistInfo>(),
-)
-const live = computed(() => all.value.find((c) => c.id === props.id))
-const furnitureOf = computed(() => settings.furniture.find((f) => f.id === live.value?.location?.furnitureId))
-const plan = computed(() => buildPlan(all.value, settings.classification, artistInfos.value))
-const insertion = computed(() =>
-  live.value && !live.value.location && settings.layoutAppliedAt ? insertionFor(live.value, plan.value, all.value) : null,
-)
-const name = (cd: Cd | undefined) => (cd ? (cd.isCompilation ? cd.title : `${cd.artist} — ${cd.title}`) : '')
+const live = useLiveQuery(() => db.cds.get(props.id), undefined as Cd | undefined)
 
 const dirty = computed(() => JSON.stringify(original.value) !== JSON.stringify(edited.value))
 
@@ -84,26 +71,14 @@ async function remove() {
         </div>
       </div>
 
-      <section v-if="live?.location && furnitureOf" class="card where">
-        <LocationMap :furniture="furnitureOf" :slot-id="live.location.slotId" :position="live.location.position" />
-        <p>
-          <strong>📍 {{ locationLabel(live) }}</strong><br />
+      <details v-if="live && (live.location || settings.layoutAppliedAt)" class="card" :open="!live.shelvedAt">
+        <summary>
+          <strong>📦 Où le ranger</strong>
           <span v-if="live.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(live) }}</span>
-          <span v-else class="badge badge-warn">à ranger</span>
-        </p>
-      </section>
-      <section v-else-if="live && insertion" class="card stack">
-        <p>
-          <strong>Pas encore rangé.</strong> Glisse-le ici :<br />
-          📍 {{ insertion.slot.label }}, place n° {{ insertion.position }}
-          <template v-if="insertion.after"><br />juste après « {{ name(insertion.after) }} »</template>
-          <template v-if="insertion.before"><br />juste avant « {{ name(insertion.before) }} »</template>
-        </p>
-        <p v-if="!insertion.fits" class="notice notice-warn small">
-          Cette rangée est pleine : pousse son dernier CD au début de la rangée suivante.
-        </p>
-        <button class="btn btn-primary" @click="placeCd(live, insertion, plan)">✓ C'est rangé</button>
-      </section>
+          <span v-else-if="live.location" class="small muted"> · {{ locationLabel(live) }}</span>
+        </summary>
+        <WhereToShelve :cd-id="live.id" done-label="Fermer" class="embedded" />
+      </details>
 
       <div v-if="edited.status === 'a_verifier'" class="notice notice-warn stack">
         <span>À vérifier : {{ edited.confidenceReasons.join(' · ') }}</span>
