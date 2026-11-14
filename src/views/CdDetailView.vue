@@ -9,7 +9,8 @@ import type { Cd, CdStatus } from '../db/types'
 import { deleteCd, shelvedDate, updateCd } from '../services/collection'
 import WhereToShelve from '../components/WhereToShelve.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { locationLabel } from '../services/layout'
+import { computePlan } from '../services/classification'
+import { locationLabel, releasePlacement } from '../services/layout'
 import { settings } from '../services/settings'
 
 // Fiche d'un CD : consultation et modification.
@@ -40,10 +41,27 @@ const live = useLiveQuery(() => db.cds.get(props.id), undefined as Cd | undefine
 
 const dirty = computed(() => JSON.stringify(original.value) !== JSON.stringify(edited.value))
 
+const moved = ref(0)
+
 async function save(status?: CdStatus) {
-  if (!edited.value) return
+  if (!edited.value || !original.value) return
   if (status) edited.value.status = status
-  await updateCd(props.id, edited.value)
+  const before = original.value
+  // L'emplacement, le statut « rangé » et le thème appliqué sont gérés par le rangement :
+  // on ne les réécrit pas depuis le formulaire (ils ont pu changer pendant que la fiche était ouverte).
+  const { location, shelvedAt, themeId, shelfOrder, ...fields } = edited.value
+  await updateCd(props.id, fields)
+  const themeChoiceChanged =
+    before.themeOverride !== edited.value.themeOverride || !!before.personalCompilation !== !!edited.value.personalCompilation
+  moved.value = 0
+  if (themeChoiceChanged && settings.layoutAppliedAt) {
+    // Le CD change-t-il vraiment de thème par rapport au rangement appliqué ?
+    const plan = await computePlan()
+    const newTheme = plan.placement.get(props.id)?.themeId
+    if (newTheme && newTheme !== before.themeId) {
+      moved.value = await releasePlacement(edited.value, !edited.value.personalCompilation && !before.personalCompilation)
+    }
+  }
   original.value = clone(edited.value)
   saved.value = true
   setTimeout(() => (saved.value = false), 2500)
@@ -113,6 +131,10 @@ async function remove() {
       </p>
 
       <p v-if="saved" class="notice notice-ok" role="status">Modifications enregistrées.</p>
+      <p v-if="moved" class="notice notice-warn" role="status">
+        Changement de thème : {{ moved }} CD à déplacer. {{ moved > 1 ? 'Ils sont' : 'Il est' }} maintenant « à ranger » ; la
+        fiche « Où le ranger » indique la nouvelle place, sans rien décaler ailleurs.
+      </p>
 
       <div class="row">
         <button class="btn btn-danger" @click="remove">Supprimer</button>

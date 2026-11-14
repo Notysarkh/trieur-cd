@@ -45,7 +45,10 @@ const parts = computed(() => {
 })
 const furniture = computed(() => settings.furniture.find((f) => f.id === info.value?.slot.furnitureId))
 const theme = computed(() => {
-  const id = cd.value?.themeId
+  // Thème appliqué ; pour un CD ajouté (ou changé de thème) depuis, celui du classement actuel.
+  const id =
+    insertion.value?.plan.placement.get(props.cdId)?.themeId ??
+    cd.value?.themeId
   return (id && settings.classification.themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
 })
 

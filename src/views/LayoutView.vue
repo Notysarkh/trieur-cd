@@ -154,7 +154,7 @@ async function apply() {
         </p>
         <ul class="plain inserts">
           <li v-for="x in toInsert" :key="x.cd.id" class="stack">
-            <strong>{{ neighbour(x.cd) }}</strong>
+            <RouterLink :to="{ name: 'cd', params: { id: x.cd.id } }"><strong>{{ neighbour(x.cd) }}</strong></RouterLink>
             <template v-if="x.ins">
               <span class="small">
                 📍 {{ x.ins.slot.label }}, place n° {{ x.ins.position }}

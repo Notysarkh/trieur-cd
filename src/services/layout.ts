@@ -1,4 +1,4 @@
-import type { Plan } from '../classification/engine'
+import { artistKey, type Plan } from '../classification/engine'
 import { db } from '../db/database'
 import type { Cd } from '../db/types'
 import { buildSlots } from '../layout/furniture'
@@ -174,4 +174,26 @@ export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntr
     })
     .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1])
     .map((x) => x.entry)
+}
+
+/**
+ * Un CD (ou un artiste) change de thème après le rangement : son emplacement enregistré n'est plus le bon.
+ * On l'efface, ainsi que « rangé » : le CD passe « à ranger » et sa fiche propose la nouvelle place
+ * (insertion sans rien décaler ailleurs). Pour un artiste, tous ses CD suivent : il n'est jamais coupé en deux thèmes.
+ * Renvoie le nombre de CD à replacer.
+ */
+export async function releasePlacement(cd: Cd, wholeArtist: boolean): Promise<number> {
+  const key = artistKey(cd.artist)
+  const targets = wholeArtist
+    ? await db.cds
+        .filter((c) => !c.isCompilation && !c.personalCompilation && artistKey(c.artist) === key && !!c.location)
+        .toArray()
+    : cd.location
+      ? [cd]
+      : []
+  const now = Date.now()
+  await db.cds.bulkUpdate(
+    targets.map((c) => ({ key: c.id, changes: { location: undefined, shelvedAt: undefined, themeId: undefined, updatedAt: now } })),
+  )
+  return targets.length
 }

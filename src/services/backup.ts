@@ -20,6 +20,9 @@ interface BackupFile {
   /** Meubles et options de répartition (depuis l'étape 3). */
   furniture?: Furniture[]
   layout?: LayoutOptions
+  /** Date du rangement appliqué (v1.1) : les emplacements des CD en dépendent. */
+  layoutAppliedAt?: number
+  classificationAppliedAt?: number
 }
 
 /** Prépare le fichier de sauvegarde. */
@@ -32,6 +35,8 @@ export async function buildBackup(): Promise<File> {
     classification: JSON.parse(JSON.stringify(settings.classification)),
     furniture: JSON.parse(JSON.stringify(settings.furniture)),
     layout: { ...settings.layout },
+    layoutAppliedAt: settings.layoutAppliedAt,
+    classificationAppliedAt: settings.classificationAppliedAt,
   }
   const date = new Date().toISOString().slice(0, 10)
   return new File([JSON.stringify(data, null, 1)], `trieur-cd-${date}.json`, { type: 'application/json' })
@@ -65,6 +70,8 @@ export interface ImportReport {
   updated: number
   unchanged: number
   rulesReplaced: boolean
+  /** Le rangement appliqué sur l'autre appareil (meubles + emplacements) a été repris ici. */
+  layoutAdopted: boolean
 }
 
 /**
@@ -73,6 +80,9 @@ export interface ImportReport {
  * - un CD présent des deux côtés garde la version la plus récemment modifiée.
  * Rien n'est jamais supprimé par un import.
  * Les thèmes, règles de classement et meubles ne sont remplacés que si tu le demandes (case à cocher dans les Réglages).
+ * Exception : si AUCUN rangement n'a encore été appliqué sur cet appareil et que le fichier en contient un
+ * (cas typique : rangement préparé sur le PC, puis import sur le téléphone), on reprend automatiquement
+ * les meubles, les thèmes et le rangement du fichier : sans eux, les emplacements des CD ne voudraient rien dire.
  */
 export async function importBackup(file: File, replaceRules = false): Promise<ImportReport> {
   let data: BackupFile
@@ -87,7 +97,8 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if (data.version > VERSION) {
     throw new Error("Cette sauvegarde vient d'une version plus récente de l'appli : mets l'appli à jour.")
   }
-  const report: ImportReport = { added: 0, updated: 0, unchanged: 0, rulesReplaced: false }
+  const report: ImportReport = { added: 0, updated: 0, unchanged: 0, rulesReplaced: false, layoutAdopted: false }
+  const adoptLayout = !!data.layoutAppliedAt && (replaceRules || !settings.layoutAppliedAt)
   await db.transaction('rw', db.cds, async () => {
     for (const cd of data.cds) {
       if (!cd?.id) continue
@@ -103,14 +114,19 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
       }
     }
   })
-  if (replaceRules && data.classification?.themes?.length) {
+  if ((replaceRules || adoptLayout) && data.classification?.themes?.length) {
     await saveSetting('classification', data.classification)
     report.rulesReplaced = true
   }
-  if (replaceRules && data.furniture?.length) {
+  if ((replaceRules || adoptLayout) && data.furniture?.length) {
     await saveSetting('furniture', data.furniture)
     if (data.layout) await saveSetting('layout', data.layout)
     report.rulesReplaced = true
+  }
+  if (adoptLayout) {
+    await saveSetting('layoutAppliedAt', data.layoutAppliedAt!)
+    if (data.classificationAppliedAt) await saveSetting('classificationAppliedAt', data.classificationAppliedAt)
+    report.layoutAdopted = true
   }
   return report
 }

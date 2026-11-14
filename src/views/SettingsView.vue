@@ -62,7 +62,7 @@ async function importData(event: Event) {
   try {
     const r = await importBackup(file, replaceRules.value)
     backupMessage.value = {
-      text: `Import terminé : ${r.added} ajouté(s), ${r.updated} mis à jour, ${r.unchanged} inchangé(s).${r.rulesReplaced ? ' Thèmes, règles et meubles remplacés.' : ''}`,
+      text: `Import terminé : ${r.added} ajouté(s), ${r.updated} mis à jour, ${r.unchanged} inchangé(s).${r.layoutAdopted ? ' Rangement, meubles et thèmes de l’autre appareil repris.' : r.rulesReplaced ? ' Thèmes, règles et meubles remplacés.' : ''}`,
       cls: 'notice-ok',
     }
   } catch (e) {

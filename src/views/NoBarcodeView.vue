@@ -8,6 +8,7 @@ import { db } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { withoutBarcode } from '../services/collection'
+import { setShelved } from '../services/shelving'
 import { inShelfOrder, type ShelfEntry } from '../services/layout'
 import { settings } from '../services/settings'
 
@@ -28,7 +29,8 @@ const showShelved = ref(false)
 const search = ref('')
 
 const themeOf = (cd: Cd) => {
-  const id = cd.themeId ?? plan.value.placement.get(cd.id)?.themeId
+  // CD pas encore placé : le thème du classement actuel (son thème appliqué a pu changer depuis).
+  const id = (!cd.location && plan.value.placement.get(cd.id)?.themeId) || cd.themeId || plan.value.placement.get(cd.id)?.themeId
   return (id && settings.classification.themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
 }
 const name = (cd: Cd) => (cd.personalCompilation || cd.isCompilation ? cd.title : cd.artist)
@@ -74,7 +76,16 @@ function go(delta: number) {
   if (next) currentId.value = next.cd.id
 }
 /** Après « Rangé ✓ » : le CD suivant pas encore rangé dans la pile. */
+const lastDone = ref<Cd>()
+async function undoLast() {
+  if (!lastDone.value) return
+  await setShelved(lastDone.value.id, false)
+  currentId.value = lastDone.value.id
+  lastDone.value = undefined
+}
+
 function next(done: Cd) {
+  lastDone.value = done
   const list = pile.value
   const from = list.findIndex((e) => e.cd.id === done.id)
   const after = [...list.slice(from + 1), ...list.slice(0, from)].find((e) => !e.cd.shelvedAt && e.cd.id !== done.id)
@@ -148,9 +159,15 @@ function next(done: Cd) {
           <span class="grow center">CD <strong>{{ currentIndex + 1 }}</strong> / {{ pile.length }} de la pile</span>
           <button class="btn btn-small" :disabled="currentIndex >= pile.length - 1" @click="go(1)">▶</button>
         </div>
+        <button v-if="lastDone" class="btn btn-small undo" @click="undoLast">
+          ↩ Annuler le dernier : « {{ name(lastDone) }} »
+        </button>
         <WhereToShelve :key="current.cd.id" :cd-id="current.cd.id" done-label="CD suivant" @done="next" @close="step = 'trier'" />
       </template>
-      <p v-else class="notice notice-ok">Tous les CD sans code-barres de cette sélection sont rangés. 🎉</p>
+      <template v-else>
+        <p class="notice notice-ok">Tous les CD sans code-barres de cette sélection sont rangés. 🎉</p>
+        <button v-if="lastDone" class="btn btn-small" @click="undoLast">↩ Annuler le dernier : « {{ name(lastDone) }} »</button>
+      </template>
     </template>
   </main>
 </template>
@@ -220,6 +237,9 @@ function next(done: Cd) {
 .theme {
   color: var(--theme);
   font-weight: 700;
+}
+.undo {
+  align-self: flex-start;
 }
 .center {
   text-align: center;

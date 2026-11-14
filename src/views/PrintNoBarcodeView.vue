@@ -27,7 +27,8 @@ const entries = computed(() =>
   ),
 )
 const themeOf = (cd: Cd) => {
-  const id = cd.themeId ?? plan.value.placement.get(cd.id)?.themeId
+  // CD pas encore placé : le thème du classement actuel (son thème appliqué a pu changer depuis).
+  const id = (!cd.location && plan.value.placement.get(cd.id)?.themeId) || cd.themeId || plan.value.placement.get(cd.id)?.themeId
   return (id && settings.classification.themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
 }
 const print = () => window.print()
