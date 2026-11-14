@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { buildPlan, UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { withoutBarcode } from '../services/collection'
 import { inShelfOrder } from '../services/layout'
@@ -11,7 +11,7 @@ import { settings } from '../services/settings'
 // Liste imprimable des CD sans code-barres, dans l'ordre du rangement, avec une case à cocher par CD.
 // « Imprimer » ouvre la fenêtre d'impression : choisis « Enregistrer au format PDF » pour un fichier.
 
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

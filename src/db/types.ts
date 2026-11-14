@@ -1,3 +1,5 @@
+import type { MediaKind } from '../lib/media'
+
 // Description des données manipulées par l'appli.
 // Tout est stocké dans le navigateur (IndexedDB), rien ne part sur un serveur.
 
@@ -19,9 +21,11 @@ export type CdFormat =
 
 export type CdSource = 'musicbrainz' | 'discogs' | 'manuel'
 
-/** Un CD de la collection. */
+/** Un objet de la collection (CD, et en v2 : livre, film, jeu). */
 export interface Cd {
   id: string
+  /** Univers de la fiche (absent = CD, fiches d'avant la v2). */
+  media?: MediaKind
   barcode?: string
   artist: string
   /** Nom d'artiste d'origine quand il a été remplacé par sa forme en lettres latines (ex. « 植松伸夫 »). */

@@ -9,11 +9,15 @@ import { digitsOnly } from '../lib/barcode'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { shelvedDate } from '../services/collection'
 import { shortLocation } from '../services/layout'
+import { currentMedia } from '../services/settings'
+import { mediaOf } from '../lib/media'
 
 // « Où est ce CD ? » : tu tapes quelques lettres (même avec une faute), tu touches le CD,
 // et la fiche montre son emplacement et ses voisins (prévus par le plan et réellement posés).
 
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const everything = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+/** On cherche dans l'univers en cours. */
+const all = computed(() => everything.value.filter((c) => mediaOf(c) === currentMedia()))
 const query = ref('')
 const selectedId = ref<string>()
 const input = ref<HTMLInputElement>()

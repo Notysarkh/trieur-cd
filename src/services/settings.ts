@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import { db } from '../db/database'
 import { defaultRules, migrateRules, type ClassificationRules } from '../classification/themes'
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
+import type { MediaKind } from '../lib/media'
 import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
 // Les réglages de l'appli, gardés dans la base locale.
@@ -9,6 +10,8 @@ import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOp
 // et il n'est pas inclus dans les sauvegardes (exports).
 
 export interface Settings {
+  /** Dernier univers ouvert (rouvert au démarrage) ; vide = jamais choisi, on montre l'accueil. */
+  lastMedia: MediaKind | ''
   discogsToken: string
   thickness: ThicknessTable
   /** Mode rafale : la caméra reste allumée et les scans s'enchaînent. */
@@ -30,6 +33,7 @@ export interface Settings {
 }
 
 const DEFAULTS: Settings = {
+  lastMedia: '',
   discogsToken: '',
   thickness: { ...DEFAULT_THICKNESS },
   burstMode: true,
@@ -69,6 +73,11 @@ export function loadSettings(): Promise<void> {
     }
   })()
   return loaded
+}
+
+/** L'univers en cours (CD par défaut). */
+export function currentMedia(): MediaKind {
+  return settings.lastMedia || 'cd'
 }
 
 /** Modifie et enregistre un réglage. */

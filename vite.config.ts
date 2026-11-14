@@ -22,9 +22,9 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg'],
       manifest: {
-        name: 'Trieur à CD',
-        short_name: 'Trieur CD',
-        description: 'Scanner, identifier et ranger sa collection de CD.',
+        name: 'Mediamwa',
+        short_name: 'Mediamwa',
+        description: 'Scanner, identifier et ranger ses CD, livres, BD, films et jeux vidéo.',
         lang: 'fr',
         theme_color: '#1d2740',
         background_color: '#f5f2ea',

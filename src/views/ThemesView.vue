@@ -10,7 +10,7 @@ import {
   type ThemeSort,
 } from '../classification/themes'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { normalizeText } from '../lib/text'
 import { moveCdThemeChoices, resetRules, saveRules } from '../services/classification'
@@ -31,7 +31,7 @@ function commit() {
 }
 
 // Le plan actuel sert à afficher le nombre de CD par thème et les styles présents (pour scinder).
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

@@ -10,14 +10,18 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { normalizeText } from '../lib/text'
 import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
-import { settings } from '../services/settings'
+import { currentMedia, settings } from '../services/settings'
+import { mediaInfo, mediaOf } from '../lib/media'
 
 // Liste de la collection, avec recherche et filtres.
 // Le même écran sert pour « À vérifier » (reviewMode).
 
 const props = defineProps<{ reviewMode?: boolean }>()
 
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+/** Seulement les fiches de l'univers en cours (CD, livres…). */
+const cds = computed(() => all.value.filter((c) => mediaOf(c) === currentMedia()))
+const media = computed(() => mediaInfo(currentMedia()))
 
 const search = ref('')
 const statusFilter = ref<CdStatus | 'tous'>('tous')
@@ -94,11 +98,11 @@ async function confirm(cd: Cd) {
 <template>
   <main class="page stack">
     <div class="row">
-      <h1 class="grow">{{ reviewMode ? 'À vérifier' : 'Ma collection' }}</h1>
+      <h1 class="grow">{{ reviewMode ? 'À vérifier' : `Mes ${media.many}` }}</h1>
     </div>
     <div v-if="!reviewMode" class="row actions-row">
-      <RouterLink class="btn btn-primary grow" to="/ou-est">🔍 Où est ce CD ?</RouterLink>
-      <RouterLink class="btn btn-small" to="/ajouter">+ Ajouter sans code</RouterLink>
+      <RouterLink v-if="!media.comingInStep" class="btn btn-primary grow" to="/ou-est">🔍 Où est ce {{ media.one }} ?</RouterLink>
+      <RouterLink v-if="!media.comingInStep" class="btn btn-small" to="/ajouter">+ Ajouter sans code</RouterLink>
     </div>
 
     <p v-if="reviewMode" class="muted small">
@@ -106,9 +110,9 @@ async function confirm(cd: Cd) {
       si c'est bon.
     </p>
 
-    <input v-model="search" type="search" placeholder="Rechercher un artiste, un titre, un code-barres…" aria-label="Rechercher" />
+    <input v-if="!media.comingInStep" v-model="search" type="search" placeholder="Rechercher un artiste, un titre, un code-barres…" aria-label="Rechercher" />
 
-    <div v-if="!reviewMode" class="row">
+    <div v-if="!reviewMode && !media.comingInStep" class="row">
       <div class="chips full" role="group" aria-label="Filtrer par statut">
         <button class="chip" :class="{ active: statusFilter === 'tous' }" @click="statusFilter = 'tous'">
           Tous ({{ counts.tous }})
@@ -147,7 +151,7 @@ async function confirm(cd: Cd) {
       </select>
     </div>
 
-    <p class="muted small">{{ filtered.length }} CD</p>
+    <p v-if="!media.comingInStep" class="muted small">{{ filtered.length }} {{ filtered.length > 1 ? media.many : media.one }}</p>
 
     <ul class="cd-list">
       <li v-for="cd in visible" :key="cd.id">
@@ -183,7 +187,14 @@ async function confirm(cd: Cd) {
       Afficher plus ({{ filtered.length - limit }} restants)
     </button>
 
-    <div v-if="!cds.length" class="card stack">
+    <div v-if="!cds.length && media.comingInStep" class="card stack">
+      <p>
+        {{ media.icon }} L'univers <strong>{{ media.label }}</strong> arrive à l'étape {{ media.comingInStep }} de la version 2 :
+        scan, identification, classement et rangement.
+      </p>
+      <RouterLink to="/" class="btn">← Choisir un autre univers</RouterLink>
+    </div>
+    <div v-else-if="!cds.length" class="card stack">
       <p>Ta collection est vide pour l'instant.</p>
       <RouterLink to="/scan" class="btn btn-primary btn-big">📷 Scanner mes premiers CD</RouterLink>
     </div>

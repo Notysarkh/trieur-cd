@@ -46,7 +46,7 @@ const minutes = computed(() => Math.max(1, Math.round((now.value - perf.startedA
 /** Le diagnostic en texte, pour le copier-coller. */
 const report = computed(() =>
   [
-    `Trieur à CD — diagnostic du ${new Date(now.value).toLocaleString('fr-FR')}`,
+    `Mediamwa — diagnostic du ${new Date(now.value).toLocaleString('fr-FR')}`,
     `Appareil : ${device.value.ua}`,
     `Cœurs : ${device.value.cores} · mémoire : ${device.value.memory} · appli installée : ${device.value.installed}`,
     `Lecteur de codes-barres : ${perf.scanner.engine || 'pas encore utilisé'} · ${perf.scanner.frames} images · ` +

@@ -39,7 +39,7 @@ export async function buildBackup(): Promise<File> {
     classificationAppliedAt: settings.classificationAppliedAt,
   }
   const date = new Date().toISOString().slice(0, 10)
-  return new File([JSON.stringify(data, null, 1)], `trieur-cd-${date}.json`, { type: 'application/json' })
+  return new File([JSON.stringify(data, null, 1)], `mediamwa-${date}.json`, { type: 'application/json' })
 }
 
 /**
@@ -49,7 +49,7 @@ export async function buildBackup(): Promise<File> {
 export async function shareOrDownload(file: File): Promise<'partage' | 'telecharge'> {
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'Sauvegarde Trieur à CD' })
+      await navigator.share({ files: [file], title: 'Sauvegarde Mediamwa' })
       return 'partage'
     } catch (e) {
       // Partage annulé par l'utilisateur : on ne fait rien de plus.
@@ -92,7 +92,7 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
     throw new Error("Ce fichier n'est pas un fichier JSON lisible.")
   }
   if (data?.format !== FORMAT || !Array.isArray(data.cds)) {
-    throw new Error("Ce fichier n'est pas une sauvegarde du Trieur à CD.")
+    throw new Error("Ce fichier n'est pas une sauvegarde de Mediamwa (ou du Trieur à CD).")
   }
   if (data.version > VERSION) {
     throw new Error("Cette sauvegarde vient d'une version plus récente de l'appli : mets l'appli à jour.")

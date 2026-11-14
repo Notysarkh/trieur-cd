@@ -13,6 +13,7 @@ import { computePlan } from '../services/classification'
 import { locationLabel, releasePlacement } from '../services/layout'
 import { settings } from '../services/settings'
 import { groupKeyOf } from '../classification/engine'
+import { mediaOf } from '../lib/media'
 
 // Fiche d'un CD : consultation et modification.
 
@@ -58,7 +59,9 @@ async function save(status?: CdStatus) {
   const newSort = (edited.value.artistSort ?? '').trim()
   if (newSort && newSort !== before.artistSort && !before.isCompilation && !before.personalCompilation && !edited.value.personalCompilation) {
     const key = groupKeyOf(before)
-    const others = await db.cds.filter((c) => c.id !== props.id && groupKeyOf(c) === key).toArray()
+    const others = await db.cds
+      .filter((c) => c.id !== props.id && mediaOf(c) === mediaOf(before) && groupKeyOf(c) === key)
+      .toArray()
     const now = Date.now()
     await db.cds.bulkUpdate(others.map((c) => ({ key: c.id, changes: { artistSort: newSort, updatedAt: now } })))
     sortSpread.value = others.length
@@ -83,7 +86,7 @@ async function remove() {
   if (!edited.value) return
   if (!window.confirm(`Supprimer « ${edited.value.title} » de ta collection ?`)) return
   await deleteCd(props.id)
-  await router.push('/')
+  await router.push('/collection')
 }
 </script>
 

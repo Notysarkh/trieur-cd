@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { buildPlan, type PlanArtist, type PlanTheme } from '../classification/engine'
 import { UNCLASSIFIED } from '../classification/themes'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { normalizeText } from '../lib/text'
 import {
@@ -21,7 +21,7 @@ import { settings } from '../services/settings'
 
 // Écran « Classement » : l'appli propose un plan (thème → artiste → albums), tu l'ajustes, puis tu l'appliques.
 
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

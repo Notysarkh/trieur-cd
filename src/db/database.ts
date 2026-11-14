@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { cleanTags, latinArtistName } from '../lib/cleanup'
 import type { ArtistInfo, Cd, ScanItem, SettingRow } from './types'
+import { mediaOf, type MediaKind } from '../lib/media'
 
 // La base de données locale (IndexedDB, via la bibliothèque Dexie).
 // Quatre « tables » : la collection, la file de scan, les réglages,
@@ -48,6 +49,11 @@ db.version(3)
   )
 
 /** Crée un identifiant unique. */
+/** Les fiches d'un univers (les CD, les livres…). */
+export function itemsOf(media: MediaKind): Promise<Cd[]> {
+  return db.cds.filter((c) => mediaOf(c) === media).toArray()
+}
+
 export function newId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`

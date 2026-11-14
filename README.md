@@ -1,6 +1,6 @@
-# Trieur à CD
+# Mediamwa (anciennement « Trieur à CD »)
 
-Application web installable (PWA) pour scanner ses CD, les identifier automatiquement et, dans les prochaines étapes, les classer et les ranger dans ses meubles.
+Application web installable (PWA) pour scanner ses CD (et bientôt ses livres, BD, DVD / Blu-ray et jeux vidéo), les identifier automatiquement, les classer et les ranger dans ses meubles.
 
 Tout fonctionne **dans le navigateur** : pas de serveur, pas de compte, données stockées sur l'appareil.
 
@@ -112,6 +112,18 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 - **Épaisseur « double épais »** : 22 mm (mesurée).
 - **Réappliquer le rangement sans tout déplacer** : un CD déjà rangé qui reste dans la même rangée et dans le bon ordre garde son statut « rangé » ; seuls les autres repassent « à ranger ». L'écran Rangement l'annonce avant d'appliquer.
 - Mise à jour automatique des données existantes à l'ouverture (rien à faire).
+
+## Version 2 : Mediamwa
+
+Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, 📚 Livres / BD, 🎬 DVD / Blu-ray, 🎮 Jeux vidéo. Chaque univers a sa collection, son scanner, son classement et son rangement ; les réglages et la sauvegarde sont communs. Au démarrage, l'appli rouvre le dernier univers utilisé ; le bandeau en haut de l'écran ramène à l'accueil.
+
+| Étape | Contenu | État |
+|---|---|---|
+| A | Accueil et univers, nom « Mediamwa », tes CD dans l'univers CD sans rien changer | ✅ fait |
+| B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | à venir |
+| C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | à venir |
+| D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | à venir |
+| E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | à venir |
 
 ## Commandes utiles
 

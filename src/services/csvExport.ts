@@ -1,5 +1,5 @@
 import { UNCLASSIFIED_THEME } from '../classification/engine'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { Cd, CdDraft, CdFormat, CdStatus } from '../db/types'
 import { digitsOnly } from '../lib/barcode'
 import { parseCsv, toCsv } from '../lib/csv'
@@ -128,9 +128,9 @@ const COLUMNS: Column[] = [
   { header: 'Notes', get: (c) => c.notes, set: (d, v) => (d.notes = v) },
 ]
 
-/** Fichier CSV de toute la collection, dans l'ordre de rangement. */
+/** Fichier CSV de toute la collection de CD, dans l'ordre de rangement. */
 export async function buildCsv(): Promise<File> {
-  const cds = (await db.cds.toArray()).sort(
+  const cds = (await itemsOf('cd')).sort(
     (a, b) =>
       (a.shelfOrder ?? Infinity) - (b.shelfOrder ?? Infinity) ||
       a.artistSort.localeCompare(b.artistSort, 'fr', { sensitivity: 'base' }),
@@ -138,7 +138,7 @@ export async function buildCsv(): Promise<File> {
   const rows = [COLUMNS.map((c) => c.header), ...cds.map((cd) => COLUMNS.map((c) => c.get(cd)))]
   const date = new Date().toISOString().slice(0, 10)
   // Le caractère invisible ﻿ au début indique à Excel que le fichier est en UTF-8 (accents).
-  return new File(['﻿' + toCsv(rows)], `trieur-cd-${date}.csv`, { type: 'text/csv' })
+  return new File(['﻿' + toCsv(rows)], `mediamwa-cd-${date}.csv`, { type: 'text/csv' })
 }
 
 export interface CsvReport {

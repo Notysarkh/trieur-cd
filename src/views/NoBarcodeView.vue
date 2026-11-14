@@ -4,7 +4,7 @@ import { buildPlan, UNCLASSIFIED_THEME } from '../classification/engine'
 import CoverImage from '../components/CoverImage.vue'
 import WhereToShelve from '../components/WhereToShelve.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { withoutBarcode } from '../services/collection'
@@ -16,7 +16,7 @@ import { settings } from '../services/settings'
 // 1) L'appli affiche ces CD dans l'ordre exact du rangement final ; tu tries ta pile physique dans cet ordre.
 // 2) Tu les ranges un par un : la fiche « Où le ranger » s'ouvre, « Rangé ✓ » passe au suivant tout seul.
 
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

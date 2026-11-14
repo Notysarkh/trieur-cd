@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { itemsOf } from '../db/database'
 import type { Cd } from '../db/types'
 import { buildLabels, type LabelMode } from '../layout/labels'
 import { settings } from '../services/settings'
@@ -14,7 +14,7 @@ import { settings } from '../services/settings'
 // - « Intercalaires » 12 × 14 cm, 2 par page : à coller sur du carton et glisser entre les CD,
 //   le haut dépasse des boîtiers (12,5 cm de haut) et porte le texte.
 
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const mode = ref<LabelMode>('rangee')
 const format = ref<'etiquette' | 'intercalaire'>('etiquette')
 const showWhere = ref(true)

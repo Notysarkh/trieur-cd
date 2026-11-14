@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { itemsOf } from '../db/database'
 import type { Cd } from '../db/types'
 import { settings } from '../services/settings'
 import { lookupForShelving, resetShelved, type ShelvingLookup } from '../services/shelving'
@@ -12,7 +12,7 @@ import WhereToShelve from './WhereToShelve.vue'
 
 const emit = defineEmits<{ add: [code: string]; open: [boolean] }>()
 
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const located = computed(() => all.value.filter((c) => c.location))
 const shelvedCount = computed(() => located.value.filter((c) => c.shelvedAt).length)
 

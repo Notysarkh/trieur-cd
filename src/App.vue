@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { db } from './db/database'
+import type { Cd } from './db/types'
 import { useLiveQuery } from './composables/useLiveQuery'
+import { mediaInfo, mediaOf } from './lib/media'
+import { currentMedia } from './services/settings'
 
-// Cadre général : l'écran courant + la barre de navigation en bas.
+// Cadre général : le bandeau de l'univers en haut, l'écran courant, la barre de navigation en bas.
 
-const toReview = useLiveQuery(() => db.cds.where('status').equals('a_verifier').count(), 0)
+const route = useRoute()
+const media = computed(() => mediaInfo(currentMedia()))
+const onHome = computed(() => route.name === 'accueil')
+/** Écran pas encore disponible dans cet univers (il arrive à son étape de la v2). */
+const notYet = computed(() => !!route.meta.cdOnly && currentMedia() !== 'cd')
+
+const reviewList = useLiveQuery(() => db.cds.where('status').equals('a_verifier').toArray(), [] as Cd[])
+const toReview = computed(() => reviewList.value.filter((c) => mediaOf(c) === currentMedia()).length)
 const inQueue = useLiveQuery(() => db.scans.count(), 0)
 
 // Bandeau « hors connexion »
@@ -23,11 +33,26 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="!online" class="offline">Hors connexion : consultation possible, les identifications reprendront au retour du réseau.</div>
 
-  <RouterView />
+  <RouterLink v-if="!onHome" to="/" class="universe" :aria-label="`Univers ${media.label} : changer d'univers`">
+    <span class="universe-name"><span aria-hidden="true">{{ media.icon }}</span> {{ media.label }} ▾</span>
+    <span class="universe-brand">Mediamwa</span>
+  </RouterLink>
 
-  <nav class="tabbar" aria-label="Navigation principale">
-    <RouterLink to="/" class="tab" exact-active-class="active">
-      <span class="icon" aria-hidden="true">💿</span>
+  <main v-if="notYet" class="page stack">
+    <h1>{{ media.icon }} {{ media.label }}</h1>
+    <div class="card stack">
+      <p>
+        Cet écran arrive pour les {{ media.many }} à l'étape {{ media.comingInStep }} de la version 2. En attendant, il ne sert
+        que pour les CD.
+      </p>
+      <RouterLink to="/" class="btn">← Choisir un autre univers</RouterLink>
+    </div>
+  </main>
+  <RouterView v-else />
+
+  <nav v-if="!onHome" class="tabbar" aria-label="Navigation principale">
+    <RouterLink to="/collection" class="tab" exact-active-class="active">
+      <span class="icon" aria-hidden="true">{{ media.icon }}</span>
       <span>Collection</span>
     </RouterLink>
     <RouterLink to="/scan" class="tab tab-scan" active-class="active">
@@ -56,6 +81,33 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.universe {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: var(--primary-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.universe-name {
+  font-weight: 700;
+}
+.universe-brand {
+  opacity: 0.7;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+@media print {
+  .universe {
+    display: none;
+  }
+}
 .offline {
   background: var(--warn-bg);
   color: var(--warn);

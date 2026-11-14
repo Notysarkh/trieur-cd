@@ -162,7 +162,7 @@ async function wipeAll() {
         « Exporter » ici (envoie-toi le fichier par mail ou OneDrive), puis « Importer » sur le PC. L'import fusionne :
         il ajoute les nouveaux CD et garde la version la plus récente des autres, sans rien supprimer.
       </p>
-      <p class="small">{{ cdCount }} CD dans la collection sur cet appareil.</p>
+      <p class="small">{{ cdCount }} objet(s) dans la collection sur cet appareil (tous univers).</p>
       <div class="row">
         <button class="btn btn-primary" @click="exportData">⬆️ Exporter / partager</button>
         <label class="btn">
@@ -246,7 +246,7 @@ async function wipeAll() {
     </section>
 
     <p class="small muted">
-      Données musicales : MusicBrainz (CC0), Discogs, Cover Art Archive. Trieur à CD fonctionne sans compte et sans
+      Données musicales : MusicBrainz (CC0), Discogs, Cover Art Archive. Mediamwa fonctionne sans compte et sans
       serveur.
     </p>
   </main>

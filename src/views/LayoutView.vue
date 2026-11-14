@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import FurnitureDiagram from '../components/FurnitureDiagram.vue'
 import { buildPlan } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { furnitureWarnings } from '../layout/furniture'
 import { applyLayout, computeLayout, countMoves, insertionFor, placeCd } from '../services/layout'
@@ -11,7 +11,7 @@ import { saveSetting, settings } from '../services/settings'
 
 // Écran « Rangement » : répartition des CD dans les meubles, case par case, avec vue visuelle.
 
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

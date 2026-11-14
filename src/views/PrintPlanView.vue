@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { itemsOf } from '../db/database'
 import type { Cd } from '../db/types'
 import { buildSlots } from '../layout/furniture'
 import { settings } from '../services/settings'
@@ -11,7 +11,7 @@ import { settings } from '../services/settings'
 // Il s'appuie sur les emplacements ENREGISTRÉS (dernier rangement appliqué + CD insérés depuis).
 // « Imprimer » ouvre la fenêtre d'impression du navigateur : choisis « Enregistrer en PDF » pour un PDF.
 
-const cds = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const showYears = ref(true)
 const pagePerFurniture = ref(true)
 

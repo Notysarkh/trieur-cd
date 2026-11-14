@@ -1,7 +1,8 @@
 import { reactive } from 'vue'
 import { artistKey, buildPlan, groupKeyOf, type Plan } from '../classification/engine'
 import { defaultRules, type ClassificationRules } from '../classification/themes'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
+import { mediaOf } from '../lib/media'
 import type { ArtistInfo, Cd } from '../db/types'
 import { hasDiscogsToken } from './discogs'
 import { completeWithDiscogs } from './identify'
@@ -16,7 +17,7 @@ import { titleCase } from '../lib/text'
 
 /** Calcule le plan à partir de la collection actuelle. */
 export async function computePlan(rules: ClassificationRules = settings.classification): Promise<Plan> {
-  const [cds, artists] = await Promise.all([db.cds.toArray(), db.artists.toArray()])
+  const [cds, artists] = await Promise.all([itemsOf('cd'), db.artists.toArray()])
   return buildPlan(cds, rules, new Map(artists.map((a) => [a.mbArtistId, a])))
 }
 
@@ -108,7 +109,7 @@ interface SortCheck {
  */
 export async function artistsToCheckSortName(): Promise<SortCheck[]> {
   const groups = new Map<string, Cd[]>()
-  for (const cd of await db.cds.toArray()) {
+  for (const cd of await itemsOf('cd')) {
     if (cd.isCompilation || cd.personalCompilation || cd.sortCheckedAt || cd.artist === 'Inconnu') continue
     const key = groupKeyOf(cd)
     groups.set(key, [...(groups.get(key) ?? []), cd])
@@ -156,7 +157,7 @@ export function decideSortName(
 
 /** Artistes MusicBrainz de la collection dont on n'a pas encore la fiche. */
 export async function missingArtistIds(): Promise<string[]> {
-  const [cds, known] = await Promise.all([db.cds.toArray(), db.artists.toCollection().primaryKeys()])
+  const [cds, known] = await Promise.all([itemsOf('cd'), db.artists.toCollection().primaryKeys()])
   const knownSet = new Set(known)
   const ids = new Set<string>()
   for (const cd of cds) if (cd.mbArtistId && !cd.isCompilation && !knownSet.has(cd.mbArtistId)) ids.add(cd.mbArtistId)
@@ -165,7 +166,7 @@ export async function missingArtistIds(): Promise<string[]> {
 
 /** CD MusicBrainz scannés avant l'étape 2 : il leur manque la langue des textes et le type d'album. */
 export function cdsWithoutReleaseDetails(): Promise<Cd[]> {
-  return db.cds.filter((cd) => !!cd.mbReleaseId && cd.language === undefined && !cd.mbDetailsCheckedAt).toArray()
+  return db.cds.filter((cd) => mediaOf(cd) === 'cd' && !!cd.mbReleaseId && cd.language === undefined && !cd.mbDetailsCheckedAt).toArray()
 }
 
 /** CD sans données Discogs, jamais cherchés par artiste + titre (seulement si un jeton Discogs est configuré). */
@@ -174,6 +175,7 @@ export async function cdsWithoutDiscogs(): Promise<Cd[]> {
   return db.cds
     .filter(
       (cd) =>
+        mediaOf(cd) === 'cd' &&
         !cd.discogsReleaseId &&
         !cd.discogsMasterId &&
         !cd.discogsCheckedAt &&

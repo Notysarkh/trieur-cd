@@ -1,4 +1,5 @@
 import { db } from '../db/database'
+import { mediaOf } from '../lib/media'
 import type { Cd } from '../db/types'
 import { canonicalBarcode } from '../lib/barcode'
 import { findByBarcode } from './collection'
@@ -30,7 +31,7 @@ export async function setShelved(id: string, shelved: boolean): Promise<void> {
 
 /** Remet le compteur « rangés » à zéro (pour recommencer un rangement). */
 export async function resetShelved(): Promise<void> {
-  const ids = await db.cds.filter((c) => !!c.shelvedAt).primaryKeys()
+  const ids = await db.cds.filter((c) => mediaOf(c) === 'cd' && !!c.shelvedAt).primaryKeys()
   await db.cds.bulkUpdate(ids.map((key) => ({ key, changes: { shelvedAt: undefined } })))
 }
 

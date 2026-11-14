@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { buildPlan, UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { whereToShelve } from '../layout/assistant'
 import { shelvedDate } from '../services/collection'
@@ -20,7 +20,7 @@ import LocationMap from './LocationMap.vue'
 const props = defineProps<{ cdId: string; doneLabel?: string }>()
 const emit = defineEmits<{ done: [cd: Cd]; close: [] }>()
 
-const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),

@@ -1,5 +1,6 @@
 import { groupKeyOf, type Plan } from '../classification/engine'
-import { db } from '../db/database'
+import { db, itemsOf } from '../db/database'
+import { mediaOf } from '../lib/media'
 import type { Cd } from '../db/types'
 import { buildSlots } from '../layout/furniture'
 import { suggestInsertion, type Insertion } from '../layout/insertion'
@@ -62,7 +63,7 @@ export function countMoves(layout: Layout, cds: Cd[]): Moves {
 export async function applyLayout(plan: Plan, layout: Layout): Promise<void> {
   await applyPlan(plan)
   const now = Date.now()
-  const cds = await db.cds.toArray()
+  const cds = await itemsOf('cd')
   const keep = shelvedToKeep(cds, layout.placement)
   const updates = cds.flatMap((cd) => {
     const p = layout.placement.get(cd.id)
@@ -198,7 +199,7 @@ export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntr
 export async function releasePlacement(cd: Cd, wholeArtist: boolean): Promise<number> {
   const key = groupKeyOf(cd)
   const targets = wholeArtist
-    ? await db.cds.filter((c) => groupKeyOf(c) === key && !!c.location).toArray()
+    ? await db.cds.filter((c) => mediaOf(c) === 'cd' && groupKeyOf(c) === key && !!c.location).toArray()
     : cd.location
       ? [cd]
       : []
