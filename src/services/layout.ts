@@ -1,6 +1,7 @@
 import type { Plan } from '../classification/engine'
 import { db } from '../db/database'
 import type { Cd } from '../db/types'
+import { buildSlots } from '../layout/furniture'
 import { suggestInsertion, type Insertion } from '../layout/insertion'
 import { packLayout, type Layout } from '../layout/packer'
 import { applyPlan } from './classification'
@@ -140,4 +141,37 @@ export function locationLabel(cd: Cd): string | null {
   if (f.depthRows > 1) parts.push(depthRow === 1 ? 'devant' : 'derrière')
   parts.push(`${loc.position}${loc.position === 1 ? 'er' : 'e'} CD en partant de la gauche`)
   return parts.join(' · ')
+}
+
+export interface ShelfEntry {
+  cd: Cd
+  /** Rangée et position (enregistrées, ou proposées pour un CD ajouté après le rangement). */
+  slotLabel?: string
+  position?: number
+  /** Faux si la place est seulement proposée (CD ajouté après le rangement). */
+  located: boolean
+}
+
+/**
+ * Trie des CD dans l'ordre physique du rangement (meuble → rangée → position).
+ * Un CD ajouté après le rangement est placé à l'endroit où l'appli propose de le glisser.
+ */
+export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntry[] {
+  const slots = buildSlots(settings.furniture)
+  const index = new Map(slots.map((s, i) => [s.id, i]))
+  return cds
+    .map((cd) => {
+      if (cd.location && index.has(cd.location.slotId)) {
+        const i = index.get(cd.location.slotId)!
+        return { entry: { cd, slotLabel: slots[i].label, position: cd.location.position, located: true }, key: [i, cd.location.position] }
+      }
+      const ins = plan && settings.layoutAppliedAt ? insertionFor(cd, plan, all) : null
+      if (ins) {
+        const i = index.get(ins.slot.id) ?? Infinity
+        return { entry: { cd, slotLabel: ins.slot.label, position: ins.position, located: false }, key: [i, ins.position - 0.5] }
+      }
+      return { entry: { cd, located: false }, key: [Infinity, 0] }
+    })
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1])
+    .map((x) => x.entry)
 }

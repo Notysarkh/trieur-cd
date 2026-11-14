@@ -142,6 +142,7 @@ async function apply() {
         <RouterLink class="btn" to="/imprimer/plan">🖨️ Plan imprimable (PDF)</RouterLink>
         <RouterLink class="btn" to="/imprimer/etiquettes">🏷️ Étiquettes intercalaires</RouterLink>
         <RouterLink class="btn" :to="{ name: 'scan', query: { mode: 'ranger' } }">📦 Ranger avec le scanner</RouterLink>
+        <RouterLink class="btn" to="/sans-code">💿 CD sans code-barres</RouterLink>
       </section>
 
       <section v-if="toInsert.length" class="card stack">

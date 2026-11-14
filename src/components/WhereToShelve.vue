@@ -59,8 +59,17 @@ const instruction = computed(() => {
   if (!r) return ''
   if (r.emptyRow) return `Premier CD de cette rangée : place-le ${r.hint}.`
   if (r.before && r.after) return `Place-le entre « ${name(r.before)} » et « ${name(r.after)} ».`
-  if (r.after) return `Place-le au début de la rangée, avant « ${name(r.after)} ».`
-  if (r.before) return `Place-le à la fin de la rangée, après « ${name(r.before)} ».`
+  // Un seul voisin posé : « début / fin de rangée » seulement si aucun autre CD n'est prévu de ce côté.
+  if (r.after) {
+    return r.gapBefore.count
+      ? `Place-le à gauche de « ${name(r.after)} ».`
+      : `Place-le au début de la rangée, avant « ${name(r.after)} ».`
+  }
+  if (r.before) {
+    return r.gapAfter.count
+      ? `Place-le à droite de « ${name(r.before)} ».`
+      : `Place-le à la fin de la rangée, après « ${name(r.before)} ».`
+  }
   return ''
 })
 
@@ -138,7 +147,7 @@ async function unshelve() {
               <span class="grow text">{{ name(info.real.before) }}</span>
             </template>
             <span v-else class="grow text muted">
-              Début de rangée<template v-if="info.real.nearestBefore">
+              {{ info.real.gapBefore.count ? 'Aucun CD posé à sa gauche pour l’instant' : 'Début de rangée' }}<template v-if="info.real.nearestBefore">
                 (plus proche : « {{ name(info.real.nearestBefore.cd) }} », {{ info.real.nearestBefore.slot }})</template>
             </span>
           </div>
@@ -149,7 +158,7 @@ async function unshelve() {
               <span class="grow text">{{ name(info.real.after) }}</span>
             </template>
             <span v-else class="grow text muted">
-              Fin de rangée<template v-if="info.real.nearestAfter">
+              {{ info.real.gapAfter.count ? 'Aucun CD posé à sa droite pour l’instant' : 'Fin de rangée' }}<template v-if="info.real.nearestAfter">
                 (plus proche : « {{ name(info.real.nearestAfter.cd) }} », {{ info.real.nearestAfter.slot }})</template>
             </span>
           </div>

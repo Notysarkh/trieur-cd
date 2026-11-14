@@ -76,6 +76,7 @@ async function reset() {
         <p v-else class="small muted">
           Scanne un CD de ta pile : sa fiche « Où le ranger » s'ouvre. Pose-le, puis appuie sur « Rangé ✓ ».
         </p>
+        <RouterLink class="btn btn-small" to="/sans-code">💿 CD sans code-barres : méthode de la pile triée</RouterLink>
       </div>
     </template>
   </section>
