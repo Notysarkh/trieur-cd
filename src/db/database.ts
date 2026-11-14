@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { cleanTags, latinArtistName } from '../lib/cleanup'
 import type { ArtistInfo, Cd, ScanItem, SettingRow } from './types'
 
 // La base de données locale (IndexedDB, via la bibliothèque Dexie).
@@ -23,6 +24,28 @@ db.version(2).stores({
   cds: 'id, barcode, status, artistSort, mbReleaseGroupId, updatedAt, themeId',
   artists: 'mbArtistId',
 })
+
+// Version 3 (v1.2) : nettoyage automatique de la collection existante, une seule fois :
+// - étiquettes MusicBrainz parasites retirées des genres/styles ;
+// - noms d'artistes en japonais (ou autre alphabet) affichés en lettres latines quand le nom de tri le permet ;
+// - boîtiers « double épais » à 22 mm (mesurés) au lieu de 24.
+db.version(3)
+  .stores({})
+  .upgrade((tx) =>
+    tx
+      .table('cds')
+      .toCollection()
+      .modify((cd: Cd) => {
+        cd.genres = cleanTags(cd.genres ?? [])
+        cd.styles = cleanTags(cd.styles ?? [])
+        const latin = latinArtistName(cd.artist, cd.artistSort)
+        if (latin) {
+          cd.artistOriginal = cd.artist
+          cd.artist = latin
+        }
+        if (cd.format === 'double' && cd.thicknessMm === 24) cd.thicknessMm = 22
+      }),
+  )
 
 /** Crée un identifiant unique. */
 export function newId(): string {

@@ -4,8 +4,8 @@ import type { CdFormat } from '../db/types'
 //
 // HYPOTHÈSES (modifiables dans les Réglages) :
 // - boîtier standard 10,4 mm et slim 5,2 mm : dimensions normalisées, fiables ;
-// - double épais 24 mm : vrai pour les « fatbox », mais beaucoup de doubles CD récents
-//   tiennent dans un boîtier standard de 10,4 mm → à corriger au cas par cas ;
+// - double épais 22 mm (mesuré sur ta collection) ; beaucoup de doubles CD récents
+//   tiennent pourtant dans un boîtier standard de 10,4 mm → à corriger au cas par cas ;
 // - digipak 7 mm : varie de 5 à 12 mm selon le nombre de volets → à mesurer ;
 // - pochette carton 4 mm ; coffret 30 mm : pure estimation → à mesurer.
 
@@ -24,7 +24,7 @@ export type ThicknessTable = Record<CdFormat, number>
 export const DEFAULT_THICKNESS: ThicknessTable = {
   standard: 10.4,
   slim: 5.2,
-  double: 24,
+  double: 22,
   digipak: 7,
   carton: 4,
   coffret: 30,

@@ -24,6 +24,10 @@ export interface Cd {
   id: string
   barcode?: string
   artist: string
+  /** Nom d'artiste d'origine quand il a été remplacé par sa forme en lettres latines (ex. « 植松伸夫 »). */
+  artistOriginal?: string
+  /** Date de la vérification du nom de tri sur MusicBrainz (« Compléter ma collection »). */
+  sortCheckedAt?: number
   /** Nom utilisé pour le tri alphabétique, ex. « Beatles, The » ou « Brassens, Georges ». */
   artistSort: string
   title: string

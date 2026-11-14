@@ -109,6 +109,15 @@ export function lookupRelease(id: string): Promise<MbRelease> {
   return get<MbRelease>(`release/${id}`, { inc: 'release-groups' })
 }
 
+/** Recherche d'un artiste par son nom (pour connaître son nom de tri : « Baez, Joan »). */
+export async function searchArtists(name: string): Promise<(MbArtist & { score?: number; type?: string })[]> {
+  const data = await get<{ artists?: (MbArtist & { score?: number; type?: string })[] }>('artist/', {
+    query: `artist:${quote(name)}`,
+    limit: '5',
+  })
+  return data.artists ?? []
+}
+
 /** Fiche d'un artiste : pays et genres (utile quand ses albums n'ont pas de genre). */
 export function lookupArtist(id: string): Promise<MbArtist> {
   return get<MbArtist>(`artist/${id}`, { inc: 'genres+tags' })

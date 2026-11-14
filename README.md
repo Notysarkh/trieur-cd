@@ -99,6 +99,17 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 - **Thème changé après le rangement** (CD gravé, artiste forcé sur sa fiche) : le ou les CD concernés passent « à ranger » et leur fiche propose la nouvelle place, sans rien décaler ailleurs.
 - **Étape D ✅** : « 🔍 Où est ce CD ? » (Collection ou Rangement) : recherche instantanée tolérante aux fautes et aux accents (ou par code-barres), puis la fiche avec l'emplacement et les voisins théoriques et réels (« Il est rangé entre X et Y »). La recherche de la Collection devient elle aussi tolérante.
 
+## Version 1.2 (corrections d'après l'analyse de la collection réelle)
+
+- **Un artiste = un seul groupe**, même si ses CD ont des noms affichés différents (collaborations « Bobby McFerrin & Chick Corea » rangées avec le premier artiste crédité) : regroupement par nom de tri.
+- **Noms de tri « Nom, Prénom »** : « Compléter ma collection » commence par vérifier sur MusicBrainz les artistes mal triés (« Joan Baez » → « Baez, Joan »). Les noms de scène que MusicBrainz trie tels quels (« Fatboy Slim ») ne sont pas touchés. La liste des noms corrigés s'affiche ; un nom qui ne convient pas se corrige dans le champ « Nom de tri » d'une fiche.
+- **Thème « Musique française »** activé (chanson, rock et pop français : langue des textes, style « chanson », sinon pays France).
+- **« BO films & jeux vidéo »** : reconnaît aussi les musiques de jeux vidéo et d'anime. Noms japonais affichés en lettres latines quand MusicBrainz les connaît (l'original est gardé).
+- **Étiquettes parasites** de MusicBrainz (« No Isrc », « Fix Pseudo-Releases », prix, années…) ignorées et retirées.
+- **Épaisseur « double épais »** : 22 mm (mesurée).
+- **Réappliquer le rangement sans tout déplacer** : un CD déjà rangé qui reste dans la même rangée et dans le bon ordre garde son statut « rangé » ; seuls les autres repassent « à ranger ». L'écran Rangement l'annonce avant d'appliquer.
+- Mise à jour automatique des données existantes à l'ouverture (rien à faire).
+
 ## Commandes utiles
 
 | Commande | Rôle |

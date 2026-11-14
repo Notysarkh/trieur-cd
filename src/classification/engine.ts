@@ -1,4 +1,5 @@
 import type { ArtistInfo, Cd } from '../db/types'
+import { cleanTags } from '../lib/cleanup'
 import { normalizeText } from '../lib/text'
 import { UNCLASSIFIED, type ClassificationRules, type ThemeDef } from './themes'
 
@@ -104,6 +105,18 @@ export function artistKey(name: string): string {
   return words.sort().join(' ') || normalizeText(name)
 }
 
+/**
+ * Groupe d'un CD pour le classement : une compilation (du commerce ou perso) est seule ;
+ * sinon l'artiste, reconnu par son NOM DE TRI. Le nom de tri vient de l'artiste principal
+ * (MusicBrainz), il est donc le même pour « Ben Harper » et « Ben Harper and The Blind Boys of Alabama »,
+ * ou pour « 植松伸夫 » et « Nobuo Uematsu » : les collaborations sont rangées avec l'artiste principal.
+ */
+export function groupKeyOf(cd: Cd): string {
+  if (cd.personalCompilation) return `perso:${cd.id}`
+  if (cd.isCompilation) return `cd:${cd.id}`
+  return artistKey(cd.artistSort?.trim() || cd.artist)
+}
+
 /** Titre sans article initial, pour le tri par titre (« The Godfather » → « Godfather »). */
 export function titleSortKey(title: string): string {
   return title.replace(/^(the|a|an|le|la|les|l['’])\s*/i, '').trim()
@@ -157,7 +170,7 @@ export function themesForTag(tag: string, matcher: Matcher): string[] {
 type Votes = Map<string, number>
 
 function addTags(votes: Votes, tags: string[], weight: number, matcher: Matcher) {
-  for (const tag of tags) {
+  for (const tag of cleanTags(tags)) {
     const ids = themesForTag(tag, matcher)
     for (const id of ids) votes.set(id, (votes.get(id) ?? 0) + weight / ids.length)
   }
@@ -203,7 +216,7 @@ function groupCds(cds: Cd[]): Group[] {
   const groups = new Map<string, Group>()
   for (const cd of cds) {
     // Compilations (du commerce ou perso) : chaque CD est un groupe à lui seul.
-    const key = cd.personalCompilation ? `perso:${cd.id}` : cd.isCompilation ? `cd:${cd.id}` : artistKey(cd.artist)
+    const key = groupKeyOf(cd)
     const g = groups.get(key) ?? {
       key,
       cds: [],
@@ -234,6 +247,11 @@ function frenchReason(cds: Cd[], info: ArtistInfo | undefined): string | null {
     const fra = languages.filter((l) => l === 'fra').length
     return fra * 2 > languages.length ? 'Artiste francophone (langue des textes)' : null
   }
+  // Langue inconnue (CD scannés avant qu'on la récupère) : le style « Chanson » sur au moins la moitié de ses CD.
+  const chanson = cds.filter((c) =>
+    [...c.genres, ...c.styles].some((t) => /^(chanson|chanson francaise|variete francaise|french pop)$/.test(normalizeText(t))),
+  ).length
+  if (chanson * 2 >= cds.length) return 'Chanson française (style)'
   return info?.country === 'FR' ? 'Artiste français (pays : France)' : null
 }
 
@@ -314,7 +332,10 @@ export function buildPlan(
 
     // Choix forcé par toi : prioritaire sur tout le reste.
     // 1) dans l'écran Classement (artiste ou compilation) ; 2) sinon sur la fiche d'un de ses CD.
-    const ruleOverride = single ? rules.cdOverrides[first.id] : rules.artistOverrides[group.key]
+    const ruleOverride = single
+      ? rules.cdOverrides[first.id]
+      : (rules.artistOverrides[group.key] ??
+        group.cds.map((c) => rules.artistOverrides[artistKey(c.artist)]).find((t) => !!t))
     const cdOverride = mostCommon(
       group.cds.map((c) => c.themeOverride).filter((t): t is string => !!t && themeById.has(t)),
     )

@@ -10,6 +10,7 @@ import {
   applyPlan,
   cdsWithoutDiscogs,
   cdsWithoutReleaseDetails,
+  artistsToCheckSortName,
   completeCollection,
   completion,
   countChanges,
@@ -29,7 +30,10 @@ const missingArtists = useLiveQuery(async () => (await missingArtistIds()).lengt
 // Dépend du jeton Discogs : relu à chaque changement de la base (et donc des réglages).
 const missingDiscogs = useLiveQuery(async () => (await cdsWithoutDiscogs()).length, 0)
 const missingDetails = useLiveQuery(async () => (await cdsWithoutReleaseDetails()).length, 0)
-const toComplete = computed(() => missingArtists.value + missingDiscogs.value + missingDetails.value)
+const missingSorts = useLiveQuery(async () => (await artistsToCheckSortName()).length, 0)
+const toComplete = computed(
+  () => missingArtists.value + missingDiscogs.value + missingDetails.value + missingSorts.value,
+)
 
 // Le plan est recalculé automatiquement à chaque changement de la collection ou des règles.
 const plan = computed(() => buildPlan(cds.value, settings.classification, artistInfos.value))
@@ -89,6 +93,7 @@ function cdLabel(t: PlanTheme, cd: Cd | undefined): string {
 }
 
 const PHASES: Record<string, string> = {
+  noms: 'Noms de tri des artistes (MusicBrainz)',
   editions: 'Langue et type des albums (MusicBrainz)',
   artistes: 'Fiches des artistes (MusicBrainz)',
   discogs: 'Styles des CD (Discogs)',
@@ -159,6 +164,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
         <template v-else>
           <p class="small">
             Pour un classement plus juste, l'appli peut compléter ta collection :
+            <template v-if="missingSorts"><br />· {{ missingSorts }} artiste(s) au nom de tri à vérifier (ex. « Joan Baez » au lieu de « Baez, Joan ») ;</template>
             <template v-if="missingDetails"><br />· {{ missingDetails }} CD sans langue des textes ni type d'album (scannés avant la mise à jour) ;</template>
             <template v-if="missingArtists"><br />· {{ missingArtists }} fiche(s) d'artiste MusicBrainz (genres, pays → artistes français) ;</template>
             <template v-if="missingDiscogs"><br />· {{ missingDiscogs }} CD sans styles Discogs (recherche par artiste + titre).</template>
@@ -167,6 +173,13 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
           <button class="btn" @click="completeCollection">🔎 Compléter ma collection</button>
         </template>
         <p v-if="completion.errors" class="small muted">{{ completion.errors }} élément(s) non récupéré(s).</p>
+        <details v-if="completion.sortChanges.length" class="small">
+          <summary>{{ completion.sortChanges.length }} nom(s) de tri corrigé(s)</summary>
+          <ul>
+            <li v-for="c in completion.sortChanges" :key="c">{{ c }}</li>
+          </ul>
+          <p class="muted">Un nom ne te convient pas ? Corrige le champ « Nom de tri » sur la fiche d'un de ses CD.</p>
+        </details>
       </section>
 
       <details v-if="plan.disputed.length" class="card">

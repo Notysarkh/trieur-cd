@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { db } from '../db/database'
-import { defaultRules, type ClassificationRules } from '../classification/themes'
+import { defaultRules, migrateRules, type ClassificationRules } from '../classification/themes'
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
@@ -56,6 +56,11 @@ export function loadSettings(): Promise<void> {
     }
     // Si un nouveau format a été ajouté depuis, on complète avec la valeur par défaut.
     settings.thickness = { ...DEFAULT_THICKNESS, ...settings.thickness }
+    // v1.2 : boîtier double épais mesuré à 22 mm (au lieu des 24 mm estimés).
+    if (settings.thickness.double === 24) await saveSetting('thickness', { ...settings.thickness, double: 22 })
+    // v1.2 : règles de classement mises à jour (BO & jeux vidéo, musique française).
+    const migrated = migrateRules(settings.classification)
+    if (migrated) await saveSetting('classification', migrated)
   })()
   return loaded
 }

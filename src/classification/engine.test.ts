@@ -194,6 +194,33 @@ describe('CD gravés et compilations perso (v1.1)', () => {
   })
 })
 
+describe('corrections v1.2 (d’après ta collection réelle)', () => {
+  it('range les collaborations avec l’artiste principal (même nom de tri)', () => {
+    const a = cd('Ben Harper', 'Welcome to the Cruel World', { artistSort: 'Harper, Ben', styles: ['Folk Rock'] })
+    const b = cd('Ben Harper', 'Both Sides of the Gun', { artistSort: 'Harper, Ben', styles: ['Alternative Rock'] })
+    const c = cd('Ben Harper and The Blind Boys of Alabama', 'There Will Be a Light', { artistSort: 'Harper, Ben', styles: ['Gospel'] })
+    const plan = buildPlan([a, b, c], rules())
+    expect(new Set([a, b, c].map((x) => themeOf(plan, x.id)))).toEqual(new Set(['rock']))
+  })
+
+  it('regroupe un artiste écrit en japonais et en lettres latines', () => {
+    const a = cd('植松伸夫', 'FF VI', { artistSort: 'Uematsu, Nobuo', releaseTypes: ['Soundtrack'] })
+    const b = cd('Nobuo Uematsu', 'Final Fantasy: Pray', { artistSort: 'Nobuo Uematsu', styles: ['Ambient'] })
+    const plan = buildPlan([a, b], rules())
+    expect(themeOf(plan, b.id)).toBe(themeOf(plan, a.id))
+  })
+
+  it('reconnaît la chanson française sans la langue des textes', () => {
+    const r = cd('Renaud', 'Morgane de toi', { genres: ['Pop'], styles: ['Chanson'] })
+    expect(themeOf(buildPlan([r], rules()), r.id)).toBe('francaise')
+  })
+
+  it('ignore les étiquettes parasites dans le choix du thème', () => {
+    const x = cd('X', 'Y', { styles: ['No Isrc', 'Buyee Mercari', 'Bebop'] })
+    expect(themeOf(buildPlan([x], rules()), x.id)).toBe('jazz')
+  })
+})
+
 describe('genres inconnus et règles', () => {
   it('met de côté les artistes sans genre, puis utilise les genres de l’artiste', () => {
     const x = cd('Inconnu', 'Album', { mbArtistId: 'a2' })

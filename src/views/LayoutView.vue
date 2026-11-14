@@ -122,6 +122,10 @@ async function apply() {
             <template v-if="moves.otherRow"><br />· <strong>{{ moves.otherRow }} CD à changer de rangée</strong> ;</template>
             <template v-if="moves.shifted"><br />· {{ moves.shifted }} CD qui glissent simplement d'une place dans leur rangée ;</template>
             <template v-if="moves.removed"><br />· {{ moves.removed }} CD qui n'auraient plus de place.</template>
+            <template v-if="moves.shelvedKept || moves.shelvedToMove">
+              <br />Parmi tes CD déjà rangés : <strong>{{ moves.shelvedKept }} restent en place</strong>,
+              <strong>{{ moves.shelvedToMove }} sont à déplacer</strong> (ils repasseront « à ranger »).
+            </template>
             <template v-if="moves.otherRow">
               <br /><span class="muted">
                 Inutile de tout réappliquer pour quelques nouveaux CD : la marge laisse de la place dans chaque rangée,

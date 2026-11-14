@@ -1,8 +1,9 @@
-import { artistKey, type Plan } from '../classification/engine'
+import { groupKeyOf, type Plan } from '../classification/engine'
 import { db } from '../db/database'
 import type { Cd } from '../db/types'
 import { buildSlots } from '../layout/furniture'
 import { suggestInsertion, type Insertion } from '../layout/insertion'
+import { shelvedToKeep } from '../layout/keepShelved'
 import { packLayout, type Layout } from '../layout/packer'
 import { applyPlan } from './classification'
 import { saveSetting, settings } from './settings'
@@ -22,13 +23,22 @@ export interface Moves {
   shifted: number
   /** CD qui perdraient leur place (surcharge). */
   removed: number
+  /** CD DÉJÀ RANGÉS à déplacer physiquement (les autres rangés restent où ils sont). */
+  shelvedToMove: number
+  /** CD déjà rangés qui restent en place. */
+  shelvedKept: number
   total: number
 }
 
 /** Ce qui changerait si on appliquait cette répartition, par rapport à celle déjà appliquée. */
 export function countMoves(layout: Layout, cds: Cd[]): Moves {
-  const m: Moves = { added: 0, otherRow: 0, shifted: 0, removed: 0, total: 0 }
+  const m: Moves = { added: 0, otherRow: 0, shifted: 0, removed: 0, shelvedToMove: 0, shelvedKept: 0, total: 0 }
+  const keep = shelvedToKeep(cds, layout.placement)
   for (const cd of cds) {
+    if (cd.shelvedAt && cd.location) {
+      if (keep.has(cd.id)) m.shelvedKept++
+      else m.shelvedToMove++
+    }
     const p = layout.placement.get(cd.id)
     const loc = cd.location
     if (!p && !loc) continue
@@ -46,15 +56,18 @@ export function countMoves(layout: Layout, cds: Cd[]): Moves {
  * Applique le classement ET la répartition : chaque CD reçoit son thème, son rang et son emplacement.
  * Les CD sans place perdent leur emplacement. Seuls les CD modifiés voient leur date de modification
  * changer (utile pour la synchro téléphone ↔ PC).
+ * Un CD déjà rangé GARDE son statut « rangé » s'il reste dans la même rangée et dans le même ordre
+ * que ses voisins rangés : il n'a pas à bouger (voir keepShelved.ts).
  */
 export async function applyLayout(plan: Plan, layout: Layout): Promise<void> {
   await applyPlan(plan)
   const now = Date.now()
   const cds = await db.cds.toArray()
+  const keep = shelvedToKeep(cds, layout.placement)
   const updates = cds.flatMap((cd) => {
     const p = layout.placement.get(cd.id)
     if (p?.slotId === cd.location?.slotId && p?.position === cd.location?.position) return []
-    return [{ key: cd.id, changes: { location: p, shelvedAt: undefined, updatedAt: now } }]
+    return [{ key: cd.id, changes: { location: p, shelvedAt: keep.has(cd.id) ? cd.shelvedAt : undefined, updatedAt: now } }]
   })
   await db.cds.bulkUpdate(updates)
   await saveSetting('layoutAppliedAt', now)
@@ -183,11 +196,9 @@ export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntr
  * Renvoie le nombre de CD à replacer.
  */
 export async function releasePlacement(cd: Cd, wholeArtist: boolean): Promise<number> {
-  const key = artistKey(cd.artist)
+  const key = groupKeyOf(cd)
   const targets = wholeArtist
-    ? await db.cds
-        .filter((c) => !c.isCompilation && !c.personalCompilation && artistKey(c.artist) === key && !!c.location)
-        .toArray()
+    ? await db.cds.filter((c) => groupKeyOf(c) === key && !!c.location).toArray()
     : cd.location
       ? [cd]
       : []

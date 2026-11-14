@@ -26,6 +26,8 @@ export interface ThemeDef {
 }
 
 export interface ClassificationRules {
+  /** Version des règles (pour les mettre à jour automatiquement quand l'appli évolue). */
+  version?: number
   /** Les thèmes, dans l'ordre de rangement (gauche → droite, haut → bas). */
   themes: ThemeDef[]
   /** Nombre maximum de thèmes : au-delà, les plus petits sont regroupés. */
@@ -48,6 +50,13 @@ export const THEME_COLORS = [
   '#b7950b', '#27ae60', '#1abc9c', '#6c5ce7', '#34495e', '#e84393', '#f39c12', '#95a5a6',
 ]
 
+export const RULES_VERSION = 2
+const BO_NAME = 'BO films & jeux vidéo'
+/** Mots-clés des musiques de films, de jeux vidéo et d'anime (vus dans ta collection). */
+const GAME_KEYWORDS = [
+  'soundtrack', 'video game music', 'video game', 'vgm', 'game', 'game music', 'game arrange', 'anime', 'anison', 'ost',
+]
+
 export function defaultRules(): ClassificationRules {
   const t = (
     id: string,
@@ -58,6 +67,7 @@ export function defaultRules(): ClassificationRules {
   ): ThemeDef => ({ id, name, color, keywords, sortBy: 'artiste', ...extra })
 
   return {
+    version: RULES_VERSION,
     maxThemes: 12,
     minCdsPerTheme: 5,
     frenchTheme: true,
@@ -115,10 +125,8 @@ export function defaultRules(): ClassificationRules {
         'symphony', 'choral', 'early music', 'medieval', 'renaissance', 'impressionist', 'orchestral', 'classique',
         'post romantic', 'neo romantic', 'art song', 'lieder',
       ], { special: 'classique', sortBy: 'compositeur' }),
-      t('bo', 'BO de films', '#34495e', [
-        'stage and screen', 'soundtrack', 'score', 'film score', 'musical', 'video game music', 'original score',
-        'bande originale', 'film soundtrack',
-      ], { special: 'bo', sortBy: 'titre' }),
+      t('bo', BO_NAME, '#34495e', ['stage and screen', 'score', 'film score', 'musical', 'original score',
+        'bande originale', 'film soundtrack', ...GAME_KEYWORDS], { special: 'bo', sortBy: 'titre' }),
       t('enfants', 'Enfants', '#e84393', [
         'children s', 'childrens', 'children s music', 'nursery rhymes', 'comptines', 'educational', 'lullaby',
       ], { special: 'enfants' }),
@@ -143,4 +151,32 @@ export function themeIdFromName(name: string, existing: string[]): string {
   let id = base
   for (let i = 2; existing.includes(id); i++) id = `${base}-${i}`
   return id
+}
+
+// ---------------------------------------------------------------------------
+// Mise à jour des règles enregistrées (v1.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Met à jour des règles enregistrées avec une ancienne version de l'appli, sans perdre tes réglages :
+ * v2 = thème BO renommé « BO films & jeux vidéo » + mots-clés jeux vidéo / anime ; thème « Musique française » activé.
+ * Renvoie null si rien n'a changé.
+ */
+export function migrateRules(rules: ClassificationRules): ClassificationRules | null {
+  if ((rules.version ?? 1) >= RULES_VERSION) return null
+  const r: ClassificationRules = JSON.parse(JSON.stringify(rules))
+  const bo = r.themes.find((t) => t.special === 'bo')
+  if (bo) {
+    if (bo.name === 'BO de films') bo.name = BO_NAME
+    for (const k of GAME_KEYWORDS) if (!bo.keywords.includes(k)) bo.keywords.push(k)
+  }
+  r.frenchTheme = true
+  if (!r.themes.some((t) => t.special === 'francaise')) {
+    // Thème supprimé auparavant : on le remet à sa place par défaut (après Pop).
+    const fr = defaultRules().themes.find((t) => t.special === 'francaise')!
+    const after = r.themes.findIndex((t) => t.id === 'pop')
+    r.themes.splice(after < 0 ? 0 : after + 1, 0, fr)
+  }
+  r.version = RULES_VERSION
+  return r
 }

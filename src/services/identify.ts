@@ -2,6 +2,7 @@ import type { Candidate, CdDraft, ConfidenceFactors, ScanState } from '../db/typ
 import { canonicalBarcode, sameBarcode } from '../lib/barcode'
 import { formatFromDiscogs, formatFromMusicBrainz } from '../lib/formats'
 import { cleanDiscogsArtist, guessSortName } from '../lib/sortName'
+import { isJunkTag, latinArtistName } from '../lib/cleanup'
 import { normalizeText, similarity, titleCase, yearFrom } from '../lib/text'
 import type { Priority } from '../lib/throttle'
 import * as discogs from './discogs'
@@ -89,7 +90,7 @@ function hasGenre(d: CdDraft): boolean {
 /** Les noms les plus votés d'une liste de tags/genres MusicBrainz. */
 function topNames(tags: mb.MbTag[] | undefined, max: number): string[] {
   return [...(tags ?? [])]
-    .filter((t) => t.count > 0)
+    .filter((t) => t.count > 0 && !isJunkTag(t.name))
     .sort((a, b) => b.count - a.count)
     .slice(0, max)
     .map((t) => titleCase(t.name))
@@ -126,12 +127,16 @@ export function draftFromMbRelease(r: mb.MbRelease, barcode?: string): CdDraft {
   const discCount = Math.max(1, r.media?.length ?? 1)
   const format = formatFromMusicBrainz(r.packaging, discCount)
   const labelInfo = r['label-info']?.find((l) => l.label?.name)
-  const artist = mb.creditText(credits) || 'Artiste inconnu'
+  const credited = mb.creditText(credits) || 'Artiste inconnu'
+  const artistSort = first?.['sort-name'] || guessSortName(credited)
+  // Artiste écrit dans un autre alphabet (ex. japonais) : on l'affiche en lettres latines si possible.
+  const artist = latinArtistName(credited, artistSort) ?? credited
   return {
     ...emptyDraft(),
     barcode: barcode ? canonicalBarcode(barcode) : r.barcode ? canonicalBarcode(r.barcode) : undefined,
     artist,
-    artistSort: first?.['sort-name'] || guessSortName(artist),
+    artistOriginal: artist !== credited ? credited : undefined,
+    artistSort,
     title: r.title,
     // Année de l'édition pour l'instant ; remplacée par l'année d'origine lors de l'enrichissement.
     year: yearFrom(r.date),
