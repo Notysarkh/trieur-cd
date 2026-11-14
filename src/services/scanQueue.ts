@@ -6,6 +6,7 @@ import { hasDiscogsToken } from './discogs'
 import { enrichCandidate, identifyBarcode } from './identify'
 import { currentMedia, settings } from './settings'
 import { identifyBook, isIsbn } from './books'
+import { identifyFilm, videoSize } from './films'
 import type { MediaKind } from '../lib/media'
 
 // La file d'attente du scan en rafale.
@@ -88,7 +89,11 @@ async function processItem(item: ScanItem): Promise<void> {
   if (item.state === 'en_attente') {
     await db.scans.update(item.id, { state: 'recherche' })
     try {
-      const result = isBookScan(item) ? await identifyBook(item.barcode) : await identifyBarcode(item.barcode)
+      const result = isBookScan(item)
+        ? await identifyBook(item.barcode)
+        : item.media === 'video'
+          ? await identifyFilm(item.barcode)
+          : await identifyBarcode(item.barcode)
       item = {
         ...item,
         state: result.state,
@@ -207,13 +212,16 @@ export async function sendUnknownToReview(): Promise<number> {
     : 'Code-barres inconnu de MusicBrainz (Discogs non configuré)'
   for (const item of items) {
     const book = isBookScan(item)
+    const film = !book && item.media === 'video'
     await db.transaction('rw', db.cds, db.scans, async () => {
       await addCd({
         ...(book ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
+        ...(film ? { media: 'video' as const, videoFormat: 'dvd' as const, heightCm: videoSize('dvd', 1).heightCm } : {}),
         barcode: item.barcode,
         artist: 'Inconnu',
         artistSort: 'Inconnu',
         title: book ? `ISBN ${item.barcode}` : `Code ${item.barcode}`,
+        ...(film ? { thicknessMm: videoSize('dvd', 1).thicknessMm } : {}),
         genres: [],
         styles: [],
         format: 'standard',
@@ -223,7 +231,7 @@ export async function sendUnknownToReview(): Promise<number> {
         isCompilation: false,
         status: 'a_verifier',
         confidence: 0,
-        confidenceReasons: [book ? 'ISBN inconnu de la BnF et d\'Open Library' : reason],
+        confidenceReasons: [book ? 'ISBN inconnu de la BnF et d\'Open Library' : film ? 'Code-barres inconnu de la BnF' : reason],
         source: 'manuel',
       })
       await db.scans.delete(item.id)

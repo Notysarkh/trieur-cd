@@ -184,6 +184,43 @@ export function defaultBookRules(): ClassificationRules {
   }
 }
 
+/**
+ * Règles par défaut des DVD / Blu-ray (mélangés) : genre → titre (A → Z) ; les saisons d'une série restent ensemble.
+ * Mots-clés : vocabulaire des genres de la BnF (« film policier, thriller, espionnage »…) et de TMDB (« Crime », « Familial »…).
+ */
+export function defaultVideoRules(): ClassificationRules {
+  const t = (id: string, name: string, color: string, keywords: string[], extra: Partial<ThemeDef> = {}): ThemeDef => ({
+    id,
+    name,
+    color,
+    keywords,
+    sortBy: 'serie',
+    ...extra,
+  })
+  return {
+    version: RULES_VERSION,
+    maxThemes: 20,
+    minCdsPerTheme: 0,
+    frenchTheme: false,
+    artistOverrides: {},
+    cdOverrides: {},
+    themes: [
+      t('action', 'Action / Aventure', '#c0392b', ['action', 'aventure', 'aventures', 'film d aventures et d action', 'arts martiaux', 'western', 'film de guerre', 'guerre']),
+      t('comedie', 'Comédie', '#e67e22', ['comedie', 'film burlesque', 'burlesque', 'comedie musicale']),
+      t('drame', 'Drame', '#8e44ad', ['drame', 'film dramatique', 'film historique', 'histoire', 'biographie', 'romance']),
+      t('policier', 'Policier / Thriller', '#34495e', ['policier', 'film policier', 'thriller', 'espionnage', 'crime', 'mystere']),
+      t('sf', 'SF / Fantastique', '#2e86de', ['science fiction', 'film fantastique', 'fantastique', 'fantasy']),
+      t('horreur', 'Horreur', '#7f8c8d', ['horreur', 'film d horreur', 'epouvante']),
+      t('animation', 'Animation', '#16a085', ['animation', 'images de synthese', 'dessin anime']),
+      t('famille', 'Jeunesse / Famille', '#e84393', ['familial', 'famille', 'enfance', 'jeunesse', 'film pour enfants']),
+      t('documentaire', 'Documentaires', '#b7950b', ['documentaire', 'reportage']),
+      t('series', 'Séries TV', '#27ae60', ['serie tv', 'serie televisee', 'serie']),
+      t('musique', 'Musique / Concerts', '#d35400', ['musique', 'film musical', 'videomusique', 'concert', 'rock', 'musique classique']),
+      t('divers', 'Divers', '#95a5a6', ['telefilm'], { special: 'divers' }),
+    ],
+  }
+}
+
 /** Crée un identifiant de thème lisible à partir de son nom. */
 export function themeIdFromName(name: string, existing: string[]): string {
   const base =

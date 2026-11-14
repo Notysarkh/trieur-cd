@@ -1,13 +1,13 @@
 import { reactive } from 'vue'
 import { artistKey, buildPlan, groupKeyOf, type Plan } from '../classification/engine'
-import { defaultBookRules, defaultRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultRules, defaultVideoRules, type ClassificationRules } from '../classification/themes'
 import { db, itemsOf } from '../db/database'
 import { mediaOf, type MediaKind } from '../lib/media'
 import type { ArtistInfo, Cd } from '../db/types'
 import { hasDiscogsToken } from './discogs'
 import { completeWithDiscogs } from './identify'
 import { lookupArtist, lookupRelease, searchArtists } from './musicbrainz'
-import { rulesFor, rulesKey, saveSetting } from './settings'
+import { appliedAtKey, rulesFor, rulesKey, saveSetting } from './settings'
 import { isJunkTag, isLatin, latinArtistName } from '../lib/cleanup'
 import { guessSortName } from '../lib/sortName'
 import { titleCase } from '../lib/text'
@@ -27,7 +27,7 @@ export function saveRules(rules: ClassificationRules, media: MediaKind = 'cd'): 
 }
 
 export function resetRules(media: MediaKind = 'cd'): Promise<void> {
-  return saveRules(media === 'livre' ? defaultBookRules() : defaultRules(), media)
+  return saveRules(media === 'livre' ? defaultBookRules() : media === 'video' ? defaultVideoRules() : defaultRules(), media)
 }
 
 /** Après une fusion de thèmes : les CD dont la fiche choisissait l'ancien thème passent dans le nouveau. */
@@ -81,7 +81,7 @@ export async function applyPlan(plan: Plan, media: MediaKind = 'cd'): Promise<vo
       return { key: cd.id, changes: { themeId: p.themeId, shelfOrder: p.shelfOrder, updatedAt: now } }
     })
   await db.cds.bulkUpdate(updates)
-  await saveSetting(media === 'livre' ? 'bookClassificationAppliedAt' : 'classificationAppliedAt', Date.now())
+  await saveSetting(appliedAtKey(media), Date.now())
 }
 
 // ---------------------------------------------------------------------------

@@ -121,8 +121,12 @@ export function artistKey(name: string): string {
 export function groupKeyOf(cd: Cd): string {
   if (cd.personalCompilation) return `perso:${cd.id}`
   if (cd.isCompilation) return `cd:${cd.id}`
-  // Livres : tous les tomes d'une série ensemble, même si les auteurs changent.
-  if (cd.series?.trim() && mediaOf(cd) === 'livre') return `serie:${normalizeText(seriesSortKey(cd.series))}`
+  // Livres : tous les tomes d'une série ensemble, même si les auteurs changent. Films : les saisons d'une série TV.
+  if (cd.series?.trim() && (mediaOf(cd) === 'livre' || mediaOf(cd) === 'video')) {
+    return `serie:${normalizeText(seriesSortKey(cd.series))}`
+  }
+  // Un film seul est rangé à son titre, comme une compilation : un groupe à lui seul.
+  if (mediaOf(cd) === 'video') return `cd:${cd.id}`
   return artistKey(cd.artistSort?.trim() || cd.artist)
 }
 
@@ -248,7 +252,8 @@ function groupCds(cds: Cd[]): Group[] {
     const g = groups.get(key) ?? {
       key,
       cds: [],
-      isCompilation: !!cd.isCompilation && !cd.personalCompilation,
+      // « cd:<id> » : objet rangé seul, à son titre (compilation multi-artistes, film).
+      isCompilation: key.startsWith('cd:'),
       personal: !!cd.personalCompilation,
     }
     g.cds.push(cd)
@@ -340,7 +345,7 @@ export function buildPlan(
       reason =
         n === 1
           ? `Genre : ${[...first.genres, ...first.styles].slice(0, 3).join(', ')}`
-          : `${Math.round(agreement * 100)} % des voix de ses ${n} CD`
+          : `${Math.round(agreement * 100)} % des voix de ses ${n} ${({ cd: 'CD', livre: 'livres', video: 'films', jeu: 'jeux' } as const)[mediaOf(first)]}`
     }
 
     // Compilations : thème « Compilations », sauf si ce sont des BO, du classique ou pour enfants.

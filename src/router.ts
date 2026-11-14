@@ -16,8 +16,8 @@ declare module 'vue-router' {
 
 /** Écrans de rangement : les CD seulement (livres, films et jeux : étape E). */
 const cdOnly = { onlyFor: ['cd'] as MediaKind[] }
-/** Scan, ajout et classement : CD et livres (films : étape C, jeux : étape D). */
-const cdAndBooks = { onlyFor: ['cd', 'livre'] as MediaKind[] }
+/** Scan, ajout et classement : CD, livres et films (jeux : étape D). */
+const cdAndBooks = { onlyFor: ['cd', 'livre', 'video'] as MediaKind[] }
 
 export const router = createRouter({
   history: createWebHashHistory(),

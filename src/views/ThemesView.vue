@@ -173,7 +173,14 @@ async function reset() {
   }
 }
 
-const SORTS: Record<ThemeSort, string> = isCd
+const SORTS: Record<ThemeSort, string> = media === 'video'
+  ? {
+      artiste: 'Réalisateur (A → Z), puis date',
+      titre: 'Titre (A → Z)',
+      compositeur: 'Compositeur (A → Z), puis date',
+      serie: 'Titre (A → Z) ; les saisons d’une série ensemble',
+    }
+  : isCd
   ? {
       artiste: 'Artiste (A → Z), puis albums par date',
       titre: 'Titre de l’album (A → Z)',

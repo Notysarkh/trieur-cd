@@ -7,6 +7,7 @@ import { DEFAULT_THICKNESS, FORMAT_LABELS } from '../lib/formats'
 import { buildBackup, importBackup, shareOrDownload } from '../services/backup'
 import { buildCsv, importCsv } from '../services/csvExport'
 import { testToken } from '../services/discogs'
+import { testTmdbKey } from '../services/tmdb'
 import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
@@ -29,6 +30,20 @@ async function saveToken() {
   tokenStatus.value = 'test'
   tokenStatus.value = (await testToken()) ? 'ok' : 'ko'
   startProcessing()
+}
+
+// --- TMDB (films) ---
+const tmdbKey = ref(settings.tmdbKey)
+const showTmdbKey = ref(false)
+const tmdbStatus = ref<'' | 'test' | 'ok' | 'ko'>('')
+async function saveTmdbKey() {
+  await saveSetting('tmdbKey', tmdbKey.value.trim())
+  if (!tmdbKey.value.trim()) {
+    tmdbStatus.value = ''
+    return
+  }
+  tmdbStatus.value = 'test'
+  tmdbStatus.value = (await testTmdbKey()) ? 'ok' : 'ko'
 }
 
 // --- Épaisseurs ---
@@ -156,6 +171,37 @@ async function wipeAll() {
     </section>
 
     <section class="card stack">
+      <h2>TMDB : films et séries (recommandé)</h2>
+      <p class="small muted">
+        Pour les DVD / Blu-ray, TMDB ajoute l'affiche, l'année de sortie du film, les genres manquants, et permet de
+        chercher un film par son titre. Il faut un compte TMDB gratuit, puis une clé : sur themoviedb.org, menu
+        <em>Paramètres → API</em>, demande une clé « Developer » (usage personnel), puis copie la
+        <em>Clé d'API</em> (ou le <em>Jeton d'accès en lecture</em>) ici. Elle reste uniquement sur cet appareil et
+        n'est jamais incluse dans les sauvegardes.
+      </p>
+      <a class="small" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">
+        Ouvrir la page TMDB des clés ↗
+      </a>
+      <div class="row">
+        <input
+          v-model="tmdbKey"
+          class="grow"
+          :type="showTmdbKey ? 'text' : 'password'"
+          autocomplete="off"
+          placeholder="Colle ta clé TMDB ici"
+          aria-label="Clé TMDB"
+        />
+        <button class="btn btn-small" @click="showTmdbKey = !showTmdbKey">{{ showTmdbKey ? 'Masquer' : 'Afficher' }}</button>
+      </div>
+      <button class="btn btn-primary" @click="saveTmdbKey">Enregistrer et tester</button>
+      <p v-if="tmdbStatus === 'test'" class="notice small">Test en cours…</p>
+      <p v-if="tmdbStatus === 'ok'" class="notice notice-ok small">Clé valide : TMDB est actif.</p>
+      <p v-if="tmdbStatus === 'ko'" class="notice notice-danger small">
+        TMDB refuse cette clé (ou est injoignable). Vérifie qu'elle est complète.
+      </p>
+    </section>
+
+    <section class="card stack">
       <h2>Sauvegarde et transfert vers le PC</h2>
       <p class="small muted">
         Les données sont stockées dans ce navigateur, sur cet appareil uniquement. Pour passer du téléphone au PC :
@@ -246,8 +292,8 @@ async function wipeAll() {
     </section>
 
     <p class="small muted">
-      Données musicales : MusicBrainz (CC0), Discogs, Cover Art Archive. Mediamwa fonctionne sans compte et sans
-      serveur.
+      Données : MusicBrainz (CC0), Discogs, Cover Art Archive, catalogue de la BnF, Open Library, TMDB (ce produit
+      utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB). Mediamwa fonctionne sans compte et sans serveur.
     </p>
   </main>
 </template>

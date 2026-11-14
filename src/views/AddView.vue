@@ -13,6 +13,8 @@ import { enrichCandidate, searchByText } from '../services/identify'
 import { removeScan } from '../services/scanQueue'
 import { currentMedia, settings } from '../services/settings'
 import { isIsbn, searchBooks } from '../services/books'
+import { searchFilms, videoSize } from '../services/films'
+import { hasTmdbKey } from '../services/tmdb'
 import { mediaOf, type MediaKind } from '../lib/media'
 
 // Plan B quand le code-barres ne suffit pas :
@@ -31,7 +33,9 @@ const scanId = typeof route.query.scan === 'string' ? route.query.scan : undefin
 const cdId = typeof route.query.cd === 'string' ? route.query.cd : undefined
 /** CD ou livre : celui de la fiche à corriger, sinon un ISBN est un livre, sinon l'univers en cours. */
 const media = ref<MediaKind>(barcode && isIsbn(barcode) ? 'livre' : currentMedia())
+// (un film choisi après un code-barres inconnu reste un film : l'univers en cours est « DVD / Blu-ray »)
 const isBook = computed(() => media.value === 'livre')
+const isVideo = computed(() => media.value === 'video')
 
 const photo = ref<string>()
 const artist = ref('')
@@ -48,6 +52,7 @@ if (cdId) {
     media.value = mediaOf(cd)
     if (cd.artist !== 'Inconnu') artist.value = cd.artist
     if (!cd.title.startsWith('Code ') && !cd.title.startsWith('ISBN ')) title.value = cd.title
+    if (media.value === 'video') artist.value = ''
     photo.value = cd.coverPhoto
   })
 }
@@ -61,6 +66,8 @@ async function search() {
   try {
     if (isBook.value) {
       results.value = await searchBooks(title.value, artist.value)
+    } else if (isVideo.value) {
+      results.value = await searchFilms(title.value)
     } else {
       const found = await searchByText(artist.value, title.value)
       results.value = found.candidates
@@ -88,7 +95,9 @@ async function pick(c: Candidate) {
     coverPhoto: photo.value,
     status: 'identifie',
     confidence: 85,
-    confidenceReasons: [isBook.value ? 'Choisi par toi dans le catalogue de la BnF' : 'Choisi par toi après une recherche texte'],
+    confidenceReasons: [
+      isBook.value ? 'Choisi par toi dans le catalogue de la BnF' : isVideo.value ? 'Choisi par toi après une recherche par titre' : 'Choisi par toi après une recherche texte',
+    ],
   }
   window.scrollTo(0, 0)
 }
@@ -96,15 +105,17 @@ async function pick(c: Candidate) {
 function manual() {
   draft.value = {
     ...(isBook.value ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
+    ...(isVideo.value ? { media: 'video' as const, videoFormat: 'dvd' as const } : {}),
     barcode,
-    artist: artist.value.trim(),
+    artist: isVideo.value ? 'Réalisateur inconnu' : artist.value.trim(),
     artistSort: '',
     title: title.value.trim(),
     genres: [],
     styles: [],
-    format: isBook.value ? 'autre' : 'standard',
+    format: isBook.value || isVideo.value ? 'autre' : 'standard',
     discCount: 1,
     thicknessMm: isBook.value ? 25 : settings.thickness.standard,
+    ...(isVideo.value ? videoSize('dvd', 1) : {}),
     coverUrls: [],
     coverPhoto: photo.value,
     isCompilation: false,
@@ -135,26 +146,37 @@ async function save() {
 
 <template>
   <main class="page stack">
-    <h1 v-if="isBook">{{ cdId ? 'Corriger un livre' : 'Ajouter un livre sans ISBN' }}</h1>
+    <h1 v-if="isVideo">{{ cdId ? 'Corriger un film' : 'Ajouter un film par son titre' }}</h1>
+    <h1 v-else-if="isBook">{{ cdId ? 'Corriger un livre' : 'Ajouter un livre sans ISBN' }}</h1>
     <h1 v-else>{{ cdId ? 'Corriger un CD' : 'Ajouter un CD sans code-barres' }}</h1>
     <p v-if="barcode" class="muted small">{{ isBook ? 'ISBN' : 'Code-barres' }} : {{ barcode }}</p>
 
     <template v-if="!draft">
       <section class="card stack">
-        <h2>1. Photo {{ isBook ? 'de la couverture' : 'de la pochette' }} (facultatif)</h2>
+        <h2>1. Photo {{ isBook ? 'de la couverture' : isVideo ? 'de la jaquette' : 'de la pochette' }} (facultatif)</h2>
         <p class="muted small">Elle te servira de repère et remplacera la pochette si aucune n'est trouvée en ligne.</p>
         <CoverImage v-if="photo" :photo="photo" :size="96" label="Photo" />
         <PhotoCapture :has-photo="!!photo" @photo="photo = $event" />
       </section>
 
       <section class="card stack">
-        <h2>2. Rechercher par {{ isBook ? 'titre et auteur' : 'artiste et titre' }}</h2>
+        <h2>2. Rechercher par {{ isBook ? 'titre et auteur' : isVideo ? 'titre' : 'artiste et titre' }}</h2>
+        <p v-if="isVideo" class="muted small">
+          <template v-if="hasTmdbKey()">Sur TMDB (affiches, films du monde entier) et dans le catalogue de la BnF.</template>
+          <template v-else>
+            Dans le catalogue de la BnF. Ajoute ta clé TMDB dans les <RouterLink to="/reglages">Réglages</RouterLink> pour
+            chercher aussi sur TMDB (affiches, films étrangers).
+          </template>
+        </p>
         <p v-if="isBook" class="muted small">
           Dans le catalogue de la BnF (tout ce qui a été publié en France, même les livres anciens sans ISBN). Quelques
           mots du titre suffisent ; ajoute le nom de l'auteur s'il y a trop de résultats.
         </p>
         <form class="stack" @submit.prevent="search">
-          <template v-if="isBook">
+          <template v-if="isVideo">
+            <label class="field">Titre du film ou de la série <input v-model="title" autocomplete="off" /></label>
+          </template>
+          <template v-else-if="isBook">
             <label class="field">Titre <input v-model="title" autocomplete="off" /></label>
             <label class="field">Auteur (nom de famille) <input v-model="artist" autocomplete="off" /></label>
           </template>
@@ -166,7 +188,7 @@ async function save() {
             {{ searching ? 'Recherche…' : '🔎 Rechercher' }}
           </button>
         </form>
-        <p v-if="!isBook && !hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
+        <p v-if="!isBook && !isVideo && !hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
         <p v-if="searchError" class="notice notice-danger">{{ searchError }} Réessaie dans quelques secondes.</p>
         <p v-for="w in searchWarnings" :key="w" class="notice notice-warn small">{{ w }} Résultats partiels.</p>
 
@@ -185,7 +207,17 @@ async function save() {
                   </span>
                 </span>
                 <span class="badge badge-info">
-                  {{ picking === c.key ? '…' : c.key.startsWith('bnf') ? 'BnF' : c.key.startsWith('mb') ? 'MusicBrainz' : 'Discogs' }}
+                  {{
+                    picking === c.key
+                      ? '…'
+                      : c.key.startsWith('bnf')
+                        ? 'BnF'
+                        : c.key.startsWith('tmdb')
+                          ? 'TMDB'
+                          : c.key.startsWith('mb')
+                            ? 'MusicBrainz'
+                            : 'Discogs'
+                  }}
                 </span>
               </button>
             </li>
@@ -204,7 +236,8 @@ async function save() {
         <CoverImage :urls="draft.coverUrls" :photo="draft.coverPhoto" :label="draft.title" :size="96" />
         <p class="muted small grow">
           Vérifie et complète la fiche, puis enregistre.<br />
-          <template v-if="isBook">Épaisseur estimée d'après le nombre de pages : corrige-la si tu l'as mesurée.</template>
+          <template v-if="isVideo">Vérifie le support (DVD ou Blu-ray) et le nombre de disques : ils décident de la place occupée.</template>
+          <template v-else-if="isBook">Épaisseur estimée d'après le nombre de pages : corrige-la si tu l'as mesurée.</template>
           <template v-else>Format : {{ FORMAT_LABELS[draft.format] }} (par défaut si inconnu — corrige si besoin).</template>
         </p>
       </div>

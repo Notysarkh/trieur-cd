@@ -11,6 +11,7 @@ import { signal, unlockAudio } from '../lib/feedback'
 import { hasDiscogsToken } from '../services/discogs'
 import { addScan, isReady, retryErrors, sendUnknownToReview, validateReady } from '../services/scanQueue'
 import { isIsbn } from '../services/books'
+import { hasTmdbKey } from '../services/tmdb'
 import { currentMedia, saveSetting, settings } from '../services/settings'
 import { mediaInfo } from '../lib/media'
 
@@ -117,10 +118,16 @@ async function unknownToReview() {
   <main class="page stack">
     <h1>Scanner mes {{ media.many }}</h1>
 
-    <p v-if="!isCd" class="notice small">
+    <p v-if="media.id === 'livre'" class="notice small">
       Scanne le code-barres au dos du livre (l'ISBN, qui commence par 978 ou 979). L'appli le cherche dans le
       catalogue de la BnF, puis sur Open Library. Livre sans code-barres :
       <RouterLink to="/ajouter">recherche par titre et auteur</RouterLink>.
+    </p>
+    <p v-if="media.id === 'video'" class="notice small">
+      Scanne le code-barres au dos du boîtier. L'appli le cherche dans le catalogue de la BnF (DVD et Blu-ray édités en
+      France)<template v-if="!hasTmdbKey()">, puis complète avec TMDB si tu ajoutes ta clé dans les
+      <RouterLink to="/reglages">Réglages</RouterLink></template>. Film non reconnu :
+      <RouterLink to="/ajouter">recherche par titre</RouterLink>.
     </p>
 
     <div v-if="isCd" class="modes" role="tablist" aria-label="Mode du scanner">

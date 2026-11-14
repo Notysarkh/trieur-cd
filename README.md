@@ -121,7 +121,7 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 |---|---|---|
 | A | Accueil et univers, nom « Mediamwa », tes CD dans l'univers CD sans rien changer | ✅ fait |
 | B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | ✅ fait |
-| C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | à venir |
+| C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | ✅ fait |
 | D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | à venir |
 | E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | à venir |
 
@@ -134,6 +134,15 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Livre sans ISBN** (« + Livre sans ISBN ») : recherche par titre et auteur dans le catalogue de la BnF (même les livres anciens), ou saisie à la main.
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
+
+### Étape C : DVD / Blu-ray
+
+- **Scan du code-barres** dans l'univers 🎬 : catalogue de la **BnF** (dépôt légal des vidéos éditées en France) → titre, réalisateur, éditeur, DVD ou Blu-ray (« BD vidéo »), nombre de disques, genre. Mesuré sur 193 DVD / Blu-ray de grands éditeurs : 81 % ont un genre, 87 % un réalisateur.
+- **TMDB (facultatif, clé gratuite dans les Réglages)** : affiche, année de sortie du film, genres manquants, réalisateur, et recherche par titre (films étrangers). La clé reste sur l'appareil, jamais dans le code ni les sauvegardes. Non testé sans la clé de l'utilisateur.
+- **Classement** (règles propres aux films) : Action / Aventure, Comédie, Drame, Policier / Thriller, SF / Fantastique, Horreur, Animation, Jeunesse / Famille, Documentaires, Séries TV, Musique / Concerts, Divers → titre (A → Z), DVD et Blu-ray mélangés ; les saisons d'une série TV restent ensemble (champs « Série TV » et « Saison » de la fiche).
+- **Film non reconnu** : « + Film par son titre » (TMDB si clé, et catalogue de la BnF).
+- **Hypothèses** : boîtier DVD 14 mm × 19 cm, Blu-ray 11 mm × 17 cm, coffrets plus épais selon le nombre de disques ; « diffusé à la télévision » sur 2 disques ou plus = série TV.
+- **Pas encore** : rangement des films dans les meubles (Billy, étage 1 aujourd'hui) → étape E.
 
 ## Commandes utiles
 

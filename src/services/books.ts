@@ -83,8 +83,8 @@ export function parseSru(xml: string): { total: number; records: BnfRecord[] } {
   return { total, records }
 }
 
-const all = (r: BnfRecord, tag: string, code: string) => r.fields.filter((f) => f.tag === tag).flatMap((f) => f.sub[code] ?? [])
-const first = (r: BnfRecord, tag: string, code: string) => all(r, tag, code)[0]
+export const all = (r: BnfRecord, tag: string, code: string) => r.fields.filter((f) => f.tag === tag).flatMap((f) => f.sub[code] ?? [])
+export const first = (r: BnfRecord, tag: string, code: string) => all(r, tag, code)[0]
 
 /** La notice décrit-elle un livre (et non un DVD, un CD, une carte…) ? */
 export function isPrintedText(r: BnfRecord): boolean {
@@ -219,7 +219,7 @@ function defaultHeight(kind: BookKind): number {
 // ---------------------------------------------------------------------------
 
 /** « Oda » + « Eiichirō » → affiché « Eiichirō Oda », trié « Oda, Eiichirō ». */
-function person(f: MarcField): { display: string; sort: string } | null {
+export function person(f: MarcField): { display: string; sort: string } | null {
   const last = f.sub.a?.[0]?.trim()
   if (!last) return null
   const firstName = f.sub.b?.[0]?.trim()
@@ -233,7 +233,7 @@ export function invertPersonName(name: string): string {
   return `${words.at(-1)}, ${words.slice(0, -1).join(' ')}`
 }
 
-const num = (text?: string) => {
+export const num = (text?: string) => {
   const n = text?.match(/\d+/)?.[0]
   return n ? Number(n) : undefined
 }
@@ -402,7 +402,8 @@ export function bookDraftFromOpenLibrary(b: OlBook, isbn: string): CdDraft {
 // Requêtes
 // ---------------------------------------------------------------------------
 
-async function bnfSearch(query: string, max: number, priority: Priority): Promise<BnfRecord[]> {
+/** Interroge le catalogue de la BnF (toutes notices : livres, DVD…). */
+export async function bnfRecords(query: string, max: number, priority: Priority): Promise<BnfRecord[]> {
   const params = new URLSearchParams({
     version: '1.2',
     operation: 'searchRetrieve',
@@ -411,10 +412,14 @@ async function bnfSearch(query: string, max: number, priority: Priority): Promis
     maximumRecords: String(max),
   })
   const xml = await throttledText(bnfThrottle, `${BNF_SRU}?${params}`, {}, priority)
-  return parseSru(xml).records.filter(isPrintedText)
+  return parseSru(xml).records
 }
 
-const cql = (text: string) => `"${text.replace(/["\\]/g, ' ').trim()}"`
+async function bnfSearch(query: string, max: number, priority: Priority): Promise<BnfRecord[]> {
+  return (await bnfRecords(query, max, priority)).filter(isPrintedText)
+}
+
+export const cql = (text: string) => `"${text.replace(/["\\]/g, ' ').trim()}"`
 
 export interface BookIdentifyResult {
   state: 'trouve' | 'a_choisir' | 'introuvable'

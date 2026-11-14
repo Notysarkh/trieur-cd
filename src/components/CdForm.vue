@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { BookKind, CdDraft, CdFormat } from '../db/types'
+import type { BookKind, CdDraft, CdFormat, VideoFormat } from '../db/types'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
 import { invertPersonName } from '../services/books'
+import { VIDEO_FORMAT_LABELS, videoSize } from '../services/films'
 import { rulesFor, settings } from '../services/settings'
 
 // Formulaire de fiche (CD ou livre), utilisé pour la saisie manuelle et pour la modification.
@@ -12,11 +13,19 @@ import { rulesFor, settings } from '../services/settings'
 
 const model = defineModel<CdDraft>({ required: true })
 const isBook = computed(() => mediaOf(model.value) === 'livre')
+const isVideo = computed(() => mediaOf(model.value) === 'video')
+
+// Films : changer de support (DVD / Blu-ray) ou de nombre de disques met à jour épaisseur et hauteur.
+function setVideo(format: VideoFormat, discCount = model.value.discCount) {
+  model.value.videoFormat = format
+  model.value.discCount = discCount
+  Object.assign(model.value, videoSize(format, discCount))
+}
 const themes = computed(() => rulesFor(mediaOf(model.value)).themes)
 
 // Le nom de tri suit le nom d'artiste (ou d'auteur : « Albert Camus » → « Camus, Albert »)…
 // tant que tu ne l'as pas modifié toi-même.
-const autoSort = (name: string) => (isBook.value ? invertPersonName(name.split(/\s*&\s*/)[0] ?? name) : guessSortName(name))
+const autoSort = (name: string) => (isBook.value || isVideo.value ? invertPersonName(name.split(/\s*&\s*/)[0] ?? name) : guessSortName(name))
 if (!model.value.artistSort) model.value.artistSort = autoSort(model.value.artist)
 const sortTouched = ref(model.value.artistSort !== '' && model.value.artistSort !== autoSort(model.value.artist))
 watch(
@@ -76,7 +85,7 @@ function toNumber(text: string): number | undefined {
         <input type="checkbox" :checked="!!model.noBarcode" @change="model.noBarcode = ($event.target as HTMLInputElement).checked || undefined" />
         {{ isBook ? 'Sans ISBN / code-barres' : 'Sans code-barres' }}
       </label>
-      <label v-if="!isBook" class="row small">
+      <label v-if="!isBook && !isVideo" class="row small">
         <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
         Compilation perso (CD gravé, mix…)
       </label>
@@ -88,14 +97,83 @@ function toNumber(text: string): number | undefined {
         <option v-for="t in themes" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
       <span v-if="model.personalCompilation" class="hint">Rangée à la fin de ce thème, par ordre alphabétique de son nom.</span>
+      <span v-else-if="model.themeOverride && isVideo" class="hint">S'applique à ce film (ou à toutes les saisons de la série).</span>
       <span v-else-if="model.themeOverride && isBook" class="hint">
         S'applique à tous les livres de cet auteur (ou de cette série) : ils restent ensemble.
       </span>
       <span v-else-if="model.themeOverride" class="hint">S'applique à tous les CD de cet artiste (un artiste n'est jamais coupé en deux thèmes).</span>
     </label>
 
+    <!-- DVD / Blu-ray -->
+    <template v-if="isVideo">
+      <label class="field">
+        Support
+        <select :value="model.videoFormat ?? 'dvd'" @change="setVideo(($event.target as HTMLSelectElement).value as VideoFormat)">
+          <option v-for="(label, key) in VIDEO_FORMAT_LABELS" :key="key" :value="key">{{ label }}</option>
+        </select>
+      </label>
+      <label class="field">
+        Nombre de disques
+        <input
+          :value="model.discCount"
+          inputmode="numeric"
+          @change="setVideo(model.videoFormat ?? 'dvd', toNumber(($event.target as HTMLInputElement).value) ?? 1)"
+        />
+      </label>
+      <label class="field full">
+        Titre
+        <input v-model="model.title" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Série TV (les saisons restent ensemble)
+        <input v-model="model.series" autocomplete="off" />
+      </label>
+      <label class="field">
+        Saison
+        <input :value="model.volume ?? ''" inputmode="numeric" @input="model.volume = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="field">
+        Réalisateur
+        <input v-model="model.artist" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Année
+        <input :value="model.year ?? ''" inputmode="numeric" @input="model.year = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="field">
+        Éditeur
+        <input v-model="model.label" autocomplete="off" />
+      </label>
+      <label class="field">
+        Genres (séparés par des virgules)
+        <input :value="model.genres.join(', ')" autocomplete="off" @change="model.genres = toList(($event.target as HTMLInputElement).value)" />
+      </label>
+      <div class="row full">
+        <label class="field grow">
+          Hauteur (cm)
+          <input :value="model.heightCm ?? ''" inputmode="decimal" @input="model.heightCm = toNumber(($event.target as HTMLInputElement).value)" />
+        </label>
+        <label class="field grow">
+          Épaisseur (mm)
+          <input
+            :value="model.thicknessMm"
+            inputmode="decimal"
+            @input="model.thicknessMm = toNumber(($event.target as HTMLInputElement).value) ?? model.thicknessMm"
+          />
+        </label>
+      </div>
+      <label class="field">
+        Code-barres
+        <input v-model="model.barcode" inputmode="numeric" autocomplete="off" />
+      </label>
+      <label class="field full">
+        Notes
+        <textarea v-model="model.notes" rows="2"></textarea>
+      </label>
+    </template>
+
     <!-- Livres / BD -->
-    <template v-if="isBook">
+    <template v-else-if="isBook">
       <label class="field">
         Type
         <select :value="model.bookKind ?? 'livre'" @change="setKind(($event.target as HTMLSelectElement).value as BookKind)">

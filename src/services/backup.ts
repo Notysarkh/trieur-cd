@@ -26,6 +26,8 @@ interface BackupFile {
   /** Thèmes et règles des livres / BD (v2). */
   bookClassification?: ClassificationRules
   bookClassificationAppliedAt?: number
+  videoClassification?: ClassificationRules
+  videoClassificationAppliedAt?: number
 }
 
 /** Prépare le fichier de sauvegarde. */
@@ -42,6 +44,8 @@ export async function buildBackup(): Promise<File> {
     classificationAppliedAt: settings.classificationAppliedAt,
     bookClassification: JSON.parse(JSON.stringify(settings.bookClassification)),
     bookClassificationAppliedAt: settings.bookClassificationAppliedAt,
+    videoClassification: JSON.parse(JSON.stringify(settings.videoClassification)),
+    videoClassificationAppliedAt: settings.videoClassificationAppliedAt,
   }
   const date = new Date().toISOString().slice(0, 10)
   return new File([JSON.stringify(data, null, 1)], `mediamwa-${date}.json`, { type: 'application/json' })
@@ -134,6 +138,12 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if ((replaceRules || adoptBooks) && data.bookClassification?.themes?.length) {
     await saveSetting('bookClassification', data.bookClassification)
     if (data.bookClassificationAppliedAt) await saveSetting('bookClassificationAppliedAt', data.bookClassificationAppliedAt)
+    report.rulesReplaced = true
+  }
+  const adoptVideos = !!data.videoClassificationAppliedAt && !settings.videoClassificationAppliedAt
+  if ((replaceRules || adoptVideos) && data.videoClassification?.themes?.length) {
+    await saveSetting('videoClassification', data.videoClassification)
+    if (data.videoClassificationAppliedAt) await saveSetting('videoClassificationAppliedAt', data.videoClassificationAppliedAt)
     report.rulesReplaced = true
   }
   if (adoptLayout) {

@@ -12,6 +12,7 @@ import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
 import { currentMedia, rulesFor, settings } from '../services/settings'
 import { seriesLabel } from '../classification/engine'
+import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { mediaInfo, mediaOf } from '../lib/media'
 
 // Liste de la collection, avec recherche et filtres.
@@ -36,6 +37,7 @@ const toggleExtra = (f: typeof extraFilter.value) => (extraFilter.value = extraF
 const themeList = computed(() => rulesFor(currentMedia()).themes)
 const themes = computed(() => new Map(themeList.value.map((t) => [t.id, t])))
 const isBook = computed(() => currentMedia() === 'livre')
+const isVideo = computed(() => currentMedia() === 'video')
 const themeLabel = (id: string | undefined) => (id ? (themes.value.get(id)?.name ?? 'À classer') : '')
 const themeColor = (id: string | undefined) => (id ? (themes.value.get(id)?.color ?? '#9aa0a6') : 'transparent')
 
@@ -105,7 +107,7 @@ async function confirm(cd: Cd) {
     </div>
     <div v-if="!reviewMode" class="row actions-row">
       <RouterLink v-if="media.id === 'cd'" class="btn btn-primary grow" to="/ou-est">🔍 Où est ce {{ media.one }} ?</RouterLink>
-      <RouterLink v-if="!media.comingInStep" class="btn btn-small" to="/ajouter">{{ isBook ? '+ Livre sans ISBN' : '+ Ajouter sans code' }}</RouterLink>
+      <RouterLink v-if="!media.comingInStep" class="btn btn-small" to="/ajouter">{{ isBook ? '+ Livre sans ISBN' : isVideo ? '+ Film par son titre' : '+ Ajouter sans code' }}</RouterLink>
     </div>
 
     <p v-if="reviewMode" class="muted small">
@@ -113,7 +115,7 @@ async function confirm(cd: Cd) {
       si c'est bon.
     </p>
 
-    <input v-if="!media.comingInStep" v-model="search" type="search" :placeholder="isBook ? 'Rechercher un auteur, un titre, une série, un ISBN…' : 'Rechercher un artiste, un titre, un code-barres…'" aria-label="Rechercher" />
+    <input v-if="!media.comingInStep" v-model="search" type="search" :placeholder="isBook ? 'Rechercher un auteur, un titre, une série, un ISBN…' : isVideo ? 'Rechercher un titre, un réalisateur, un code-barres…' : 'Rechercher un artiste, un titre, un code-barres…'" aria-label="Rechercher" />
 
     <div v-if="!reviewMode && !media.comingInStep" class="row">
       <div class="chips full" role="group" aria-label="Filtrer par statut">
@@ -142,7 +144,7 @@ async function confirm(cd: Cd) {
         </button>
       </div>
       <select v-model="sort" class="sort" aria-label="Trier">
-        <option value="artiste">Tri : {{ isBook ? 'auteur' : 'artiste' }}</option>
+        <option value="artiste">Tri : {{ isBook ? 'auteur' : isVideo ? 'réalisateur' : 'artiste' }}</option>
         <option value="recent">Tri : derniers ajouts</option>
         <option value="rangement">Tri : ordre de rangement</option>
       </select>
@@ -163,7 +165,8 @@ async function confirm(cd: Cd) {
           <div class="grow">
             <div class="title">{{ cd.title }}</div>
             <div class="artist">
-              <template v-if="cd.series">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
+              <template v-if="cd.videoFormat">{{ VIDEO_FORMAT_LABELS[cd.videoFormat] }} · </template>
+              <template v-if="cd.series && !cd.videoFormat">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>
               <template v-if="cd.genres.length"> · {{ cd.genres.join(', ') }}</template>
             </div>
@@ -175,7 +178,7 @@ async function confirm(cd: Cd) {
               <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
               <span v-else class="badge badge-warn">à ranger</span>
             </div>
-            <div v-else-if="settings.layoutAppliedAt && !isBook" class="small muted">📍 à ranger (voir la fiche)</div>
+            <div v-else-if="settings.layoutAppliedAt && !isBook && !isVideo" class="small muted">📍 à ranger (voir la fiche)</div>
             <span v-if="withoutBarcode(cd)" class="badge badge-info nocode">sans code-barres</span>
             <div v-if="reviewMode" class="muted small reasons">{{ cd.confidenceReasons.join(' · ') }}</div>
           </div>

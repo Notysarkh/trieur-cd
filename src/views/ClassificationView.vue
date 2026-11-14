@@ -19,6 +19,7 @@ import {
   setOverride,
 } from '../services/classification'
 import { appliedAtFor, currentMedia, rulesFor } from '../services/settings'
+import { hasTmdbKey } from '../services/tmdb'
 
 // Écran « Classement » : l'appli propose un plan (thème → artiste → albums), tu l'ajustes, puis tu l'appliques.
 // Le même écran sert aux livres (thème → auteur ou série → livres), avec leurs propres règles.
@@ -99,6 +100,7 @@ function cdLabel(t: PlanTheme, cd: Cd | undefined): string {
   if (t.theme.sortBy === 'titre') return cd.title
   if (t.theme.sortBy === 'compositeur') return cd.composer || cd.artist
   if (t.theme.sortBy === 'serie' && cd.series) return seriesLabel(cd.series)
+  if (mediaOf(cd) === 'video') return cd.title
   return cd.isCompilation ? cd.title : cd.artist
 }
 
@@ -158,14 +160,18 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
 
       <!-- Points d'attention -->
       <section v-if="plan.unclassified.length" class="notice notice-warn stack">
-        <strong>{{ plan.unclassified.length }} {{ isCd ? 'artiste(s)' : 'auteur(s) ou série(s)' }} sans genre connu</strong>
+        <strong>{{ plan.unclassified.length }} {{ isCd ? 'artiste(s)' : media === 'video' ? 'film(s) ou série(s)' : 'auteur(s) ou série(s)' }} sans genre connu</strong>
         <span v-if="isCd" class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur thème ci-dessous, ou laisse l'appli chercher les
           genres des artistes sur MusicBrainz.
         </span>
-        <span v-else class="small">
+        <span v-else-if="media === 'livre'" class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur genre ci-dessous : il vaudra pour tous les livres de
           cet auteur (ou de cette série), y compris les prochains.
+        </span>
+        <span v-else class="small">
+          Ils sont dans « À classer » (en fin de liste). Choisis leur genre ci-dessous<template v-if="!hasTmdbKey()">, ou
+          ajoute ta clé TMDB dans les Réglages : les prochains films auront leur genre automatiquement</template>.
         </span>
       </section>
       <section v-if="toComplete || completion.running" class="card stack">
@@ -240,7 +246,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
             <strong>{{ t.theme.name }}</strong><br />
             <span class="small muted">
               {{ count(t.cds.length) }} · {{ t.artists.length }}
-              {{ isCd ? `artiste${t.artists.length > 1 ? 's' : ''}` : t.theme.sortBy === 'serie' ? `série${t.artists.length > 1 ? 's' : ''} ou auteur${t.artists.length > 1 ? 's' : ''}` : `auteur${t.artists.length > 1 ? 's' : ''}` }}
+              {{ isCd ? `artiste${t.artists.length > 1 ? 's' : ''}` : media === 'video' ? `titre${t.artists.length > 1 ? 's' : ''}` : t.theme.sortBy === 'serie' ? `série${t.artists.length > 1 ? 's' : ''} ou auteur${t.artists.length > 1 ? 's' : ''}` : `auteur${t.artists.length > 1 ? 's' : ''}` }}
               · {{ cdLabel(t, t.cds[0]) }}<template v-if="cdLabel(t, t.cds.at(-1)) !== cdLabel(t, t.cds[0])"> → {{ cdLabel(t, t.cds.at(-1)) }}</template>
             </span>
           </span>
@@ -256,6 +262,9 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
             <li v-for="cd in t.cds" :key="cd.id">
               <template v-if="t.theme.sortBy === 'serie' && cd.series">
                 <strong>{{ seriesLabel(cd.series) }}</strong><template v-if="cd.volume"> {{ cd.volume }}</template> — {{ cd.title }}
+              </template>
+              <template v-else-if="mediaOf(cd) === 'video'">
+                <strong>{{ cd.title }}</strong><template v-if="cd.year"> ({{ cd.year }})</template> — {{ cd.artist }}
               </template>
               <template v-else>
                 <strong>{{ t.theme.sortBy === 'compositeur' ? cd.composer || cd.artistSort : cd.artistSort }}</strong>

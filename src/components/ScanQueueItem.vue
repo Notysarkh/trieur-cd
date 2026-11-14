@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { ScanItem } from '../db/types'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
+import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { CONFIDENCE_THRESHOLD } from '../services/identify'
 import { chooseCandidate, finalDraft, isReady, removeScan, retryErrors, setInclude } from '../services/scanQueue'
 import CoverImage from './CoverImage.vue'
@@ -61,7 +62,8 @@ const otherEdition = computed(
         <div class="muted small">
           <template v-if="draft">
             {{ draft.artist }}<template v-if="draft.year"> · {{ draft.year }}</template>
-            <template v-if="draft.media === 'livre'">· {{ BOOK_KIND_LABELS[draft.bookKind ?? 'livre'] }}<template v-if="draft.label"> · {{ draft.label }}</template></template>
+            <template v-if="draft.media === 'video'">· {{ VIDEO_FORMAT_LABELS[draft.videoFormat ?? 'dvd'] }}<template v-if="draft.discCount > 1"> × {{ draft.discCount }}</template></template>
+            <template v-else-if="draft.media === 'livre'">· {{ BOOK_KIND_LABELS[draft.bookKind ?? 'livre'] }}<template v-if="draft.label"> · {{ draft.label }}</template></template>
             <template v-else>· {{ FORMAT_LABELS[draft.format] }}</template>
           </template>
           <template v-else>{{ item.barcode }}</template>
