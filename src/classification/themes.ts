@@ -68,7 +68,7 @@ export function defaultRules(): ClassificationRules {
 
   return {
     version: RULES_VERSION,
-    maxThemes: 12,
+    maxThemes: 16,
     minCdsPerTheme: 5,
     frenchTheme: true,
     artistOverrides: {},
@@ -171,6 +171,9 @@ export function migrateRules(rules: ClassificationRules): ClassificationRules | 
     for (const k of GAME_KEYWORDS) if (!bo.keywords.includes(k)) bo.keywords.push(k)
   }
   r.frenchTheme = true
+  // Avec le thème « Musique française » en plus, 12 thèmes ne suffisent plus : Metal, Soul et Hip-hop
+  // seraient regroupés automatiquement alors qu'ils sont déjà séparés sur tes étagères.
+  if (r.maxThemes === 12) r.maxThemes = 16
   if (!r.themes.some((t) => t.special === 'francaise')) {
     // Thème supprimé auparavant : on le remet à sa place par défaut (après Pop).
     const fr = defaultRules().themes.find((t) => t.special === 'francaise')!

@@ -12,6 +12,7 @@ import { useLiveQuery } from '../composables/useLiveQuery'
 import { computePlan } from '../services/classification'
 import { locationLabel, releasePlacement } from '../services/layout'
 import { settings } from '../services/settings'
+import { groupKeyOf } from '../classification/engine'
 
 // Fiche d'un CD : consultation et modification.
 
@@ -42,6 +43,7 @@ const live = useLiveQuery(() => db.cds.get(props.id), undefined as Cd | undefine
 const dirty = computed(() => JSON.stringify(original.value) !== JSON.stringify(edited.value))
 
 const moved = ref(0)
+const sortSpread = ref(0)
 
 async function save(status?: CdStatus) {
   if (!edited.value || !original.value) return
@@ -51,6 +53,16 @@ async function save(status?: CdStatus) {
   // on ne les réécrit pas depuis le formulaire (ils ont pu changer pendant que la fiche était ouverte).
   const { location, shelvedAt, themeId, shelfOrder, ...fields } = edited.value
   await updateCd(props.id, fields)
+  // Nom de tri corrigé : on l'applique à tous les CD de l'artiste (sinon il serait coupé en deux groupes).
+  sortSpread.value = 0
+  const newSort = (edited.value.artistSort ?? '').trim()
+  if (newSort && newSort !== before.artistSort && !before.isCompilation && !before.personalCompilation && !edited.value.personalCompilation) {
+    const key = groupKeyOf(before)
+    const others = await db.cds.filter((c) => c.id !== props.id && groupKeyOf(c) === key).toArray()
+    const now = Date.now()
+    await db.cds.bulkUpdate(others.map((c) => ({ key: c.id, changes: { artistSort: newSort, updatedAt: now } })))
+    sortSpread.value = others.length
+  }
   const themeChoiceChanged =
     before.themeOverride !== edited.value.themeOverride || !!before.personalCompilation !== !!edited.value.personalCompilation
   moved.value = 0
@@ -131,6 +143,9 @@ async function remove() {
       </p>
 
       <p v-if="saved" class="notice notice-ok" role="status">Modifications enregistrées.</p>
+      <p v-if="sortSpread" class="notice notice-ok" role="status">
+        Nom de tri appliqué aussi aux {{ sortSpread }} autre(s) CD de cet artiste.
+      </p>
       <p v-if="moved" class="notice notice-warn" role="status">
         Changement de thème : {{ moved }} CD à déplacer. {{ moved > 1 ? 'Ils sont' : 'Il est' }} maintenant « à ranger » ; la
         fiche « Où le ranger » indique la nouvelle place, sans rien décaler ailleurs.

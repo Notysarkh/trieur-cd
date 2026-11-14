@@ -10,6 +10,8 @@ describe('nom de tri corrigé d’après MusicBrainz', () => {
     for (const n of ['Fatboy Slim', 'Cœur de pirate', 'Square Tune Magician']) {
       expect(decideSortName({ name: n, sort: n }, { name: n, 'sort-name': n })).toBeNull()
     }
+    // Mano Solo : MusicBrainz le trie à « Mano Solo » (nom de scène) → à corriger à la main en « Solo, Mano »
+    expect(decideSortName({ name: 'Mano Solo', sort: 'Mano Solo' }, { name: 'Mano Solo', 'sort-name': 'Mano Solo' })).toBeNull()
     // « Oisives, Les » est déjà bien rangé : MusicBrainz (« Les Oisives ») n'apprend rien
     expect(decideSortName({ name: 'Les Oisives', sort: 'Oisives, Les' }, { name: 'Les Oisives', 'sort-name': 'Les Oisives' })).toBeNull()
   })
