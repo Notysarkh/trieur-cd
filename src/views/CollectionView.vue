@@ -6,6 +6,7 @@ import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
 import { digitsOnly } from '../lib/barcode'
+import { fuzzyFilter } from '../lib/fuzzy'
 import { normalizeText } from '../lib/text'
 import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
@@ -63,12 +64,12 @@ const filtered = computed(() => {
   else if (extraFilter.value === 'aRanger') list = list.filter((cd) => !cd.shelvedAt)
   else if (extraFilter.value === 'ranges') list = list.filter((cd) => !!cd.shelvedAt)
   if (q) {
-    // Recherche sur l'artiste, le titre, le label, les genres… et le code-barres.
-    list = list.filter((cd) => {
-      if (qDigits.length >= 5 && cd.barcode?.includes(qDigits)) return true
-      const haystack = haystacks.value.get(cd.id) ?? ''
-      return q.split(' ').every((word) => haystack.includes(word))
-    })
+    // Un code-barres tapé (au moins 5 chiffres) : recherche directe sur le code.
+    const byCode = qDigits.length >= 5 ? list.filter((cd) => cd.barcode?.includes(qDigits)) : []
+    if (byCode.length) return byCode
+    // Sinon recherche tolérante (fautes de frappe, accents) sur l'artiste, le titre, le label, les genres…
+    // Les meilleures correspondances d'abord.
+    return fuzzyFilter(list, search.value, (cd) => haystacks.value.get(cd.id) ?? '')
   }
   return [...list].sort((a, b) =>
     sort.value === 'recent'
@@ -94,7 +95,10 @@ async function confirm(cd: Cd) {
   <main class="page stack">
     <div class="row">
       <h1 class="grow">{{ reviewMode ? 'À vérifier' : 'Ma collection' }}</h1>
-      <RouterLink v-if="!reviewMode" class="btn btn-small" to="/ajouter">+ Ajouter sans code</RouterLink>
+    </div>
+    <div v-if="!reviewMode" class="row actions-row">
+      <RouterLink class="btn btn-primary grow" to="/ou-est">🔍 Où est ce CD ?</RouterLink>
+      <RouterLink class="btn btn-small" to="/ajouter">+ Ajouter sans code</RouterLink>
     </div>
 
     <p v-if="reviewMode" class="muted small">

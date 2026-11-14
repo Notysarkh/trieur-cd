@@ -57,6 +57,12 @@ const pct = (p: { done: number; all: number }) => (p.all ? Math.round((p.done / 
 const instruction = computed(() => {
   const r = info.value?.real
   if (!r) return ''
+  if (cd.value?.shelvedAt) {
+    if (r.before && r.after) return `Il est rangé entre « ${name(r.before)} » et « ${name(r.after)} ».`
+    if (r.before) return `Il est rangé juste à droite de « ${name(r.before)} ».`
+    if (r.after) return `Il est rangé juste à gauche de « ${name(r.after)} ».`
+    return 'C’est le seul CD déjà posé dans cette rangée.'
+  }
   if (r.emptyRow) return `Premier CD de cette rangée : place-le ${r.hint}.`
   if (r.before && r.after) return `Place-le entre « ${name(r.before)} » et « ${name(r.after)} ».`
   // Un seul voisin posé : « début / fin de rangée » seulement si aucun autre CD n'est prévu de ce côté.

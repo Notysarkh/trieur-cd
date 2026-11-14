@@ -19,6 +19,7 @@ export const router = createRouter({
     { path: '/classement/themes', name: 'themes', component: () => import('./views/ThemesView.vue') },
     { path: '/rangement', name: 'rangement', component: () => import('./views/LayoutView.vue') },
     { path: '/rangement/meubles', name: 'meubles', component: () => import('./views/FurnitureView.vue') },
+    { path: '/ou-est', name: 'ou-est', component: () => import('./views/FindView.vue') },
     { path: '/sans-code', name: 'sans-code', component: () => import('./views/NoBarcodeView.vue') },
     { path: '/imprimer/sans-code', name: 'imprimer-sans-code', component: () => import('./views/PrintNoBarcodeView.vue') },
     { path: '/imprimer/plan', name: 'imprimer-plan', component: () => import('./views/PrintPlanView.vue') },

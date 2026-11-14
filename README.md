@@ -90,12 +90,12 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 - **Tableur (CSV)** (Réglages) : export de toute la collection avec thème et emplacement (séparateur « ; », accents et codes-barres préservés pour Excel). Import : une ligne avec un id connu met ce CD à jour (cellules vides = inchangé), une ligne sans id ajoute un CD. Thème, emplacement et confiance ne sont pas relus.
 - **Sauvegarde complète (JSON)** : toujours dans Réglages, pour passer du téléphone au PC.
 
-## Version 1.1 (en cours)
+## Version 1.1
 
 - **Étape A ✅** : indicateur « sans code-barres » (coché automatiquement quand il n'y a pas de code), statut « à ranger / rangé le … » visible partout (filtres dans la Collection), thème choisi sur la fiche d'un CD (il s'applique à tout l'artiste ; un choix fait dans l'écran Classement reste prioritaire), et « Compilation perso » (CD gravé, mix) : un nom, un thème choisi, rangée à la fin de ce thème par ordre alphabétique.
 - **Étape B ✅** : fiche « Où le ranger » en 3 blocs : emplacement (avec dessin du meuble), liste théorique (le plan : 2 CD avant / 2 après, réglable dans Réglages, badges « Rangé ✓ » / « À ranger »), liste réelle (voisins déjà posés, « Place-le entre X et Y », « Identique au plan ✓ », début / fin de rangée avec le voisin le plus proche, place à laisser pour les CD encore à venir, rangée vide → « place-le à gauche / au centre / à droite »). Gros bouton « Rangé ✓ » (le scan ne compte plus automatiquement), « Annuler », progression totale / par meuble / par rangée. Dans le Scanner (mode « Ranger mes CD », caméra en pause pendant la fiche) et dans la fiche de chaque CD.
 - **Étape C ✅** : écran « CD sans code-barres » (Rangement → 💿, ou depuis le Scanner) : filtre par thème, recherche tolérante aux fautes et aux accents (« brasens copain » trouve Brassens), méthode de la « pile triée » : 1. la liste dans l'ordre exact du rangement (grands numéros, thème coloré, emplacement) pour trier la pile, 2. rangement un par un avec la fiche « Où le ranger », « Rangé ✓ » passe au suivant tout seul. Liste imprimable à cocher (PDF).
-- Étape D : recherche instantanée tolérante aux fautes, « où est ce CD ? » avec voisins théoriques et réels.
+- **Étape D ✅** : « 🔍 Où est ce CD ? » (Collection ou Rangement) : recherche instantanée tolérante aux fautes et aux accents (ou par code-barres), puis la fiche avec l'emplacement et les voisins théoriques et réels (« Il est rangé entre X et Y »). La recherche de la Collection devient elle aussi tolérante.
 
 ## Commandes utiles
 
