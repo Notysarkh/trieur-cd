@@ -6,7 +6,7 @@ import CoverImage from '../components/CoverImage.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
-import { deleteCd, updateCd } from '../services/collection'
+import { deleteCd, shelvedDate, updateCd } from '../services/collection'
 import LocationMap from '../components/LocationMap.vue'
 import { buildPlan } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
@@ -86,7 +86,11 @@ async function remove() {
 
       <section v-if="live?.location && furnitureOf" class="card where">
         <LocationMap :furniture="furnitureOf" :slot-id="live.location.slotId" :position="live.location.position" />
-        <p><strong>📍 {{ locationLabel(live) }}</strong></p>
+        <p>
+          <strong>📍 {{ locationLabel(live) }}</strong><br />
+          <span v-if="live.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(live) }}</span>
+          <span v-else class="badge badge-warn">à ranger</span>
+        </p>
       </section>
       <section v-else-if="live && insertion" class="card stack">
         <p>

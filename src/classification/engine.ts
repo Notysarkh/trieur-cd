@@ -31,6 +31,8 @@ export interface PlanArtist {
   /** Les autres thèmes possibles et leur part des voix. */
   alternatives: { themeId: string; share: number }[]
   isCompilation: boolean
+  /** Compilation personnelle (CD gravé…) : rangée à la fin de son thème. */
+  personal: boolean
 }
 
 export interface PlanTheme {
@@ -194,13 +196,20 @@ interface Group {
   key: string
   cds: Cd[]
   isCompilation: boolean
+  personal: boolean
 }
 
 function groupCds(cds: Cd[]): Group[] {
   const groups = new Map<string, Group>()
   for (const cd of cds) {
-    const key = cd.isCompilation ? `cd:${cd.id}` : artistKey(cd.artist)
-    const g = groups.get(key) ?? { key, cds: [], isCompilation: cd.isCompilation }
+    // Compilations (du commerce ou perso) : chaque CD est un groupe à lui seul.
+    const key = cd.personalCompilation ? `perso:${cd.id}` : cd.isCompilation ? `cd:${cd.id}` : artistKey(cd.artist)
+    const g = groups.get(key) ?? {
+      key,
+      cds: [],
+      isCompilation: !!cd.isCompilation && !cd.personalCompilation,
+      personal: !!cd.personalCompilation,
+    }
     g.cds.push(cd)
     groups.set(key, g)
   }
@@ -244,8 +253,9 @@ export function buildPlan(
   // 1-3. Un thème par artiste
   const artists: PlanArtist[] = groupCds(cds).map((group) => {
     const first = group.cds[0]
-    const name = group.isCompilation ? first.title : mostCommon(group.cds.map((c) => c.artist))
-    const sortName = group.isCompilation
+    const single = group.isCompilation || group.personal
+    const name = single ? first.title : mostCommon(group.cds.map((c) => c.artist))
+    const sortName = single
       ? titleSortKey(first.title)
       : mostCommon(group.cds.map((c) => c.artistSort || c.artist))
 
@@ -261,7 +271,7 @@ export function buildPlan(
     // Aucun genre sur ses CD : on se rabat sur les genres de l'artiste (MusicBrainz).
     const mbArtistId = group.cds.find((c) => c.mbArtistId)?.mbArtistId
     const info = mbArtistId ? artistInfos.get(mbArtistId) : undefined
-    if (!votes.size && info && !group.isCompilation) {
+    if (!votes.size && info && !single) {
       addTags(votes, info.genres, 1, matcher)
       addTags(votes, info.tags, 0.5, matcher)
       if (votes.size) reason = "D'après les genres de l'artiste (MusicBrainz)"
@@ -294,7 +304,7 @@ export function buildPlan(
     }
 
     // Musique française
-    if (frenchId && !group.isCompilation && !NO_FRENCH.has(themeById.get(themeId)?.special)) {
+    if (frenchId && !single && !NO_FRENCH.has(themeById.get(themeId)?.special)) {
       const why = frenchReason(group.cds, info)
       if (why) {
         themeId = frenchId
@@ -303,12 +313,22 @@ export function buildPlan(
     }
 
     // Choix forcé par toi : prioritaire sur tout le reste.
-    const override = group.isCompilation ? rules.cdOverrides[first.id] : rules.artistOverrides[group.key]
-    const forced = !!override && themeById.has(override)
-    if (forced) {
-      themeId = override!
+    // 1) dans l'écran Classement (artiste ou compilation) ; 2) sinon sur la fiche d'un de ses CD.
+    const ruleOverride = single ? rules.cdOverrides[first.id] : rules.artistOverrides[group.key]
+    const cdOverride = mostCommon(
+      group.cds.map((c) => c.themeOverride).filter((t): t is string => !!t && themeById.has(t)),
+    )
+    let forced = false
+    if (ruleOverride && themeById.has(ruleOverride)) {
+      themeId = ruleOverride
       reason = 'Choisi par toi'
+      forced = true
+    } else if (cdOverride) {
+      themeId = cdOverride
+      reason = 'Choisi sur la fiche du CD'
+      forced = true
     }
+    if (group.personal && !forced && themeId === UNCLASSIFIED) reason = 'Compilation perso : choisis son thème sur sa fiche'
 
     return {
       key: group.key,
@@ -322,6 +342,7 @@ export function buildPlan(
       agreement,
       alternatives: ranked.filter((r) => r.themeId !== themeId).slice(0, 3),
       isCompilation: group.isCompilation,
+      personal: group.personal,
     }
   })
 
@@ -351,7 +372,7 @@ export function buildPlan(
     themes,
     unclassified: byTheme.get(UNCLASSIFIED) ?? [],
     disputed: artists.filter(
-      (a) => !a.forced && !a.isCompilation && a.cds.length > 1 && a.agreement < DISPUTE_THRESHOLD,
+      (a) => !a.forced && !a.isCompilation && !a.personal && a.cds.length > 1 && a.agreement < DISPUTE_THRESHOLD,
     ),
     merges,
     placement,
@@ -409,8 +430,19 @@ function mergeSmallThemes(
   return merges
 }
 
-/** Les CD d'un thème dans l'ordre de rangement. */
-function orderCds(artists: PlanArtist[], theme: ThemeDef): Cd[] {
+/**
+ * Les CD d'un thème dans l'ordre de rangement.
+ * Les compilations perso (CD gravés…) viennent à la fin du thème, par ordre alphabétique de leur nom.
+ */
+function orderCds(all: PlanArtist[], theme: ThemeDef): Cd[] {
+  const personal = all
+    .filter((a) => a.personal)
+    .flatMap((a) => a.cds)
+    .sort((a, b) => collator.compare(titleSortKey(a.title), titleSortKey(b.title)))
+  return [...orderRegular(all.filter((a) => !a.personal), theme), ...personal]
+}
+
+function orderRegular(artists: PlanArtist[], theme: ThemeDef): Cd[] {
   if (theme.sortBy === 'titre') {
     return artists
       .flatMap((a) => a.cds)

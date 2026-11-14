@@ -229,6 +229,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
               <div class="grow">
                 <div>
                   <strong>{{ a.name }}</strong>
+                  <span v-if="a.personal" class="muted small"> · compilation perso</span>
                   <span class="muted small"> · {{ a.cds.length }} CD</span>
                   <span v-if="a.forced" class="badge badge-info">forcé</span>
                   <span v-else-if="!a.isCompilation && a.cds.length > 1 && a.agreement < 0.6" class="badge badge-warn">

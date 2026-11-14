@@ -74,6 +74,7 @@ async function pick(c: Candidate) {
   draft.value = {
     ...full.draft,
     barcode: barcode ?? full.draft.barcode,
+    noBarcode: !(barcode ?? full.draft.barcode) || undefined,
     coverPhoto: photo.value,
     status: 'identifie',
     confidence: 85,
@@ -99,6 +100,7 @@ function manual() {
     status: 'manuel',
     confidence: 100,
     confidenceReasons: ['Saisi à la main'],
+    noBarcode: !barcode || undefined,
     source: 'manuel',
   }
   window.scrollTo(0, 0)

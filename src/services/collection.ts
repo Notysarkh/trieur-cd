@@ -38,3 +38,13 @@ export async function deleteCd(id: string): Promise<void> {
 export function findByBarcode(barcode: string): Promise<Cd[]> {
   return db.cds.where('barcode').equals(canonicalBarcode(barcode)).toArray()
 }
+
+/** CD sans code-barres : coché à la main, ou simplement sans code enregistré. */
+export function withoutBarcode(cd: Cd): boolean {
+  return cd.noBarcode ?? !cd.barcode
+}
+
+/** Date de rangement lisible, ex. « 14/11 ». */
+export function shelvedDate(cd: Cd): string {
+  return cd.shelvedAt ? new Date(cd.shelvedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+}

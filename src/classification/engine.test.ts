@@ -152,6 +152,48 @@ describe('musique française', () => {
   })
 })
 
+describe('CD gravés et compilations perso (v1.1)', () => {
+  it('range une compilation perso dans le thème choisi, à la fin du thème', () => {
+    const cds = [
+      cd('Zappa', 'Hot Rats', { styles: ['Grunge'] }),
+      cd('Abba', 'Arrival', { styles: ['Grunge'] }),
+      cd('Compilation perso', 'Mix été 98', { personalCompilation: true, themeOverride: 'rock' }),
+      cd('Compilation perso', 'Ballades', { personalCompilation: true, themeOverride: 'rock' }),
+    ]
+    const rock = buildPlan(cds, rules()).themes.find((t) => t.theme.id === 'rock')!
+    expect(rock.cds.map((c) => c.title)).toEqual(['Arrival', 'Hot Rats', 'Ballades', 'Mix été 98'])
+  })
+
+  it('ne regroupe pas les compilations perso entre elles comme un seul artiste', () => {
+    const cds = [
+      cd('Compilation perso', 'Mix rock', { personalCompilation: true, themeOverride: 'rock' }),
+      cd('Compilation perso', 'Mix jazz', { personalCompilation: true, themeOverride: 'jazz' }),
+    ]
+    const plan = buildPlan(cds, rules())
+    expect(themeOf(plan, cds[0].id)).toBe('rock')
+    expect(themeOf(plan, cds[1].id)).toBe('jazz')
+  })
+
+  it('met « À classer » une compilation perso sans thème choisi', () => {
+    const x = cd('Compilation perso', 'Mystère', { personalCompilation: true })
+    expect(themeOf(buildPlan([x], rules()), x.id)).toBe(UNCLASSIFIED)
+  })
+
+  it('applique le thème choisi sur la fiche d’un CD à tout l’artiste', () => {
+    const a = cd('Groupe local', 'Démo 1', { noBarcode: true, themeOverride: 'jazz' })
+    const b = cd('Groupe local', 'Démo 2', { styles: ['Grunge'] })
+    const plan = buildPlan([a, b], rules())
+    expect(themeOf(plan, a.id)).toBe('jazz')
+    expect(themeOf(plan, b.id)).toBe('jazz')
+  })
+
+  it('donne la priorité au choix fait dans l’écran Classement', () => {
+    const a = cd('Groupe local', 'Démo 1', { themeOverride: 'jazz' })
+    const r = rules({ artistOverrides: { [artistKey('Groupe local')]: 'pop' } })
+    expect(themeOf(buildPlan([a], r), a.id)).toBe('pop')
+  })
+})
+
 describe('genres inconnus et règles', () => {
   it('met de côté les artistes sans genre, puis utilise les genres de l’artiste', () => {
     const x = cd('Inconnu', 'Album', { mbArtistId: 'a2' })

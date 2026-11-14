@@ -90,6 +90,13 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 - **Tableur (CSV)** (Réglages) : export de toute la collection avec thème et emplacement (séparateur « ; », accents et codes-barres préservés pour Excel). Import : une ligne avec un id connu met ce CD à jour (cellules vides = inchangé), une ligne sans id ajoute un CD. Thème, emplacement et confiance ne sont pas relus.
 - **Sauvegarde complète (JSON)** : toujours dans Réglages, pour passer du téléphone au PC.
 
+## Version 1.1 (en cours)
+
+- **Étape A ✅** : indicateur « sans code-barres » (coché automatiquement quand il n'y a pas de code), statut « à ranger / rangé le … » visible partout (filtres dans la Collection), thème choisi sur la fiche d'un CD (il s'applique à tout l'artiste ; un choix fait dans l'écran Classement reste prioritaire), et « Compilation perso » (CD gravé, mix) : un nom, un thème choisi, rangée à la fin de ce thème par ordre alphabétique.
+- Étape B : fiche « Où le ranger » (emplacement, liste théorique, liste réelle), bouton « Rangé ✓ », progression par meuble et par case.
+- Étape C : CD sans code-barres : liste dédiée, mode « pile triée », liste imprimable à cocher.
+- Étape D : recherche instantanée tolérante aux fautes, « où est ce CD ? » avec voisins théoriques et réels.
+
 ## Commandes utiles
 
 | Commande | Rôle |

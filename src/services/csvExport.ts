@@ -6,7 +6,7 @@ import { parseCsv, toCsv } from '../lib/csv'
 import { FORMAT_LABELS } from '../lib/formats'
 import { guessSortName } from '../lib/sortName'
 import { normalizeText } from '../lib/text'
-import { addCd, updateCd } from './collection'
+import { addCd, updateCd, withoutBarcode } from './collection'
 import { locationLabel } from './layout'
 import { settings } from './settings'
 
@@ -23,6 +23,7 @@ const num = (v: string): number | undefined => {
   const n = Number(v.replace(',', '.').trim())
   return v.trim() && Number.isFinite(n) ? n : undefined
 }
+const yes = (v: string) => /^(oui|yes|1|vrai|true|x)$/i.test(v.trim())
 const list = (v: string) =>
   v
     .split(/[|,]/)
@@ -58,6 +59,25 @@ const COLUMNS: Column[] = [
   { header: 'Genres', get: (c) => c.genres.join(' | '), set: (d, v) => (d.genres = list(v)) },
   { header: 'Styles', get: (c) => c.styles.join(' | '), set: (d, v) => (d.styles = list(v)) },
   { header: 'Compositeur', get: (c) => c.composer, set: (d, v) => (d.composer = v) },
+  {
+    header: 'Sans code-barres',
+    get: (c) => (withoutBarcode(c) ? 'oui' : 'non'),
+    set: (d, v) => (d.noBarcode = yes(v) || undefined),
+  },
+  {
+    header: 'Compilation perso',
+    get: (c) => (c.personalCompilation ? 'oui' : 'non'),
+    set: (d, v) => (d.personalCompilation = yes(v) || undefined),
+  },
+  {
+    // Thème choisi à la main (vide = automatique), relu à l'import d'après son nom.
+    header: 'Thème choisi',
+    get: (c) => settings.classification.themes.find((t) => t.id === c.themeOverride)?.name ?? '',
+    set: (d, v) => {
+      const t = settings.classification.themes.find((x) => normalizeText(x.name) === normalizeText(v))
+      if (t) d.themeOverride = t.id
+    },
+  },
   {
     header: 'Compilation',
     get: (c) => (c.isCompilation ? 'oui' : 'non'),
@@ -104,6 +124,7 @@ const COLUMNS: Column[] = [
   { header: 'Confiance', get: (c) => c.confidence },
   { header: 'Thème', get: themeName },
   { header: 'Emplacement', get: (c) => locationLabel(c) ?? '' },
+  { header: 'Rangé le', get: (c) => (c.shelvedAt ? new Date(c.shelvedAt).toLocaleDateString('fr-FR') : '') },
   { header: 'Notes', get: (c) => c.notes, set: (d, v) => (d.notes = v) },
 ]
 
@@ -151,7 +172,11 @@ export async function importCsv(file: File): Promise<CsvReport> {
       // (sa date de modification reste la même, ce qui compte pour la synchro téléphone ↔ PC).
       const diff = Object.fromEntries(
         Object.entries(changes).filter(
-          ([k, v]) => JSON.stringify(v) !== JSON.stringify(existing[k as keyof Cd]),
+          ([k, v]) =>
+            // « Sans code-barres » est souvent déduit (pas de code enregistré) : pas un vrai changement.
+            k === 'noBarcode'
+              ? !!v !== withoutBarcode(existing)
+              : JSON.stringify(v) !== JSON.stringify(existing[k as keyof Cd]),
         ),
       ) as Partial<CdDraft>
       if (Object.keys(diff).length) {

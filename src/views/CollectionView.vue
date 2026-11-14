@@ -7,7 +7,7 @@ import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
 import { digitsOnly } from '../lib/barcode'
 import { normalizeText } from '../lib/text'
-import { updateCd } from '../services/collection'
+import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
 import { settings } from '../services/settings'
 
@@ -22,6 +22,9 @@ const search = ref('')
 const statusFilter = ref<CdStatus | 'tous'>('tous')
 const sort = ref<'artiste' | 'recent' | 'rangement'>('artiste')
 const themeFilter = ref<string>('tous')
+/** Filtres v1.1 : CD sans code-barres, CD pas encore posés dans les meubles, CD rangés. */
+const extraFilter = ref<'aucun' | 'sansCode' | 'aRanger' | 'ranges'>('aucun')
+const toggleExtra = (f: typeof extraFilter.value) => (extraFilter.value = extraFilter.value === f ? 'aucun' : f)
 
 // Thèmes (nom et couleur) attribués lors du dernier classement appliqué.
 const themes = computed(() => new Map(settings.classification.themes.map((t) => [t.id, t])))
@@ -29,8 +32,13 @@ const themeLabel = (id: string | undefined) => (id ? (themes.value.get(id)?.name
 const themeColor = (id: string | undefined) => (id ? (themes.value.get(id)?.color ?? '#9aa0a6') : 'transparent')
 
 const counts = computed(() => {
-  const c = { tous: cds.value.length, identifie: 0, a_verifier: 0, manuel: 0 }
-  for (const cd of cds.value) c[cd.status]++
+  const c = { tous: cds.value.length, identifie: 0, a_verifier: 0, manuel: 0, sansCode: 0, aRanger: 0, ranges: 0 }
+  for (const cd of cds.value) {
+    c[cd.status]++
+    if (withoutBarcode(cd)) c.sansCode++
+    if (cd.shelvedAt) c.ranges++
+    else c.aRanger++
+  }
   return c
 })
 
@@ -51,6 +59,9 @@ const filtered = computed(() => {
   const qDigits = digitsOnly(search.value)
   let list = cds.value.filter((cd) => status === 'tous' || cd.status === status)
   if (themeFilter.value !== 'tous') list = list.filter((cd) => (cd.themeId ?? 'aucun') === themeFilter.value)
+  if (extraFilter.value === 'sansCode') list = list.filter(withoutBarcode)
+  else if (extraFilter.value === 'aRanger') list = list.filter((cd) => !cd.shelvedAt)
+  else if (extraFilter.value === 'ranges') list = list.filter((cd) => !!cd.shelvedAt)
   if (q) {
     // Recherche sur l'artiste, le titre, le label, les genres… et le code-barres.
     list = list.filter((cd) => {
@@ -108,6 +119,17 @@ async function confirm(cd: Cd) {
           Manuels ({{ counts.manuel }})
         </button>
       </div>
+      <div class="chips full" role="group" aria-label="Autres filtres">
+        <button class="chip" :class="{ active: extraFilter === 'sansCode' }" @click="toggleExtra('sansCode')">
+          Sans code-barres ({{ counts.sansCode }})
+        </button>
+        <button class="chip" :class="{ active: extraFilter === 'aRanger' }" @click="toggleExtra('aRanger')">
+          À ranger ({{ counts.aRanger }})
+        </button>
+        <button class="chip" :class="{ active: extraFilter === 'ranges' }" @click="toggleExtra('ranges')">
+          Rangés ({{ counts.ranges }})
+        </button>
+      </div>
       <select v-model="sort" class="sort" aria-label="Trier">
         <option value="artiste">Tri : artiste</option>
         <option value="recent">Tri : derniers ajouts</option>
@@ -136,8 +158,13 @@ async function confirm(cd: Cd) {
             <div v-if="cd.themeId" class="small theme">
               <span class="dot" :style="{ background: themeColor(cd.themeId) }"></span>{{ themeLabel(cd.themeId) }}
             </div>
-            <div v-if="shortLocation(cd)" class="small where">📍 {{ shortLocation(cd) }}</div>
+            <div v-if="shortLocation(cd)" class="small where">
+              📍 {{ shortLocation(cd) }}
+              <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
+              <span v-else class="badge badge-warn">à ranger</span>
+            </div>
             <div v-else-if="settings.layoutAppliedAt" class="small muted">📍 à ranger (voir la fiche)</div>
+            <span v-if="withoutBarcode(cd)" class="badge badge-info nocode">sans code-barres</span>
             <div v-if="reviewMode" class="muted small reasons">{{ cd.confidenceReasons.join(' · ') }}</div>
           </div>
           <StatusBadge :status="cd.status" :confidence="cd.confidence" />
@@ -182,6 +209,12 @@ async function confirm(cd: Cd) {
 }
 .where {
   font-weight: 600;
+}
+.nocode {
+  margin-top: 2px;
+}
+.where .badge {
+  margin-left: 4px;
 }
 .reasons {
   white-space: normal;

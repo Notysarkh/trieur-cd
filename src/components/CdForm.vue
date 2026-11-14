@@ -26,6 +26,21 @@ function setFormat(format: CdFormat) {
   model.value.thicknessMm = settings.thickness[format]
 }
 
+// Compilation perso (CD gravé, mix…) : pas d'artiste, seulement un nom (le titre).
+// Elle est rangée à la fin du thème choisi.
+const PERSO = 'Compilation perso'
+function setPersonal(on: boolean) {
+  model.value.personalCompilation = on || undefined
+  if (on) {
+    model.value.artist = PERSO
+    model.value.artistSort = PERSO
+    model.value.isCompilation = false
+  } else if (model.value.artist === PERSO) {
+    model.value.artist = ''
+    model.value.artistSort = ''
+  }
+}
+
 /** Les genres/styles sont saisis sous forme de liste séparée par des virgules. */
 function toList(text: string): string[] {
   return text
@@ -41,16 +56,37 @@ function toNumber(text: string): number | undefined {
 
 <template>
   <div class="form-grid">
-    <label class="field">
-      Artiste
-      <input v-model="model.artist" required autocomplete="off" />
-    </label>
-    <label class="field">
-      Nom de tri (ex. « Beatles, The », « Brassens, Georges »)
-      <input v-model="model.artistSort" autocomplete="off" @input="sortTouched = true" />
-    </label>
+    <div class="full row flags">
+      <label class="row small">
+        <input type="checkbox" :checked="!!model.noBarcode" @change="model.noBarcode = ($event.target as HTMLInputElement).checked || undefined" />
+        Sans code-barres
+      </label>
+      <label class="row small">
+        <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
+        Compilation perso (CD gravé, mix…)
+      </label>
+    </div>
     <label class="field full">
-      Titre de l'album
+      Thème
+      <select :value="model.themeOverride ?? ''" @change="model.themeOverride = ($event.target as HTMLSelectElement).value || undefined">
+        <option value="">{{ model.personalCompilation ? '— à choisir —' : "Automatique (d'après les genres)" }}</option>
+        <option v-for="t in settings.classification.themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+      </select>
+      <span v-if="model.personalCompilation" class="hint">Rangée à la fin de ce thème, par ordre alphabétique de son nom.</span>
+      <span v-else-if="model.themeOverride" class="hint">S'applique à tous les CD de cet artiste (un artiste n'est jamais coupé en deux thèmes).</span>
+    </label>
+    <template v-if="!model.personalCompilation">
+      <label class="field">
+        Artiste
+        <input v-model="model.artist" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Nom de tri (ex. « Beatles, The », « Brassens, Georges »)
+        <input v-model="model.artistSort" autocomplete="off" @input="sortTouched = true" />
+      </label>
+    </template>
+    <label class="field full">
+      {{ model.personalCompilation ? 'Nom de la compilation' : "Titre de l'album" }}
       <input v-model="model.title" required autocomplete="off" />
     </label>
     <label class="field">
@@ -125,6 +161,12 @@ function toNumber(text: string): number | undefined {
 </template>
 
 <style scoped>
+.flags {
+  gap: 16px;
+}
+.hint {
+  font-size: 0.8rem;
+}
 .compil {
   align-self: end;
   min-height: 44px;

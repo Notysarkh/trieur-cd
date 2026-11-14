@@ -48,6 +48,12 @@ export interface Cd {
   coverPhoto?: string
   /** Vrai pour les compilations multi-artistes. */
   isCompilation: boolean
+  /** CD sans code-barres (ancien pressage, promo, import, CD gravé…). */
+  noBarcode?: boolean
+  /** Compilation personnelle (CD gravé, mix…) : rangée à la fin de son thème, sous le nom donné (titre). */
+  personalCompilation?: boolean
+  /** Thème choisi par toi sur la fiche du CD (prioritaire sur le classement automatique). */
+  themeOverride?: string
   /** Compositeur (musique classique) : sert de clé de tri dans le thème Classique. */
   composer?: string
   /** Langue des textes selon MusicBrainz (code ISO, ex. « fra », « eng »). */

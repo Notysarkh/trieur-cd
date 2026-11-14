@@ -24,7 +24,7 @@ export interface DividerLabel {
 /** Initiale utilisée pour le tri dans ce thème (artiste, titre ou compositeur). « # » pour les chiffres et symboles. */
 export function sortLetter(cd: Cd, theme: ThemeDef | undefined): string {
   const key =
-    theme?.sortBy === 'titre' || cd.isCompilation
+    theme?.sortBy === 'titre' || cd.isCompilation || cd.personalCompilation
       ? titleSortKey(cd.title)
       : theme?.sortBy === 'compositeur'
         ? cd.composer?.trim() || cd.artistSort || cd.artist
