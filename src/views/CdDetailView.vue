@@ -12,7 +12,7 @@ import { useLiveQuery } from '../composables/useLiveQuery'
 import { computePlan } from '../services/classification'
 import { locationLabel, releasePlacement } from '../services/layout'
 import { settings } from '../services/settings'
-import { groupKeyOf } from '../classification/engine'
+import { artistKey, groupKeyOf } from '../classification/engine'
 import { mediaOf } from '../lib/media'
 
 // Fiche d'un CD : consultation et modification.
@@ -58,9 +58,13 @@ async function save(status?: CdStatus) {
   sortSpread.value = 0
   const newSort = (edited.value.artistSort ?? '').trim()
   if (newSort && newSort !== before.artistSort && !before.isCompilation && !before.personalCompilation && !edited.value.personalCompilation) {
-    const key = groupKeyOf(before)
+    // Livres : le nom de tri est celui de l'AUTEUR → on l'étend aux livres du même auteur,
+    // pas à toute la série (une série peut changer d'auteurs : Franquin, puis Tome & Janry…).
+    const book = mediaOf(before) === 'livre'
+    const keyOf = (c: Cd) => (book ? artistKey(c.artistSort?.trim() || c.artist) : groupKeyOf(c))
+    const key = keyOf(before)
     const others = await db.cds
-      .filter((c) => c.id !== props.id && mediaOf(c) === mediaOf(before) && groupKeyOf(c) === key)
+      .filter((c) => c.id !== props.id && mediaOf(c) === mediaOf(before) && keyOf(c) === key)
       .toArray()
     const now = Date.now()
     await db.cds.bulkUpdate(others.map((c) => ({ key: c.id, changes: { artistSort: newSort, updatedAt: now } })))
