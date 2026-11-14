@@ -81,9 +81,13 @@ const NO_FRENCH: ReadonlySet<string | undefined> = new Set(['classique', 'bo', '
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 
-/** Ordre chronologique : année de l'album, puis titre. Les CD sans année vont à la fin. */
+/**
+ * Ordre chronologique : année de première sortie de l'album (à défaut, celle de l'édition), puis titre
+ * par ordre alphabétique. Les CD sans aucune année vont à la fin.
+ */
 function byYear(a: Cd, b: Cd): number {
-  return (a.year ?? 9999) - (b.year ?? 9999) || collator.compare(titleSortKey(a.title), titleSortKey(b.title))
+  const year = (cd: Cd) => cd.year ?? cd.releaseYear ?? 9999
+  return year(a) - year(b) || collator.compare(titleSortKey(a.title), titleSortKey(b.title))
 }
 
 // ---------------------------------------------------------------------------

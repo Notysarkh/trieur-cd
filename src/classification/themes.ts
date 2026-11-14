@@ -50,7 +50,7 @@ export const THEME_COLORS = [
   '#b7950b', '#27ae60', '#1abc9c', '#6c5ce7', '#34495e', '#e84393', '#f39c12', '#95a5a6',
 ]
 
-export const RULES_VERSION = 2
+export const RULES_VERSION = 3
 const BO_NAME = 'BO films & jeux vidéo'
 /** Mots-clés des musiques de films, de jeux vidéo et d'anime (vus dans ta collection). */
 const GAME_KEYWORDS = [
@@ -66,7 +66,7 @@ export function defaultRules(): ClassificationRules {
     extra: Partial<ThemeDef> = {},
   ): ThemeDef => ({ id, name, color, keywords, sortBy: 'artiste', ...extra })
 
-  return {
+  const rules: ClassificationRules = {
     version: RULES_VERSION,
     maxThemes: 16,
     minCdsPerTheme: 5,
@@ -137,6 +137,9 @@ export function defaultRules(): ClassificationRules {
       ], { special: 'divers' }),
     ],
   }
+  // Ton choix (14/11/2026) : Folk / Country rangé avec les Musiques du monde (ses mots-clés y passent).
+  mergeThemeInto(rules, 'folk', 'monde')
+  return rules
 }
 
 /** Crée un identifiant de thème lisible à partir de son nom. */
@@ -160,11 +163,38 @@ export function themeIdFromName(name: string, existing: string[]): string {
 /**
  * Met à jour des règles enregistrées avec une ancienne version de l'appli, sans perdre tes réglages :
  * v2 = thème BO renommé « BO films & jeux vidéo » + mots-clés jeux vidéo / anime ; thème « Musique française » activé.
+ * v3 = Folk / Country fusionné dans Musiques du monde.
  * Renvoie null si rien n'a changé.
  */
+/**
+ * Fusionne un thème dans un autre : il disparaît, ses mots-clés et ses artistes forcés passent dans la cible.
+ * Modifie `rules` ; renvoie false si l'un des deux thèmes n'existe pas.
+ */
+export function mergeThemeInto(rules: ClassificationRules, sourceId: string, targetId: string): boolean {
+  const source = rules.themes.find((t) => t.id === sourceId)
+  const target = rules.themes.find((t) => t.id === targetId)
+  if (!source || !target || source === target) return false
+  target.keywords = [...new Set([...target.keywords, ...source.keywords])]
+  for (const map of [rules.artistOverrides, rules.cdOverrides]) {
+    for (const k of Object.keys(map)) if (map[k] === source.id) map[k] = target.id
+  }
+  for (const t of rules.themes) if (t.mergeInto === source.id) t.mergeInto = target.id === t.id ? undefined : target.id
+  rules.themes = rules.themes.filter((t) => t.id !== source.id)
+  return true
+}
+
 export function migrateRules(rules: ClassificationRules): ClassificationRules | null {
-  if ((rules.version ?? 1) >= RULES_VERSION) return null
+  const version = rules.version ?? 1
+  if (version >= RULES_VERSION) return null
   const r: ClassificationRules = JSON.parse(JSON.stringify(rules))
+  if (version < 2) migrateToV2(r)
+  // v3 : Folk / Country rangé avec les Musiques du monde (ton choix du 14/11/2026).
+  if (version < 3) mergeThemeInto(r, 'folk', 'monde')
+  r.version = RULES_VERSION
+  return r
+}
+
+function migrateToV2(r: ClassificationRules): void {
   const bo = r.themes.find((t) => t.special === 'bo')
   if (bo) {
     if (bo.name === 'BO de films') bo.name = BO_NAME
@@ -180,6 +210,4 @@ export function migrateRules(rules: ClassificationRules): ClassificationRules | 
     const after = r.themes.findIndex((t) => t.id === 'pop')
     r.themes.splice(after < 0 ? 0 : after + 1, 0, fr)
   }
-  r.version = RULES_VERSION
-  return r
 }

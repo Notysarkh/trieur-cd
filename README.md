@@ -104,6 +104,8 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 - **Un artiste = un seul groupe**, même si ses CD ont des noms affichés différents (collaborations « Bobby McFerrin & Chick Corea » rangées avec le premier artiste crédité) : regroupement par nom de tri.
 - **Noms de tri « Nom, Prénom »** : « Compléter ma collection » commence par vérifier sur MusicBrainz les artistes mal triés (« Joan Baez » → « Baez, Joan »). Les noms de scène que MusicBrainz trie tels quels (« Fatboy Slim ») ne sont pas touchés. La liste des noms corrigés s'affiche ; un nom qui ne convient pas se corrige dans le champ « Nom de tri » d'une fiche (il s'applique alors à tous les CD de l'artiste).
 - **16 thèmes au maximum** (au lieu de 12) : avec « Musique française » en plus, Metal, Soul et Hip-hop restent séparés.
+- **Folk / Country rangé avec les Musiques du monde** (ses mots-clés et ses artistes forcés y passent).
+- **Albums d'un artiste** : année de première sortie, du plus ancien au plus récent (à défaut, année de l'édition), puis titre par ordre alphabétique en cas d'égalité ; sans année, à la fin.
 - **Thème « Musique française »** activé (chanson, rock et pop français : langue des textes, style « chanson », sinon pays France).
 - **« BO films & jeux vidéo »** : reconnaît aussi les musiques de jeux vidéo et d'anime. Noms japonais affichés en lettres latines quand MusicBrainz les connaît (l'original est gardé).
 - **Étiquettes parasites** de MusicBrainz (« No Isrc », « Fix Pseudo-Releases », prix, années…) ignorées et retirées.

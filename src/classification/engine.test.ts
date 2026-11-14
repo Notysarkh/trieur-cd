@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtistInfo, Cd } from '../db/types'
 import { artistKey, buildPlan } from './engine'
-import { defaultRules, UNCLASSIFIED, type ClassificationRules } from './themes'
+import { defaultRules, migrateRules, UNCLASSIFIED, type ClassificationRules } from './themes'
 
 // Tests du moteur de classement, sur une petite collection inventée.
 
@@ -77,6 +77,19 @@ describe('un artiste = un seul thème', () => {
     // Albums dans l'ordre chronologique
     const rock = plan.themes.find((t) => t.theme.id === 'rock')!
     expect(rock.cds.map((c) => c.year)).toEqual([1972, 1977, 1983])
+  })
+
+  it('même année : ordre alphabétique du titre ; sans année : à la fin', () => {
+    const cds = [
+      cd('Tryo', 'Mamagubida', { year: 1998, styles: ['Reggae'] }),
+      cd('Tryo', 'Sans année', { styles: ['Reggae'] }),
+      cd('Tryo', 'De bouches à oreilles', { year: 2004, styles: ['Reggae'] }),
+      cd('Tryo', 'Grain de sable', { year: 2004, styles: ['Reggae'] }),
+      cd('Tryo', 'Réédition', { releaseYear: 2000, styles: ['Reggae'] }),
+    ]
+    const plan = buildPlan(cds, rules())
+    const monde = plan.themes.find((t) => t.theme.id === 'monde')!
+    expect(monde.cds.map((c) => c.title)).toEqual(['Mamagubida', 'Réédition', 'De bouches à oreilles', 'Grain de sable', 'Sans année'])
   })
 
   it('signale un artiste partagé entre deux thèmes', () => {
@@ -285,5 +298,25 @@ describe('genres inconnus et règles', () => {
     const plan = buildPlan(big, defaultRules())
     expect(plan.placement.size).toBe(750)
     expect(plan.durationMs).toBeLessThan(1000)
+  })
+})
+
+describe('mise à jour des règles enregistrées', () => {
+  it('v1.1 → v3 : BO jeux vidéo, musique française, 16 thèmes, Folk / Country avec les Musiques du monde', () => {
+    const old: ClassificationRules = { ...defaultRules(), version: undefined, maxThemes: 12, artistOverrides: { 'johnny cash': 'folk' } }
+    old.themes = old.themes.filter((t) => t.special !== 'francaise').map((t) => (t.special === 'bo' ? { ...t, name: 'BO de films' } : t))
+    old.themes.push({ id: 'folk', name: 'Folk / Country', color: '#27ae60', keywords: ['bluegrass'], sortBy: 'artiste', mergeInto: 'rock' })
+    const r = migrateRules(old)!
+    expect(r.version).toBe(3)
+    expect(r.themes.some((t) => t.id === 'folk')).toBe(false)
+    expect(r.themes.find((t) => t.id === 'monde')!.keywords).toContain('bluegrass')
+    expect(r.artistOverrides['johnny cash']).toBe('monde')
+    expect(r.themes.some((t) => t.special === 'francaise')).toBe(true)
+    expect(r.themes.find((t) => t.special === 'bo')!.name).toBe('BO films & jeux vidéo')
+    expect(r.maxThemes).toBe(16)
+    expect(migrateRules(r)).toBeNull()
+    // Un CD de country part bien dans les Musiques du monde
+    const plan = buildPlan([cd('Johnny Cash', 'At Folsom Prison', { styles: ['Country'] })], { ...r, minCdsPerTheme: 0 })
+    expect(plan.themes.find((t) => t.cds.length)!.theme.id).toBe('monde')
   })
 })

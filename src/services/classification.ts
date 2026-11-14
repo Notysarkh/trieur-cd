@@ -29,6 +29,11 @@ export function resetRules(): Promise<void> {
   return saveRules(defaultRules())
 }
 
+/** Après une fusion de thèmes : les CD dont la fiche choisissait l'ancien thème passent dans le nouveau. */
+export async function moveCdThemeChoices(fromId: string, toId: string): Promise<void> {
+  await db.cds.filter((c) => c.themeOverride === fromId).modify({ themeOverride: toId })
+}
+
 /** Force un artiste (ou une compilation) dans un thème ; `null` annule le forçage. */
 export async function setOverride(key: string, isCompilation: boolean, themeId: string | null): Promise<void> {
   const rules: ClassificationRules = JSON.parse(JSON.stringify(settings.classification))

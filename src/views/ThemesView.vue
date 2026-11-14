@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { buildPlan } from '../classification/engine'
 import {
   THEME_COLORS,
+  mergeThemeInto,
   themeIdFromName,
   type ClassificationRules,
   type ThemeDef,
@@ -12,7 +13,7 @@ import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
 import { normalizeText } from '../lib/text'
-import { resetRules, saveRules } from '../services/classification'
+import { moveCdThemeChoices, resetRules, saveRules } from '../services/classification'
 import { settings } from '../services/settings'
 
 // Écran « Thèmes et règles » : renommer, réordonner, fusionner, scinder les thèmes,
@@ -76,12 +77,8 @@ function merge(source: ThemeDef) {
   const target = rules.themes.find((t) => t.id === mergeTarget.value)
   if (!target || target.id === source.id) return
   if (!window.confirm(`Fusionner « ${source.name} » dans « ${target.name} » ?`)) return
-  target.keywords = [...new Set([...target.keywords, ...source.keywords])]
-  for (const map of [rules.artistOverrides, rules.cdOverrides]) {
-    for (const k of Object.keys(map)) if (map[k] === source.id) map[k] = target.id
-  }
-  for (const t of rules.themes) if (t.mergeInto === source.id) t.mergeInto = target.id === t.id ? undefined : target.id
-  rules.themes = rules.themes.filter((t) => t.id !== source.id)
+  mergeThemeInto(rules, source.id, target.id)
+  void moveCdThemeChoices(source.id, target.id)
   open.value = target.id
   mergeTarget.value = ''
   void commit()

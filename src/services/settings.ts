@@ -58,9 +58,15 @@ export function loadSettings(): Promise<void> {
     settings.thickness = { ...DEFAULT_THICKNESS, ...settings.thickness }
     // v1.2 : boîtier double épais mesuré à 22 mm (au lieu des 24 mm estimés).
     if (settings.thickness.double === 24) await saveSetting('thickness', { ...settings.thickness, double: 22 })
-    // v1.2 : règles de classement mises à jour (BO & jeux vidéo, musique française).
+    // v1.2 : règles de classement mises à jour (BO & jeux vidéo, musique française, Folk avec le Monde).
     const migrated = migrateRules(settings.classification)
-    if (migrated) await saveSetting('classification', migrated)
+    if (migrated) {
+      // Thème choisi sur la fiche d'un CD : il suit le thème fusionné (Folk / Country → Musiques du monde).
+      if (!migrated.themes.some((t) => t.id === 'folk') && migrated.themes.some((t) => t.id === 'monde')) {
+        await db.cds.filter((c) => c.themeOverride === 'folk').modify({ themeOverride: 'monde' })
+      }
+      await saveSetting('classification', migrated)
+    }
   })()
   return loaded
 }
