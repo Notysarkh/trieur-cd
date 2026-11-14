@@ -11,15 +11,18 @@ export interface MediaInfo {
   /** Un objet de cet univers, au singulier et au pluriel (« CD », « livre »…). */
   one: string
   many: string
+  /** Qui l'a créé, pour les textes (« artiste », « auteur »…), au singulier et au pluriel. */
+  creator: string
+  creators: string
   /** Étape de la v2 qui ajoute le scan, le classement et le rangement de cet univers ; absent = prêt. */
   comingInStep?: string
 }
 
 export const MEDIA: MediaInfo[] = [
-  { id: 'cd', icon: '💿', label: 'CD', one: 'CD', many: 'CD' },
-  { id: 'livre', icon: '📚', label: 'Livres / BD', one: 'livre', many: 'livres', comingInStep: 'B' },
-  { id: 'video', icon: '🎬', label: 'DVD / Blu-ray', one: 'film', many: 'films', comingInStep: 'C' },
-  { id: 'jeu', icon: '🎮', label: 'Jeux vidéo', one: 'jeu', many: 'jeux', comingInStep: 'D' },
+  { id: 'cd', icon: '💿', label: 'CD', one: 'CD', many: 'CD', creator: 'artiste', creators: 'artistes' },
+  { id: 'livre', icon: '📚', label: 'Livres / BD', one: 'livre', many: 'livres', creator: 'auteur ou série', creators: 'auteurs et séries' },
+  { id: 'video', icon: '🎬', label: 'DVD / Blu-ray', one: 'film', many: 'films', creator: 'film', creators: 'films', comingInStep: 'C' },
+  { id: 'jeu', icon: '🎮', label: 'Jeux vidéo', one: 'jeu', many: 'jeux', creator: 'jeu', creators: 'jeux', comingInStep: 'D' },
 ]
 
 export function mediaInfo(id: MediaKind): MediaInfo {

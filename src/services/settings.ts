@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { db } from '../db/database'
-import { defaultRules, migrateRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultRules, migrateRules, type ClassificationRules } from '../classification/themes'
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import type { MediaKind } from '../lib/media'
 import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
@@ -24,6 +24,9 @@ export interface Settings {
   classification: ClassificationRules
   /** Date du dernier classement appliqué (0 = jamais). */
   classificationAppliedAt: number
+  /** Règles de classement des livres / BD (v2). */
+  bookClassification: ClassificationRules
+  bookClassificationAppliedAt: number
   /** Les meubles, dans l'ordre de remplissage (le premier est rempli en premier). */
   furniture: Furniture[]
   /** Options de répartition (marge de croissance…). */
@@ -41,6 +44,8 @@ const DEFAULTS: Settings = {
   whereWindow: 2,
   classification: defaultRules(),
   classificationAppliedAt: 0,
+  bookClassification: defaultBookRules(),
+  bookClassificationAppliedAt: 0,
   furniture: defaultFurniture(),
   layout: { ...DEFAULT_LAYOUT_OPTIONS },
   layoutAppliedAt: 0,
@@ -73,6 +78,21 @@ export function loadSettings(): Promise<void> {
     }
   })()
   return loaded
+}
+
+/** Les règles de classement d'un univers. */
+export function rulesFor(media: MediaKind): ClassificationRules {
+  return media === 'livre' ? settings.bookClassification : settings.classification
+}
+
+/** Le réglage qui garde les règles de classement d'un univers. */
+export function rulesKey(media: MediaKind): 'classification' | 'bookClassification' {
+  return media === 'livre' ? 'bookClassification' : 'classification'
+}
+
+/** Date du dernier classement appliqué dans un univers (0 = jamais). */
+export function appliedAtFor(media: MediaKind): number {
+  return media === 'livre' ? settings.bookClassificationAppliedAt : settings.classificationAppliedAt
 }
 
 /** L'univers en cours (CD par défaut). */

@@ -1,13 +1,13 @@
 import { reactive } from 'vue'
 import { artistKey, buildPlan, groupKeyOf, type Plan } from '../classification/engine'
-import { defaultRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultRules, type ClassificationRules } from '../classification/themes'
 import { db, itemsOf } from '../db/database'
-import { mediaOf } from '../lib/media'
+import { mediaOf, type MediaKind } from '../lib/media'
 import type { ArtistInfo, Cd } from '../db/types'
 import { hasDiscogsToken } from './discogs'
 import { completeWithDiscogs } from './identify'
 import { lookupArtist, lookupRelease, searchArtists } from './musicbrainz'
-import { saveSetting, settings } from './settings'
+import { rulesFor, rulesKey, saveSetting } from './settings'
 import { isJunkTag, isLatin, latinArtistName } from '../lib/cleanup'
 import { guessSortName } from '../lib/sortName'
 import { titleCase } from '../lib/text'
@@ -16,18 +16,18 @@ import { titleCase } from '../lib/text'
 // lecture/écriture des règles, application du plan, recherche des genres d'artistes.
 
 /** Calcule le plan à partir de la collection actuelle. */
-export async function computePlan(rules: ClassificationRules = settings.classification): Promise<Plan> {
-  const [cds, artists] = await Promise.all([itemsOf('cd'), db.artists.toArray()])
+export async function computePlan(media: MediaKind = 'cd', rules: ClassificationRules = rulesFor(media)): Promise<Plan> {
+  const [cds, artists] = await Promise.all([itemsOf(media), media === 'cd' ? db.artists.toArray() : []])
   return buildPlan(cds, rules, new Map(artists.map((a) => [a.mbArtistId, a])))
 }
 
-/** Enregistre les règles (après une modification dans l'écran Thèmes ou un artiste forcé). */
-export function saveRules(rules: ClassificationRules): Promise<void> {
-  return saveSetting('classification', rules)
+/** Enregistre les règles d'un univers (après une modification dans l'écran Thèmes ou un choix forcé). */
+export function saveRules(rules: ClassificationRules, media: MediaKind = 'cd'): Promise<void> {
+  return saveSetting(rulesKey(media), rules)
 }
 
-export function resetRules(): Promise<void> {
-  return saveRules(defaultRules())
+export function resetRules(media: MediaKind = 'cd'): Promise<void> {
+  return saveRules(media === 'livre' ? defaultBookRules() : defaultRules(), media)
 }
 
 /** Après une fusion de thèmes : les CD dont la fiche choisissait l'ancien thème passent dans le nouveau. */
@@ -36,13 +36,18 @@ export async function moveCdThemeChoices(fromId: string, toId: string): Promise<
 }
 
 /** Force un artiste (ou une compilation) dans un thème ; `null` annule le forçage. */
-export async function setOverride(key: string, isCompilation: boolean, themeId: string | null): Promise<void> {
-  const rules: ClassificationRules = JSON.parse(JSON.stringify(settings.classification))
+export async function setOverride(
+  key: string,
+  isCompilation: boolean,
+  themeId: string | null,
+  media: MediaKind = 'cd',
+): Promise<void> {
+  const rules: ClassificationRules = JSON.parse(JSON.stringify(rulesFor(media)))
   const map = isCompilation ? rules.cdOverrides : rules.artistOverrides
   const id = isCompilation ? key.replace(/^cd:/, '') : key
   if (themeId) map[id] = themeId
   else delete map[id]
-  await saveRules(rules)
+  await saveRules(rules, media)
 }
 
 /** Nombre de CD qui changeraient de thème ou de place si on appliquait ce plan. */
@@ -63,7 +68,7 @@ export function countChanges(plan: Plan, cds: Cd[]): { theme: number; order: num
  * Seuls les CD qui changent sont modifiés, avec leur date de modification mise à jour :
  * c'est elle qui permet à l'import (téléphone ↔ PC) de garder la version la plus récente.
  */
-export async function applyPlan(plan: Plan): Promise<void> {
+export async function applyPlan(plan: Plan, media: MediaKind = 'cd'): Promise<void> {
   const now = Date.now()
   const updates = plan.themes
     .flatMap((t) => t.cds)
@@ -76,7 +81,7 @@ export async function applyPlan(plan: Plan): Promise<void> {
       return { key: cd.id, changes: { themeId: p.themeId, shelfOrder: p.shelfOrder, updatedAt: now } }
     })
   await db.cds.bulkUpdate(updates)
-  await saveSetting('classificationAppliedAt', Date.now())
+  await saveSetting(media === 'livre' ? 'bookClassificationAppliedAt' : 'classificationAppliedAt', Date.now())
 }
 
 // ---------------------------------------------------------------------------

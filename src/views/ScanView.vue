@@ -10,7 +10,9 @@ import type { ScanItem } from '../db/types'
 import { signal, unlockAudio } from '../lib/feedback'
 import { hasDiscogsToken } from '../services/discogs'
 import { addScan, isReady, retryErrors, sendUnknownToReview, validateReady } from '../services/scanQueue'
-import { saveSetting, settings } from '../services/settings'
+import { isIsbn } from '../services/books'
+import { currentMedia, saveSetting, settings } from '../services/settings'
+import { mediaInfo } from '../lib/media'
 
 // Écran de scan, en deux modes :
 // - « Ajouter » : caméra (ou saisie du code), file d'attente, validation groupée ;
@@ -18,7 +20,9 @@ import { saveSetting, settings } from '../services/settings'
 
 const route = useRoute()
 const router = useRouter()
-const mode = ref<'ajouter' | 'ranger'>(route.query.mode === 'ranger' ? 'ranger' : 'ajouter')
+const media = computed(() => mediaInfo(currentMedia()))
+const isCd = computed(() => media.value.id === 'cd')
+const mode = ref<'ajouter' | 'ranger'>(route.query.mode === 'ranger' && currentMedia() === 'cd' ? 'ranger' : 'ajouter')
 watch(mode, (m) => void router.replace({ query: m === 'ranger' ? { mode: 'ranger' } : {} }))
 const shelving = ref<InstanceType<typeof ShelvingPanel>>()
 
@@ -61,7 +65,10 @@ async function onCode(code: string) {
   const result = await addScan(code)
   if (result === 'ajoute') {
     signal('ok')
-    show(`Code ${code} ajouté à la file.`, 'notice-ok')
+    show(
+      isCd.value && isIsbn(code) ? `ISBN ${code} : c'est un livre, il ira dans « Livres / BD ».` : `Code ${code} ajouté à la file.`,
+      'notice-ok',
+    )
     if (!settings.burstMode) paused.value = true
   } else if (result === 'deja_dans_la_file') {
     signal('warn')
@@ -88,7 +95,7 @@ async function validate() {
   busy.value = true
   try {
     const n = await validateReady()
-    show(`${n} CD ajouté${n > 1 ? 's' : ''} à ta collection.`, 'notice-ok')
+    show(`${n} élément${n > 1 ? 's' : ''} ajouté${n > 1 ? 's' : ''} à ta collection.`, 'notice-ok')
   } finally {
     busy.value = false
   }
@@ -108,9 +115,15 @@ async function unknownToReview() {
 
 <template>
   <main class="page stack">
-    <h1>Scanner mes CD</h1>
+    <h1>Scanner mes {{ media.many }}</h1>
 
-    <div class="modes" role="tablist" aria-label="Mode du scanner">
+    <p v-if="!isCd" class="notice small">
+      Scanne le code-barres au dos du livre (l'ISBN, qui commence par 978 ou 979). L'appli le cherche dans le
+      catalogue de la BnF, puis sur Open Library. Livre sans code-barres :
+      <RouterLink to="/ajouter">recherche par titre et auteur</RouterLink>.
+    </p>
+
+    <div v-if="isCd" class="modes" role="tablist" aria-label="Mode du scanner">
       <button role="tab" class="chip" :class="{ active: mode === 'ajouter' }" :aria-selected="mode === 'ajouter'" @click="mode = 'ajouter'">
         ➕ Ajouter des CD
       </button>
@@ -119,7 +132,7 @@ async function unknownToReview() {
       </button>
     </div>
 
-    <p v-if="mode === 'ajouter' && !hasDiscogsToken()" class="notice small">
+    <p v-if="isCd && mode === 'ajouter' && !hasDiscogsToken()" class="notice small">
       Astuce : ajoute ton jeton Discogs dans les <RouterLink to="/reglages">Réglages</RouterLink> pour de meilleurs
       genres et plus de CD reconnus.
     </p>
@@ -162,7 +175,7 @@ async function unknownToReview() {
       </p>
 
       <button class="btn btn-primary btn-big" :disabled="!counts.prets || busy" @click="validate">
-        ✓ Ajouter {{ counts.prets }} CD à ma collection
+        ✓ Ajouter {{ counts.prets }} élément{{ counts.prets > 1 ? 's' : '' }} à ma collection
       </button>
       <div class="row">
         <button v-if="counts.introuvables" class="btn btn-small" @click="unknownToReview">
@@ -175,7 +188,7 @@ async function unknownToReview() {
         <ScanQueueItem v-for="item in queue" :key="item.id" :item="item" :owned-albums="ownedAlbums" />
       </ul>
     </section>
-    <p v-else-if="mode === 'ajouter'" class="muted">La file est vide. Scanne un premier CD !</p>
+    <p v-else-if="mode === 'ajouter'" class="muted">La file est vide. Scanne un premier {{ media.one }} !</p>
   </main>
 </template>
 

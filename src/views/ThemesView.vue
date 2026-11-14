@@ -10,33 +10,40 @@ import {
   type ThemeSort,
 } from '../classification/themes'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db, itemsOf } from '../db/database'
+import { db } from '../db/database'
+import { mediaInfo, mediaOf } from '../lib/media'
 import type { ArtistInfo, Cd } from '../db/types'
 import { normalizeText } from '../lib/text'
 import { moveCdThemeChoices, resetRules, saveRules } from '../services/classification'
-import { settings } from '../services/settings'
+import { currentMedia, rulesFor } from '../services/settings'
 
 // Écran « Thèmes et règles » : renommer, réordonner, fusionner, scinder les thèmes,
 // régler les regroupements automatiques et gérer les artistes forcés.
 // Chaque modification est enregistrée immédiatement et le plan se met à jour.
 
+// Les règles de l'univers en cours (CD ou livres).
+const media = currentMedia()
+const info = mediaInfo(media)
+const isCd = media === 'cd'
+
 /** Copie de travail des règles. */
-const rules = reactive<ClassificationRules>(JSON.parse(JSON.stringify(settings.classification)))
+const rules = reactive<ClassificationRules>(JSON.parse(JSON.stringify(rulesFor(media))))
 watch(
-  () => settings.classification,
+  () => rulesFor(media),
   (r) => Object.assign(rules, JSON.parse(JSON.stringify(r))),
 )
 function commit() {
-  return saveRules(JSON.parse(JSON.stringify(rules)))
+  return saveRules(JSON.parse(JSON.stringify(rules)), media)
 }
 
 // Le plan actuel sert à afficher le nombre de CD par thème et les styles présents (pour scinder).
-const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = computed(() => all.value.filter((c) => mediaOf(c) === media))
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),
 )
-const plan = computed(() => buildPlan(cds.value, settings.classification, artistInfos.value))
+const plan = computed(() => buildPlan(cds.value, rulesFor(media), isCd ? artistInfos.value : new Map()))
 const countByTheme = computed(() => new Map(plan.value.themes.map((t) => [t.theme.id, t.cds.length])))
 const artistNames = computed(() => {
   const m = new Map<string, string>()
@@ -141,7 +148,7 @@ function addTheme() {
   void commit()
 }
 function remove(t: ThemeDef) {
-  if (!window.confirm(`Supprimer le thème « ${t.name} » ? Ses CD seront reclassés ailleurs (ou « À classer »).`)) return
+  if (!window.confirm(`Supprimer le thème « ${t.name} » ? Ses ${info.many} seront reclassés ailleurs (ou « À classer »).`)) return
   rules.themes = rules.themes.filter((x) => x.id !== t.id)
   for (const map of [rules.artistOverrides, rules.cdOverrides]) {
     for (const k of Object.keys(map)) if (map[k] === t.id) delete map[k]
@@ -161,20 +168,30 @@ function removeOverride(o: { key: string; cd: boolean }) {
 }
 
 async function reset() {
-  if (window.confirm('Revenir aux thèmes et règles par défaut ? Les artistes forcés seront oubliés.')) await resetRules()
+  if (window.confirm(`Revenir aux thèmes et règles par défaut ? Les choix forcés (${info.creators}) seront oubliés.`)) {
+    await resetRules(media)
+  }
 }
 
-const SORTS: Record<ThemeSort, string> = {
-  artiste: 'Artiste (A → Z), puis albums par date',
-  titre: 'Titre de l’album (A → Z)',
-  compositeur: 'Compositeur (A → Z), puis date',
-}
+const SORTS: Record<ThemeSort, string> = isCd
+  ? {
+      artiste: 'Artiste (A → Z), puis albums par date',
+      titre: 'Titre de l’album (A → Z)',
+      compositeur: 'Compositeur (A → Z), puis date',
+      serie: 'Série (A → Z), puis numéro',
+    }
+  : {
+      artiste: 'Auteur (nom de famille, A → Z), puis date',
+      titre: 'Titre (A → Z)',
+      compositeur: 'Compositeur (A → Z), puis date',
+      serie: 'Série (A → Z), puis tome ; albums isolés au nom de l’auteur',
+    }
 </script>
 
 <template>
   <main class="page stack">
     <RouterLink to="/classement" class="small">← Retour au classement</RouterLink>
-    <h1>Thèmes et règles</h1>
+    <h1>Thèmes et règles <span class="muted small">· {{ info.icon }} {{ info.label }}</span></h1>
 
     <section class="card stack">
       <h2>Regroupements automatiques</h2>
@@ -184,7 +201,7 @@ const SORTS: Record<ThemeSort, string> = {
           <input v-model.number="rules.maxThemes" type="number" min="3" max="30" @change="commit" />
         </label>
         <label class="field">
-          Minimum de CD par thème
+          Minimum de {{ info.many }} par thème
           <input v-model.number="rules.minCdsPerTheme" type="number" min="0" max="100" @change="commit" />
         </label>
       </div>
@@ -192,7 +209,7 @@ const SORTS: Record<ThemeSort, string> = {
         Un thème trop petit (ou en trop) est regroupé dans son « thème parent », choisi dans sa fiche ci-dessous. Les
         thèmes sans parent ne sont jamais regroupés.
       </p>
-      <label class="row small">
+      <label v-if="isCd" class="row small">
         <input v-model="rules.frenchTheme" type="checkbox" @change="commit" />
         Thème « Musique française » : les artistes qui chantent en français y sont rangés, quel que soit leur genre (sauf
         classique, BO, enfants et compilations)
@@ -210,7 +227,7 @@ const SORTS: Record<ThemeSort, string> = {
         <div class="row head">
           <input v-model="t.color" type="color" class="color" :aria-label="`Couleur de ${t.name}`" @change="commit" />
           <input v-model="t.name" class="grow name" :aria-label="`Nom du thème ${t.name}`" @change="commit" />
-          <span class="muted small count">{{ countByTheme.get(t.id) ?? 0 }} CD</span>
+          <span class="muted small count">{{ countByTheme.get(t.id) ?? 0 }} {{ info.many }}</span>
           <button class="btn btn-small" :disabled="i === 0" aria-label="Monter" @click="move(i, -1)">↑</button>
           <button class="btn btn-small" :disabled="i === rules.themes.length - 1" aria-label="Descendre" @click="move(i, 1)">
             ↓
@@ -223,7 +240,7 @@ const SORTS: Record<ThemeSort, string> = {
         <div v-if="open === t.id" class="stack body">
           <div class="form-grid">
             <label class="field">
-              Ordre des CD dans ce thème
+              Ordre des {{ info.many }} dans ce thème
               <select v-model="t.sortBy" @change="commit">
                 <option v-for="(label, key) in SORTS" :key="key" :value="key">{{ label }}</option>
               </select>
@@ -265,7 +282,7 @@ const SORTS: Record<ThemeSort, string> = {
                 <input v-model="splitTags" type="checkbox" :value="x.tag" />
                 {{ x.tag }} <span class="muted">({{ x.count }})</span>
               </label>
-              <span v-if="!tagsOf(t.id).length" class="small muted">Aucun CD dans ce thème pour l'instant.</span>
+              <span v-if="!tagsOf(t.id).length" class="small muted">Aucun {{ info.one }} dans ce thème pour l'instant.</span>
             </div>
             <form class="row add" @submit.prevent="split(t, i)">
               <input v-model="splitName" class="grow" placeholder="Nom du nouveau thème (ex. Punk)" />
@@ -291,9 +308,9 @@ const SORTS: Record<ThemeSort, string> = {
     </form>
 
     <section class="card stack">
-      <h2>Artistes forcés ({{ overrides.length }})</h2>
+      <h2>Choix forcés : {{ info.creators }} ({{ overrides.length }})</h2>
       <p v-if="!overrides.length" class="small muted">
-        Aucun. Dans l'écran Classement, choisis un thème dans la liste à côté d'un artiste pour le forcer.
+        Aucun. Dans l'écran Classement, choisis un thème dans la liste à côté d'un {{ isCd ? 'artiste' : 'auteur ou d’une série' }} pour le forcer.
       </p>
       <ul class="plain">
         <li v-for="o in overrides" :key="o.key" class="row small">

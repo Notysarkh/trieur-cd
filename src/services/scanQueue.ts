@@ -4,7 +4,9 @@ import { canonicalBarcode, isValidGtin } from '../lib/barcode'
 import { addCd, findByBarcode } from './collection'
 import { hasDiscogsToken } from './discogs'
 import { enrichCandidate, identifyBarcode } from './identify'
-import { settings } from './settings'
+import { currentMedia, settings } from './settings'
+import { identifyBook, isIsbn } from './books'
+import type { MediaKind } from '../lib/media'
 
 // La file d'attente du scan en rafale.
 //
@@ -15,15 +17,18 @@ import { settings } from './settings'
 export type AddScanResult = 'ajoute' | 'deja_dans_la_file' | 'invalide'
 
 /** Ajoute un code-barres scanné ou tapé à la file. */
-export async function addScan(raw: string): Promise<AddScanResult> {
+export async function addScan(raw: string, media: MediaKind = currentMedia()): Promise<AddScanResult> {
   const code = canonicalBarcode(raw)
   if (!isValidGtin(code)) return 'invalide'
+  // Un ISBN est forcément un livre, même scanné depuis l'univers CD.
+  if (isIsbn(code)) media = 'livre'
   // Un même code lu deux fois de suite (fréquent en rafale) n'est ajouté qu'une fois.
   if (await db.scans.where('barcode').equals(code).count()) return 'deja_dans_la_file'
   const duplicates = await findByBarcode(code)
   const item: ScanItem = {
     id: newId(),
     barcode: code,
+    media,
     scannedAt: Date.now(),
     state: 'en_attente',
     candidates: [],
@@ -36,6 +41,11 @@ export async function addScan(raw: string): Promise<AddScanResult> {
   await db.scans.add(item)
   startProcessing()
   return 'ajoute'
+}
+
+/** Ce code est-il un livre (ISBN, ou scanné dans l'univers Livres / BD) ? */
+export function isBookScan(item: Pick<ScanItem, 'barcode' | 'media'>): boolean {
+  return item.media === 'livre' || isIsbn(item.barcode)
 }
 
 export function chosenCandidate(item: ScanItem): Candidate | undefined {
@@ -78,7 +88,7 @@ async function processItem(item: ScanItem): Promise<void> {
   if (item.state === 'en_attente') {
     await db.scans.update(item.id, { state: 'recherche' })
     try {
-      const result = await identifyBarcode(item.barcode)
+      const result = isBookScan(item) ? await identifyBook(item.barcode) : await identifyBarcode(item.barcode)
       item = {
         ...item,
         state: result.state,
@@ -196,22 +206,24 @@ export async function sendUnknownToReview(): Promise<number> {
     ? 'Code-barres inconnu de MusicBrainz et de Discogs'
     : 'Code-barres inconnu de MusicBrainz (Discogs non configuré)'
   for (const item of items) {
+    const book = isBookScan(item)
     await db.transaction('rw', db.cds, db.scans, async () => {
       await addCd({
+        ...(book ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
         barcode: item.barcode,
         artist: 'Inconnu',
         artistSort: 'Inconnu',
-        title: `Code ${item.barcode}`,
+        title: book ? `ISBN ${item.barcode}` : `Code ${item.barcode}`,
         genres: [],
         styles: [],
         format: 'standard',
         discCount: 1,
-        thicknessMm: settings.thickness.standard,
+        thicknessMm: book ? 20 : settings.thickness.standard,
         coverUrls: [],
         isCompilation: false,
         status: 'a_verifier',
         confidence: 0,
-        confidenceReasons: [reason],
+        confidenceReasons: [book ? 'ISBN inconnu de la BnF et d\'Open Library' : reason],
         source: 'manuel',
       })
       await db.scans.delete(item.id)

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { buildPlan, type PlanArtist, type PlanTheme } from '../classification/engine'
+import { buildPlan, seriesLabel, type PlanArtist, type PlanTheme } from '../classification/engine'
 import { UNCLASSIFIED } from '../classification/themes'
 import { useLiveQuery } from '../composables/useLiveQuery'
-import { db, itemsOf } from '../db/database'
+import { db } from '../db/database'
+import { mediaInfo, mediaOf } from '../lib/media'
 import type { ArtistInfo, Cd } from '../db/types'
 import { normalizeText } from '../lib/text'
 import {
@@ -17,11 +18,19 @@ import {
   missingArtistIds,
   setOverride,
 } from '../services/classification'
-import { settings } from '../services/settings'
+import { appliedAtFor, currentMedia, rulesFor } from '../services/settings'
 
 // Écran « Classement » : l'appli propose un plan (thème → artiste → albums), tu l'ajustes, puis tu l'appliques.
+// Le même écran sert aux livres (thème → auteur ou série → livres), avec leurs propres règles.
 
-const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const media = computed(() => currentMedia())
+const info = computed(() => mediaInfo(media.value))
+const isCd = computed(() => media.value === 'cd')
+const all = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
+const cds = computed(() => all.value.filter((c) => mediaOf(c) === media.value))
+const rules = computed(() => rulesFor(media.value))
+/** « 1 livre », « 3 livres », « 2 CD ». */
+const count = (n: number) => `${n} ${n > 1 ? info.value.many : info.value.one}`
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),
@@ -31,19 +40,19 @@ const missingArtists = useLiveQuery(async () => (await missingArtistIds()).lengt
 const missingDiscogs = useLiveQuery(async () => (await cdsWithoutDiscogs()).length, 0)
 const missingDetails = useLiveQuery(async () => (await cdsWithoutReleaseDetails()).length, 0)
 const missingSorts = useLiveQuery(async () => (await artistsToCheckSortName()).length, 0)
-const toComplete = computed(
-  () => missingArtists.value + missingDiscogs.value + missingDetails.value + missingSorts.value,
+const toComplete = computed(() =>
+  isCd.value ? missingArtists.value + missingDiscogs.value + missingDetails.value + missingSorts.value : 0,
 )
 
 // Le plan est recalculé automatiquement à chaque changement de la collection ou des règles.
-const plan = computed(() => buildPlan(cds.value, settings.classification, artistInfos.value))
+const plan = computed(() => buildPlan(cds.value, rules.value, isCd.value ? artistInfos.value : new Map()))
 const changes = computed(() => countChanges(plan.value, cds.value))
-const themes = computed(() => settings.classification.themes)
+const themes = computed(() => rules.value.themes)
 const realThemes = computed(() => plan.value.themes.filter((t) => t.theme.id !== UNCLASSIFIED))
 
 const appliedAt = computed(() =>
-  settings.classificationAppliedAt
-    ? new Date(settings.classificationAppliedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+  appliedAtFor(media.value)
+    ? new Date(appliedAtFor(media.value)).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
     : null,
 )
 
@@ -66,7 +75,7 @@ const isOpen = (id: string) => open.value.has(id) || !!search.value.trim()
 
 // --- Changer le thème d'un artiste ---
 async function choose(a: PlanArtist, value: string) {
-  await setOverride(a.key, a.isCompilation, value || null)
+  await setOverride(a.key, a.isCompilation, value || null, media.value)
 }
 const themeName = (id: string) =>
   id === UNCLASSIFIED ? 'À classer' : (themes.value.find((t) => t.id === id)?.name ?? id)
@@ -77,8 +86,8 @@ const message = ref('')
 async function apply() {
   applying.value = true
   try {
-    await applyPlan(plan.value)
-    message.value = `Classement appliqué à ${plan.value.cdCount} CD.`
+    await applyPlan(plan.value, media.value)
+    message.value = `Classement appliqué à ${plan.value.cdCount} ${plan.value.cdCount > 1 ? info.value.many : info.value.one}.`
   } finally {
     applying.value = false
   }
@@ -89,6 +98,7 @@ function cdLabel(t: PlanTheme, cd: Cd | undefined): string {
   if (!cd) return ''
   if (t.theme.sortBy === 'titre') return cd.title
   if (t.theme.sortBy === 'compositeur') return cd.composer || cd.artist
+  if (t.theme.sortBy === 'serie' && cd.series) return seriesLabel(cd.series)
   return cd.isCompilation ? cd.title : cd.artist
 }
 
@@ -110,13 +120,15 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
       <RouterLink class="btn btn-small" to="/classement/themes">⚙️ Thèmes et règles</RouterLink>
     </div>
 
-    <p v-if="!cds.length" class="notice">Scanne d'abord quelques CD : le classement se calcule à partir de ta collection.</p>
+    <p v-if="!cds.length" class="notice">
+      Scanne d'abord quelques {{ info.many }} : le classement se calcule à partir de ta collection.
+    </p>
 
     <template v-else>
       <!-- Résumé -->
       <section class="card stack">
         <p class="small muted summary">
-          {{ plan.cdCount }} CD · {{ realThemes.length }} thèmes · calculé en {{ plan.durationMs }} ms
+          {{ count(plan.cdCount) }} · {{ realThemes.length }} thèmes · calculé en {{ plan.durationMs }} ms
           <template v-if="appliedAt"> · dernier classement appliqué le {{ appliedAt }}</template>
         </p>
         <div class="bar" aria-hidden="true">
@@ -124,13 +136,13 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
             v-for="t in plan.themes"
             :key="t.theme.id"
             :style="{ background: t.theme.color, flexGrow: t.cds.length }"
-            :title="`${t.theme.name} : ${t.cds.length} CD`"
+            :title="`${t.theme.name} : ${t.cds.length} ${info.many}`"
           ></span>
         </div>
         <p v-if="changes.theme || changes.order || !appliedAt" class="small">
           <template v-if="!appliedAt">Ce classement n'a pas encore été appliqué.</template>
           <template v-else>
-            {{ changes.theme }} CD changeraient de thème<template v-if="changes.order">, {{ changes.order }} de place</template>.
+            {{ changes.theme }} {{ info.many }} changeraient de thème<template v-if="changes.order">, {{ changes.order }} de place</template>.
           </template>
         </p>
         <p v-else class="small muted">✓ Le classement appliqué est à jour.</p>
@@ -146,10 +158,14 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
 
       <!-- Points d'attention -->
       <section v-if="plan.unclassified.length" class="notice notice-warn stack">
-        <strong>{{ plan.unclassified.length }} artiste(s) sans genre connu</strong>
-        <span class="small">
+        <strong>{{ plan.unclassified.length }} {{ isCd ? 'artiste(s)' : 'auteur(s) ou série(s)' }} sans genre connu</strong>
+        <span v-if="isCd" class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur thème ci-dessous, ou laisse l'appli chercher les
           genres des artistes sur MusicBrainz.
+        </span>
+        <span v-else class="small">
+          Ils sont dans « À classer » (en fin de liste). Choisis leur genre ci-dessous : il vaudra pour tous les livres de
+          cet auteur (ou de cette série), y compris les prochains.
         </span>
       </section>
       <section v-if="toComplete || completion.running" class="card stack">
@@ -184,7 +200,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
 
       <details v-if="plan.disputed.length" class="card">
         <summary>
-          <strong>{{ plan.disputed.length }} artiste(s) à cheval sur plusieurs thèmes</strong>
+          <strong>{{ plan.disputed.length }} {{ info.creators }} à cheval sur plusieurs thèmes</strong>
           <span class="muted small"> — vérifie que le thème choisi te convient</span>
         </summary>
         <ul class="plain">
@@ -203,14 +219,19 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
         </summary>
         <ul class="plain">
           <li v-for="m in plan.merges" :key="m.from.id" class="small">
-            {{ m.from.name }} ({{ m.count }} CD) → {{ m.into.name }} <span class="muted">— {{ m.reason }}</span>
+            {{ m.from.name }} ({{ m.count }} {{ info.many }}) → {{ m.into.name }} <span class="muted">— {{ m.reason }}</span>
           </li>
         </ul>
         <p class="small muted">Tu peux changer ces seuils ou le thème parent dans « Thèmes et règles ».</p>
       </details>
 
       <!-- Le plan -->
-      <input v-model="search" type="search" placeholder="Chercher un artiste ou un album dans le plan…" aria-label="Chercher" />
+      <input
+        v-model="search"
+        type="search"
+        :placeholder="isCd ? 'Chercher un artiste ou un album dans le plan…' : 'Chercher un auteur, une série ou un titre…'"
+        aria-label="Chercher"
+      />
 
       <section v-for="t in plan.themes" :key="t.theme.id" class="theme" :style="{ '--theme': t.theme.color }">
         <button class="theme-head" :aria-expanded="isOpen(t.theme.id)" @click="toggle(open, t.theme.id)">
@@ -218,7 +239,8 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
           <span class="grow">
             <strong>{{ t.theme.name }}</strong><br />
             <span class="small muted">
-              {{ t.cds.length }} CD · {{ t.artists.length }} artiste{{ t.artists.length > 1 ? 's' : '' }}
+              {{ count(t.cds.length) }} · {{ t.artists.length }}
+              {{ isCd ? `artiste${t.artists.length > 1 ? 's' : ''}` : t.theme.sortBy === 'serie' ? `série${t.artists.length > 1 ? 's' : ''} ou auteur${t.artists.length > 1 ? 's' : ''}` : `auteur${t.artists.length > 1 ? 's' : ''}` }}
               · {{ cdLabel(t, t.cds[0]) }}<template v-if="cdLabel(t, t.cds.at(-1)) !== cdLabel(t, t.cds[0])"> → {{ cdLabel(t, t.cds.at(-1)) }}</template>
             </span>
           </span>
@@ -227,13 +249,18 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
 
         <div v-if="isOpen(t.theme.id)" class="theme-body">
           <button class="btn btn-small" @click="toggle(showOrder, t.theme.id)">
-            {{ showOrder.has(t.theme.id) ? 'Voir les artistes' : `Voir l'ordre de rangement des ${t.cds.length} CD` }}
+            {{ showOrder.has(t.theme.id) ? `Voir les ${info.creators}` : `Voir l'ordre de rangement (${count(t.cds.length)})` }}
           </button>
 
           <ol v-if="showOrder.has(t.theme.id)" class="order small">
             <li v-for="cd in t.cds" :key="cd.id">
-              <strong>{{ t.theme.sortBy === 'compositeur' ? cd.composer || cd.artistSort : cd.artistSort }}</strong>
-              — {{ cd.title }}<template v-if="cd.year"> ({{ cd.year }})</template>
+              <template v-if="t.theme.sortBy === 'serie' && cd.series">
+                <strong>{{ seriesLabel(cd.series) }}</strong><template v-if="cd.volume"> {{ cd.volume }}</template> — {{ cd.title }}
+              </template>
+              <template v-else>
+                <strong>{{ t.theme.sortBy === 'compositeur' ? cd.composer || cd.artistSort : cd.artistSort }}</strong>
+                — {{ cd.title }}<template v-if="cd.year"> ({{ cd.year }})</template>
+              </template>
             </li>
           </ol>
 
@@ -243,7 +270,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
                 <div>
                   <strong>{{ a.name }}</strong>
                   <span v-if="a.personal" class="muted small"> · compilation perso</span>
-                  <span class="muted small"> · {{ a.cds.length }} CD</span>
+                  <span class="muted small"> · {{ a.cds.length }} {{ a.cds.length > 1 ? info.many : info.one }}</span>
                   <span v-if="a.forced" class="badge badge-info">forcé</span>
                   <span v-else-if="!a.isCompilation && a.cds.length > 1 && a.agreement < 0.6" class="badge badge-warn">
                     à cheval
@@ -254,7 +281,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
                     · regroupé depuis {{ themeName(a.initialThemeId) }}</template>
                 </div>
                 <div class="small muted albums">
-                  {{ a.cds.map((c) => (c.year ? `${c.title} (${c.year})` : c.title)).join(' · ') }}
+                  {{ a.cds.map((c) => (c.volume ? `${c.volume}. ${c.title}` : c.year ? `${c.title} (${c.year})` : c.title)).join(' · ') }}
                 </div>
               </div>
               <select

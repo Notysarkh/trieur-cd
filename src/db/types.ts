@@ -19,7 +19,10 @@ export type CdFormat =
   | 'coffret' // box set
   | 'autre'
 
-export type CdSource = 'musicbrainz' | 'discogs' | 'manuel'
+export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary'
+
+/** Type de livre : chacun a sa place (BD, mangas et comics à part). */
+export type BookKind = 'livre' | 'bd' | 'manga' | 'comics'
 
 /** Un objet de la collection (CD, et en v2 : livre, film, jeu). */
 export interface Cd {
@@ -92,6 +95,22 @@ export interface Cd {
   /** Date à laquelle le CD a été physiquement posé à son emplacement (mode rangement du scanner). */
   shelvedAt?: number
   notes?: string
+
+  // --- Livres / BD (v2) : « artist » = auteur, « artistSort » = « Nom, Prénom », « label » = éditeur ---
+  /** Livre, BD, manga ou comics. */
+  bookKind?: BookKind
+  /** Série (« One Piece », « Spirou et Fantasio », « Le cycle de Dune »). */
+  series?: string
+  /** Numéro de tome dans la série. */
+  volume?: number
+  /** Nombre de pages. */
+  pages?: number
+  /** Hauteur en centimètres (sert à vérifier que le livre tient dans une étagère). */
+  heightCm?: number
+  /** Collection de l'éditeur (« Folio », « Pocket Science-fiction »…). */
+  bookCollection?: string
+  /** Identifiant de la notice BnF (ark:/12148/…). */
+  bnfArk?: string
   createdAt: number
   updatedAt: number
 }
@@ -133,6 +152,8 @@ export type ScanState =
 export interface ScanItem {
   id: string
   barcode: string
+  /** Univers dans lequel le code a été scanné (absent = CD). Un ISBN va toujours dans « Livres / BD ». */
+  media?: MediaKind
   scannedAt: number
   state: ScanState
   candidates: Candidate[]

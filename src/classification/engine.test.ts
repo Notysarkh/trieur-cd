@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtistInfo, Cd } from '../db/types'
 import { artistKey, buildPlan } from './engine'
-import { defaultRules, migrateRules, UNCLASSIFIED, type ClassificationRules } from './themes'
+import { defaultBookRules, defaultRules, migrateRules, UNCLASSIFIED, type ClassificationRules } from './themes'
 
 // Tests du moteur de classement, sur une petite collection inventée.
 
@@ -318,5 +318,46 @@ describe('mise à jour des règles enregistrées', () => {
     // Un CD de country part bien dans les Musiques du monde
     const plan = buildPlan([cd('Johnny Cash', 'At Folsom Prison', { styles: ['Country'] })], { ...r, minCdsPerTheme: 0 })
     expect(plan.themes.find((t) => t.cds.length)!.theme.id).toBe('monde')
+  })
+})
+
+describe('livres et BD (v2)', () => {
+  const book = (author: string, sort: string, title: string, extra: Partial<Cd> = {}) =>
+    cd(author, title, { media: 'livre', artistSort: sort, ...extra })
+  const bookRules = () => ({ ...defaultBookRules(), minCdsPerTheme: 0 })
+
+  it('BD : par série (A → Z) puis tome ; album isolé rangé au nom de son auteur', () => {
+    const cds = [
+      book('Tome & Janry', 'Tome, Philippe', 'Spirou à New York', { genres: ['BD'], series: 'Spirou et Fantasio', volume: 39 }),
+      book('Franquin', 'Franquin, André', 'Le nid des Marsupilamis', { genres: ['BD'], series: 'Spirou et Fantasio', volume: 12 }),
+      book('Uderzo & Goscinny', 'Uderzo, Albert', 'Astérix le Gaulois', { genres: ['BD'], series: '\u0088Une \u0089aventure d\'Astérix', volume: 1 }),
+      book('Bilal', 'Bilal, Enki', 'La foire aux immortels', { genres: ['BD'] }),
+      book('Oda', 'Oda, Eiichirō', 'One Piece, tome 2', { genres: ['Manga'], series: 'One piece', volume: 2 }),
+      book('Oda', 'Oda, Eiichirō', 'One Piece, tome 1', { genres: ['Manga'], series: 'One piece', volume: 1 }),
+    ]
+    const plan = buildPlan(cds, bookRules())
+    const bd = plan.themes.find((t) => t.theme.id === 'bd')!
+    // « aventure d'Astérix » (A), Bilal (B, album isolé), Spirou (S) tomes 12 puis 39
+    expect(bd.cds.map((c) => c.title)).toEqual(['Astérix le Gaulois', 'La foire aux immortels', 'Le nid des Marsupilamis', 'Spirou à New York'])
+    const manga = plan.themes.find((t) => t.theme.id === 'manga')!
+    expect(manga.cds.map((c) => c.volume)).toEqual([1, 2])
+  })
+
+  it('romans : par auteur (nom de famille) puis date ; une série de romans reste chez son auteur', () => {
+    const cds = [
+      book('Frank Herbert', 'Herbert, Frank', 'Le Messie de Dune', { genres: ['Science-fiction'], series: 'Le cycle de Dune', volume: 2, year: 1972 }),
+      book('Frank Herbert', 'Herbert, Frank', 'Dune', { genres: ['Science-fiction'], series: 'Le cycle de Dune', volume: 1, year: 1970 }),
+      book('Isaac Asimov', 'Asimov, Isaac', 'Fondation', { genres: ['Science-fiction'], year: 1966 }),
+      book('Albert Camus', 'Camus, Albert', 'La Peste', { genres: ['Roman'], year: 1947 }),
+      book('Albert Camus', 'Camus, Albert', "L'Étranger", { genres: ['Roman'], year: 1942 }),
+    ]
+    const plan = buildPlan(cds, bookRules())
+    expect(plan.themes.find((t) => t.theme.id === 'sf')!.cds.map((c) => c.title)).toEqual(['Fondation', 'Dune', 'Le Messie de Dune'])
+    expect(plan.themes.find((t) => t.theme.id === 'roman')!.cds.map((c) => c.title)).toEqual(["L'Étranger", 'La Peste'])
+  })
+
+  it('un livre sans genre connu va « À classer »', () => {
+    const plan = buildPlan([book('X', 'X', 'Sans genre')], bookRules())
+    expect(plan.unclassified).toHaveLength(1)
   })
 })

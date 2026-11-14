@@ -13,7 +13,9 @@ const route = useRoute()
 const media = computed(() => mediaInfo(currentMedia()))
 const onHome = computed(() => route.name === 'accueil')
 /** Écran pas encore disponible dans cet univers (il arrive à son étape de la v2). */
-const notYet = computed(() => !!route.meta.cdOnly && currentMedia() !== 'cd')
+const notYet = computed(() => !!route.meta.onlyFor && !route.meta.onlyFor.includes(currentMedia()))
+/** Étape de la v2 qui apporte cet écran à l'univers en cours (le rangement arrive à l'étape E). */
+const stepForScreen = computed(() => media.value.comingInStep ?? 'E')
 
 const reviewList = useLiveQuery(() => db.cds.where('status').equals('a_verifier').toArray(), [] as Cd[])
 const toReview = computed(() => reviewList.value.filter((c) => mediaOf(c) === currentMedia()).length)
@@ -42,7 +44,7 @@ onBeforeUnmount(() => {
     <h1>{{ media.icon }} {{ media.label }}</h1>
     <div class="card stack">
       <p>
-        Cet écran arrive pour les {{ media.many }} à l'étape {{ media.comingInStep }} de la version 2. En attendant, il ne sert
+        Cet écran arrive pour les {{ media.many }} à l'étape {{ stepForScreen }} de la version 2. En attendant, il ne sert
         que pour les CD.
       </p>
       <RouterLink to="/" class="btn">← Choisir un autre univers</RouterLink>

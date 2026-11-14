@@ -23,6 +23,9 @@ interface BackupFile {
   /** Date du rangement appliqué (v1.1) : les emplacements des CD en dépendent. */
   layoutAppliedAt?: number
   classificationAppliedAt?: number
+  /** Thèmes et règles des livres / BD (v2). */
+  bookClassification?: ClassificationRules
+  bookClassificationAppliedAt?: number
 }
 
 /** Prépare le fichier de sauvegarde. */
@@ -37,6 +40,8 @@ export async function buildBackup(): Promise<File> {
     layout: { ...settings.layout },
     layoutAppliedAt: settings.layoutAppliedAt,
     classificationAppliedAt: settings.classificationAppliedAt,
+    bookClassification: JSON.parse(JSON.stringify(settings.bookClassification)),
+    bookClassificationAppliedAt: settings.bookClassificationAppliedAt,
   }
   const date = new Date().toISOString().slice(0, 10)
   return new File([JSON.stringify(data, null, 1)], `mediamwa-${date}.json`, { type: 'application/json' })
@@ -121,6 +126,14 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if ((replaceRules || adoptLayout) && data.furniture?.length) {
     await saveSetting('furniture', data.furniture)
     if (data.layout) await saveSetting('layout', data.layout)
+    report.rulesReplaced = true
+  }
+  // Livres : les règles du fichier sont reprises si tu le demandes, ou si aucun classement de livres
+  // n'a encore été appliqué sur cet appareil (cas du transfert PC → téléphone).
+  const adoptBooks = !!data.bookClassificationAppliedAt && !settings.bookClassificationAppliedAt
+  if ((replaceRules || adoptBooks) && data.bookClassification?.themes?.length) {
+    await saveSetting('bookClassification', data.bookClassification)
+    if (data.bookClassificationAppliedAt) await saveSetting('bookClassificationAppliedAt', data.bookClassificationAppliedAt)
     report.rulesReplaced = true
   }
   if (adoptLayout) {

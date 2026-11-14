@@ -11,7 +11,7 @@
 export type SpecialTheme = 'compilations' | 'bo' | 'classique' | 'enfants' | 'francaise' | 'divers'
 
 /** Ordre de rangement des CD à l'intérieur d'un thème. */
-export type ThemeSort = 'artiste' | 'titre' | 'compositeur'
+export type ThemeSort = 'artiste' | 'titre' | 'compositeur' | 'serie'
 
 export interface ThemeDef {
   id: string
@@ -140,6 +140,48 @@ export function defaultRules(): ClassificationRules {
   // Ton choix (14/11/2026) : Folk / Country rangé avec les Musiques du monde (ses mots-clés y passent).
   mergeThemeInto(rules, 'folk', 'monde')
   return rules
+}
+
+// ---------------------------------------------------------------------------
+// Livres / BD (v2, étape B)
+// ---------------------------------------------------------------------------
+
+/**
+ * Règles par défaut des livres : genre → auteur (nom de famille) → date ;
+ * BD, mangas et comics à part, par série (A → Z) puis tome, les albums isolés par auteur.
+ * HYPOTHÈSE : les genres sont devinés d'après la BnF (genre « Bandes dessinées », indice Dewey,
+ * collection de l'éditeur, public jeunesse…) ; le reste se corrige par auteur ou sur la fiche.
+ */
+export function defaultBookRules(): ClassificationRules {
+  const t = (id: string, name: string, color: string, keywords: string[], extra: Partial<ThemeDef> = {}): ThemeDef => ({
+    id,
+    name,
+    color,
+    keywords,
+    sortBy: 'artiste',
+    ...extra,
+  })
+  return {
+    version: RULES_VERSION,
+    maxThemes: 20,
+    minCdsPerTheme: 0,
+    frenchTheme: false,
+    artistOverrides: {},
+    cdOverrides: {},
+    themes: [
+      t('roman', 'Romans', '#c0392b', ['roman', 'romans', 'fiction', 'litterature', 'nouvelles', 'poesie', 'theatre']),
+      t('polar', 'Polars / Thrillers', '#34495e', ['polar', 'policier', 'roman policier', 'romans policiers', 'thriller', 'noir', 'suspense', 'espionnage']),
+      t('sf', 'SF / Fantasy', '#8e44ad', ['science fiction', 'sf', 'fantasy', 'fantastique', 'anticipation']),
+      t('jeunesse', 'Jeunesse', '#e84393', ['jeunesse', 'enfants', 'livres pour enfants', 'album jeunesse']),
+      t('histoire', 'Histoire', '#b7950b', ['histoire', 'biographie', 'memoires', 'geographie']),
+      t('pratique', 'Pratique', '#27ae60', ['pratique', 'cuisine', 'bricolage', 'jardinage', 'sante', 'loisirs', 'sport', 'tourisme', 'guide']),
+      t('beaux', 'Beaux livres', '#d35400', ['beaux livres', 'art', 'arts', 'photographie', 'architecture']),
+      t('divers', 'Divers', '#95a5a6', ['essai', 'philosophie', 'sciences', 'religion', 'societe', 'dictionnaire', 'langues'], { special: 'divers' }),
+      t('bd', 'BD', '#2e86de', ['bd', 'bandes dessinees', 'bande dessinee'], { sortBy: 'serie' }),
+      t('manga', 'Mangas', '#16a085', ['manga', 'mangas'], { sortBy: 'serie' }),
+      t('comics', 'Comics', '#e67e22', ['comics'], { sortBy: 'serie' }),
+    ],
+  }
 }
 
 /** Crée un identifiant de thème lisible à partir de son nom. */

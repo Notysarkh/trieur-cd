@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ScanItem } from '../db/types'
-import { FORMAT_LABELS } from '../lib/formats'
+import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { CONFIDENCE_THRESHOLD } from '../services/identify'
 import { chooseCandidate, finalDraft, isReady, removeScan, retryErrors, setInclude } from '../services/scanQueue'
 import CoverImage from './CoverImage.vue'
@@ -52,7 +52,7 @@ const otherEdition = computed(
         v-if="item.state === 'trouve'"
         type="checkbox"
         :checked="item.include"
-        :aria-label="item.include ? 'Ne pas ajouter ce CD' : 'Ajouter ce CD'"
+        :aria-label="item.include ? 'Ne pas l’ajouter à la collection' : 'L’ajouter à la collection'"
         @change="setInclude(item.id, ($event.target as HTMLInputElement).checked)"
       />
       <CoverImage :urls="draft?.coverUrls" :label="draft?.title" :size="56" />
@@ -61,7 +61,8 @@ const otherEdition = computed(
         <div class="muted small">
           <template v-if="draft">
             {{ draft.artist }}<template v-if="draft.year"> · {{ draft.year }}</template>
-            · {{ FORMAT_LABELS[draft.format] }}
+            <template v-if="draft.media === 'livre'">· {{ BOOK_KIND_LABELS[draft.bookKind ?? 'livre'] }}<template v-if="draft.label"> · {{ draft.label }}</template></template>
+            <template v-else>· {{ FORMAT_LABELS[draft.format] }}</template>
           </template>
           <template v-else>{{ item.barcode }}</template>
         </div>
@@ -75,12 +76,12 @@ const otherEdition = computed(
     <p v-else-if="otherEdition" class="notice small">Tu as déjà cet album dans une autre édition.</p>
     <p v-if="item.state === 'erreur'" class="notice notice-danger small">{{ item.error }}</p>
     <p v-if="item.state === 'introuvable'" class="muted small">
-      Aucune base ne connaît ce code. Cherche par artiste/titre, ou envoie-le dans « à vérifier ».
+      Aucune base ne connaît ce code. Envoie-le dans « à vérifier » (tu compléteras la fiche), ou ajoute-le par une recherche texte.
     </p>
 
     <!-- Plusieurs albums possibles : tu choisis -->
     <fieldset v-if="item.state === 'a_choisir'" class="choices">
-      <legend class="small muted">Plusieurs albums portent ce code. Lequel as-tu en main ?</legend>
+      <legend class="small muted">Plusieurs fiches portent ce code. Laquelle as-tu en main ?</legend>
       <button
         v-for="c in item.candidates"
         :key="c.key"

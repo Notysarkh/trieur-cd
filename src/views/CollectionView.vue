@@ -10,7 +10,8 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { normalizeText } from '../lib/text'
 import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
-import { currentMedia, settings } from '../services/settings'
+import { currentMedia, rulesFor, settings } from '../services/settings'
+import { seriesLabel } from '../classification/engine'
 import { mediaInfo, mediaOf } from '../lib/media'
 
 // Liste de la collection, avec recherche et filtres.
@@ -32,7 +33,9 @@ const extraFilter = ref<'aucun' | 'sansCode' | 'aRanger' | 'ranges'>('aucun')
 const toggleExtra = (f: typeof extraFilter.value) => (extraFilter.value = extraFilter.value === f ? 'aucun' : f)
 
 // Thèmes (nom et couleur) attribués lors du dernier classement appliqué.
-const themes = computed(() => new Map(settings.classification.themes.map((t) => [t.id, t])))
+const themeList = computed(() => rulesFor(currentMedia()).themes)
+const themes = computed(() => new Map(themeList.value.map((t) => [t.id, t])))
+const isBook = computed(() => currentMedia() === 'livre')
 const themeLabel = (id: string | undefined) => (id ? (themes.value.get(id)?.name ?? 'À classer') : '')
 const themeColor = (id: string | undefined) => (id ? (themes.value.get(id)?.color ?? '#9aa0a6') : 'transparent')
 
@@ -53,7 +56,7 @@ const haystacks = computed(
     new Map(
       cds.value.map((cd) => [
         cd.id,
-        normalizeText([cd.artist, cd.artistSort, cd.title, cd.label, ...cd.genres, ...cd.styles, cd.year].join(' ')),
+        normalizeText([cd.artist, cd.artistSort, cd.title, cd.series, cd.label, ...cd.genres, ...cd.styles, cd.year].join(' ')),
       ]),
     ),
 )
@@ -101,8 +104,8 @@ async function confirm(cd: Cd) {
       <h1 class="grow">{{ reviewMode ? 'À vérifier' : `Mes ${media.many}` }}</h1>
     </div>
     <div v-if="!reviewMode" class="row actions-row">
-      <RouterLink v-if="!media.comingInStep" class="btn btn-primary grow" to="/ou-est">🔍 Où est ce {{ media.one }} ?</RouterLink>
-      <RouterLink v-if="!media.comingInStep" class="btn btn-small" to="/ajouter">+ Ajouter sans code</RouterLink>
+      <RouterLink v-if="media.id === 'cd'" class="btn btn-primary grow" to="/ou-est">🔍 Où est ce {{ media.one }} ?</RouterLink>
+      <RouterLink v-if="!media.comingInStep" class="btn btn-small" to="/ajouter">{{ isBook ? '+ Livre sans ISBN' : '+ Ajouter sans code' }}</RouterLink>
     </div>
 
     <p v-if="reviewMode" class="muted small">
@@ -110,7 +113,7 @@ async function confirm(cd: Cd) {
       si c'est bon.
     </p>
 
-    <input v-if="!media.comingInStep" v-model="search" type="search" placeholder="Rechercher un artiste, un titre, un code-barres…" aria-label="Rechercher" />
+    <input v-if="!media.comingInStep" v-model="search" type="search" :placeholder="isBook ? 'Rechercher un auteur, un titre, une série, un ISBN…' : 'Rechercher un artiste, un titre, un code-barres…'" aria-label="Rechercher" />
 
     <div v-if="!reviewMode && !media.comingInStep" class="row">
       <div class="chips full" role="group" aria-label="Filtrer par statut">
@@ -139,13 +142,13 @@ async function confirm(cd: Cd) {
         </button>
       </div>
       <select v-model="sort" class="sort" aria-label="Trier">
-        <option value="artiste">Tri : artiste</option>
+        <option value="artiste">Tri : {{ isBook ? 'auteur' : 'artiste' }}</option>
         <option value="recent">Tri : derniers ajouts</option>
         <option value="rangement">Tri : ordre de rangement</option>
       </select>
       <select v-model="themeFilter" class="sort" aria-label="Filtrer par thème">
         <option value="tous">Tous les thèmes</option>
-        <option v-for="t in settings.classification.themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+        <option v-for="t in themeList" :key="t.id" :value="t.id">{{ t.name }}</option>
         <option value="a_classer">À classer</option>
         <option value="aucun">Pas encore classés</option>
       </select>
@@ -160,6 +163,7 @@ async function confirm(cd: Cd) {
           <div class="grow">
             <div class="title">{{ cd.title }}</div>
             <div class="artist">
+              <template v-if="cd.series">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>
               <template v-if="cd.genres.length"> · {{ cd.genres.join(', ') }}</template>
             </div>
@@ -171,7 +175,7 @@ async function confirm(cd: Cd) {
               <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
               <span v-else class="badge badge-warn">à ranger</span>
             </div>
-            <div v-else-if="settings.layoutAppliedAt" class="small muted">📍 à ranger (voir la fiche)</div>
+            <div v-else-if="settings.layoutAppliedAt && !isBook" class="small muted">📍 à ranger (voir la fiche)</div>
             <span v-if="withoutBarcode(cd)" class="badge badge-info nocode">sans code-barres</span>
             <div v-if="reviewMode" class="muted small reasons">{{ cd.confidenceReasons.join(' · ') }}</div>
           </div>
@@ -196,7 +200,7 @@ async function confirm(cd: Cd) {
     </div>
     <div v-else-if="!cds.length" class="card stack">
       <p>Ta collection est vide pour l'instant.</p>
-      <RouterLink to="/scan" class="btn btn-primary btn-big">📷 Scanner mes premiers CD</RouterLink>
+      <RouterLink to="/scan" class="btn btn-primary btn-big">📷 Scanner mes premiers {{ media.many }}</RouterLink>
     </div>
     <p v-else-if="reviewMode && !filtered.length" class="notice notice-ok">Rien à vérifier, tout est en ordre !</p>
   </main>

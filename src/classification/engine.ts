@@ -2,6 +2,7 @@ import type { ArtistInfo, Cd } from '../db/types'
 import { cleanTags } from '../lib/cleanup'
 import { normalizeText } from '../lib/text'
 import { UNCLASSIFIED, type ClassificationRules, type ThemeDef } from './themes'
+import { mediaOf } from '../lib/media'
 
 // Le moteur de classement. Il ne modifie rien : il calcule un « plan » que tu valides ensuite.
 //
@@ -34,6 +35,8 @@ export interface PlanArtist {
   isCompilation: boolean
   /** Compilation personnelle (CD gravé…) : rangée à la fin de son thème. */
   personal: boolean
+  /** Livres en série : nom de la série pour le tri (thèmes BD, mangas, comics). */
+  seriesSort?: string
 }
 
 export interface PlanTheme {
@@ -118,12 +121,33 @@ export function artistKey(name: string): string {
 export function groupKeyOf(cd: Cd): string {
   if (cd.personalCompilation) return `perso:${cd.id}`
   if (cd.isCompilation) return `cd:${cd.id}`
+  // Livres : tous les tomes d'une série ensemble, même si les auteurs changent.
+  if (cd.series?.trim() && mediaOf(cd) === 'livre') return `serie:${normalizeText(seriesSortKey(cd.series))}`
   return artistKey(cd.artistSort?.trim() || cd.artist)
+}
+
+/**
+ * Nom de série pour le tri : sans article initial, ni la partie « hors tri » marquée par la BnF
+ * (« \u0088Une \u0089aventure d'Astérix » → « aventure d'Astérix »).
+ */
+export function seriesSortKey(series: string): string {
+  return titleSortKey(series.replace(/\u0088[^\u0089]*\u0089/g, '').replace(/[\u0088\u0089]/g, ''))
+}
+
+/** Nom de série à afficher (sans les marques « hors tri » de la BnF). */
+export function seriesLabel(series: string): string {
+  return series.replace(/[\u0088\u0089]/g, '').trim()
+}
+
+/** Dans un groupe : les tomes dans l'ordre, puis l'ordre chronologique. */
+function byVolume(a: Cd, b: Cd): number {
+  return (a.volume ?? Infinity) - (b.volume ?? Infinity) || byYear(a, b)
 }
 
 /** Titre sans article initial, pour le tri par titre (« The Godfather » → « Godfather »). */
 export function titleSortKey(title: string): string {
-  return title.replace(/^(the|a|an|le|la|les|l['’])\s*/i, '').trim()
+  // L'article doit être un mot entier : « Amélie » ou « Aventure » gardent leur A.
+  return title.replace(/^(?:(?:the|a|an|le|la|les)\s+|l['’]\s*)/i, '').trim()
 }
 
 // ---------------------------------------------------------------------------
@@ -276,7 +300,10 @@ export function buildPlan(
   const artists: PlanArtist[] = groupCds(cds).map((group) => {
     const first = group.cds[0]
     const single = group.isCompilation || group.personal
-    const name = single ? first.title : mostCommon(group.cds.map((c) => c.artist))
+    const rawSeries = group.key.startsWith('serie:') ? mostCommon(group.cds.map((c) => c.series ?? '')) : undefined
+    const series = rawSeries ? seriesLabel(rawSeries) : undefined
+    const author = mostCommon(group.cds.map((c) => c.artist))
+    const name = single ? first.title : series ? `${series} (${author})` : author
     const sortName = single
       ? titleSortKey(first.title)
       : mostCommon(group.cds.map((c) => c.artistSort || c.artist))
@@ -359,7 +386,8 @@ export function buildPlan(
       key: group.key,
       name,
       sortName,
-      cds: [...group.cds].sort(byYear),
+      cds: [...group.cds].sort(byVolume),
+      seriesSort: rawSeries ? seriesSortKey(rawSeries) : undefined,
       themeId,
       initialThemeId: themeId,
       reason,
@@ -384,7 +412,7 @@ export function buildPlan(
     if (!list?.length) continue
     themes.push({
       theme,
-      artists: [...list].sort((a, b) => collator.compare(a.sortName, b.sortName)),
+      artists: [...list].sort((a, b) => collator.compare(sortKeyIn(theme, a), sortKeyIn(theme, b))),
       cds: orderCds(list, theme),
     })
   }
@@ -481,6 +509,15 @@ function orderRegular(artists: PlanArtist[], theme: ThemeDef): Cd[] {
       .sort((a, b) => collator.compare(key.get(a.id)!, key.get(b.id)!) || byYear(a, b))
   }
   return [...artists]
-    .sort((a, b) => collator.compare(a.sortName, b.sortName))
+    .sort((a, b) => collator.compare(sortKeyIn(theme, a), sortKeyIn(theme, b)))
     .flatMap((a) => a.cds)
+}
+
+/**
+ * Clé de tri d'un groupe dans son thème. Thème « par série » (BD, mangas, comics) : le nom de la série,
+ * et pour un album isolé le nom de son auteur (même ordre alphabétique). Sinon : le nom de tri de l'auteur
+ * ou de l'artiste (une série de romans se range donc chez son auteur).
+ */
+function sortKeyIn(theme: ThemeDef, a: PlanArtist): string {
+  return theme.sortBy === 'serie' ? (a.seriesSort ?? a.sortName) : a.sortName
 }

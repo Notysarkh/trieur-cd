@@ -120,10 +120,20 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 | Étape | Contenu | État |
 |---|---|---|
 | A | Accueil et univers, nom « Mediamwa », tes CD dans l'univers CD sans rien changer | ✅ fait |
-| B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | à venir |
+| B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | ✅ fait |
 | C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | à venir |
 | D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | à venir |
 | E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | à venir |
+
+### Étape B : Livres / BD
+
+- **Scan de l'ISBN** (code-barres 978 / 979 au dos du livre). Un ISBN scanné depuis l'univers CD part automatiquement dans « Livres / BD ».
+- **Identification** : catalogue de la **BnF** (gratuit, sans compte : tout ce qui est publié en France, BD, mangas et comics compris ; recherche par ISBN à 13 puis à 10 chiffres pour les notices anciennes), sinon **Open Library** (fiche alors « à vérifier »). Google Books n'est pas utilisé : sans clé personnelle, son quota gratuit est épuisé.
+- **Fiche livre** : type (livre, BD, manga, comics), auteur(s) et nom de tri « Nom, Prénom », série et tome, éditeur, collection, année, pages, hauteur (cm) et épaisseur (mm, estimée d'après le nombre de pages).
+- **Classement des livres** (règles séparées de celles des CD, onglet Classement dans l'univers Livres / BD) : Romans, Polars / Thrillers, SF / Fantasy, Jeunesse, Histoire, Pratique, Beaux livres, Divers → auteur (nom de famille) → date ; BD, Mangas, Comics → série (A → Z) → tome, les albums isolés au nom de leur auteur. Un genre choisi pour un auteur (ou une série) vaut pour tous ses livres.
+- **Livre sans ISBN** (« + Livre sans ISBN ») : recherche par titre et auteur dans le catalogue de la BnF (même les livres anciens), ou saisie à la main.
+- **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
+- **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
 
 ## Commandes utiles
 

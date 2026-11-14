@@ -11,11 +11,13 @@ import { addCd, updateCd } from '../services/collection'
 import { hasDiscogsToken } from '../services/discogs'
 import { enrichCandidate, searchByText } from '../services/identify'
 import { removeScan } from '../services/scanQueue'
-import { settings } from '../services/settings'
+import { currentMedia, settings } from '../services/settings'
+import { isIsbn, searchBooks } from '../services/books'
+import { mediaOf, type MediaKind } from '../lib/media'
 
 // Plan B quand le code-barres ne suffit pas :
 // 1) photo de la pochette (facultatif, aide-mémoire) ;
-// 2) recherche par artiste + titre, avec choix parmi les propositions ;
+// 2) recherche par artiste + titre (livres : titre + auteur dans le catalogue de la BnF), avec choix ;
 // 3) en dernier recours, saisie manuelle.
 //
 // Paramètres possibles dans l'adresse :
@@ -27,6 +29,9 @@ const router = useRouter()
 const barcode = typeof route.query.code === 'string' ? route.query.code : undefined
 const scanId = typeof route.query.scan === 'string' ? route.query.scan : undefined
 const cdId = typeof route.query.cd === 'string' ? route.query.cd : undefined
+/** CD ou livre : celui de la fiche à corriger, sinon un ISBN est un livre, sinon l'univers en cours. */
+const media = ref<MediaKind>(barcode && isIsbn(barcode) ? 'livre' : currentMedia())
+const isBook = computed(() => media.value === 'livre')
 
 const photo = ref<string>()
 const artist = ref('')
@@ -40,8 +45,9 @@ const searchWarnings = ref<string[]>([])
 if (cdId) {
   void db.cds.get(cdId).then((cd) => {
     if (!cd) return
+    media.value = mediaOf(cd)
     if (cd.artist !== 'Inconnu') artist.value = cd.artist
-    if (!cd.title.startsWith('Code ')) title.value = cd.title
+    if (!cd.title.startsWith('Code ') && !cd.title.startsWith('ISBN ')) title.value = cd.title
     photo.value = cd.coverPhoto
   })
 }
@@ -53,9 +59,13 @@ async function search() {
   searchError.value = ''
   searchWarnings.value = []
   try {
-    const found = await searchByText(artist.value, title.value)
-    results.value = found.candidates
-    searchWarnings.value = found.warnings
+    if (isBook.value) {
+      results.value = await searchBooks(title.value, artist.value)
+    } else {
+      const found = await searchByText(artist.value, title.value)
+      results.value = found.candidates
+      searchWarnings.value = found.warnings
+    }
   } catch (e) {
     searchError.value = e instanceof Error ? e.message : 'Recherche impossible.'
   } finally {
@@ -69,7 +79,7 @@ const picking = ref<string>()
 
 async function pick(c: Candidate) {
   picking.value = c.key
-  const full = await enrichCandidate(c, 'high').catch(() => c)
+  const full = c.enriched ? c : await enrichCandidate(c, 'high').catch(() => c)
   picking.value = undefined
   draft.value = {
     ...full.draft,
@@ -78,22 +88,23 @@ async function pick(c: Candidate) {
     coverPhoto: photo.value,
     status: 'identifie',
     confidence: 85,
-    confidenceReasons: ['Choisi par toi après une recherche texte'],
+    confidenceReasons: [isBook.value ? 'Choisi par toi dans le catalogue de la BnF' : 'Choisi par toi après une recherche texte'],
   }
   window.scrollTo(0, 0)
 }
 
 function manual() {
   draft.value = {
+    ...(isBook.value ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
     barcode,
     artist: artist.value.trim(),
     artistSort: '',
     title: title.value.trim(),
     genres: [],
     styles: [],
-    format: 'standard',
+    format: isBook.value ? 'autre' : 'standard',
     discCount: 1,
-    thicknessMm: settings.thickness.standard,
+    thicknessMm: isBook.value ? 25 : settings.thickness.standard,
     coverUrls: [],
     coverPhoto: photo.value,
     isCompilation: false,
@@ -124,27 +135,38 @@ async function save() {
 
 <template>
   <main class="page stack">
-    <h1>{{ cdId ? 'Corriger un CD' : 'Ajouter un CD sans code-barres' }}</h1>
-    <p v-if="barcode" class="muted small">Code-barres : {{ barcode }}</p>
+    <h1 v-if="isBook">{{ cdId ? 'Corriger un livre' : 'Ajouter un livre sans ISBN' }}</h1>
+    <h1 v-else>{{ cdId ? 'Corriger un CD' : 'Ajouter un CD sans code-barres' }}</h1>
+    <p v-if="barcode" class="muted small">{{ isBook ? 'ISBN' : 'Code-barres' }} : {{ barcode }}</p>
 
     <template v-if="!draft">
       <section class="card stack">
-        <h2>1. Photo de la pochette (facultatif)</h2>
+        <h2>1. Photo {{ isBook ? 'de la couverture' : 'de la pochette' }} (facultatif)</h2>
         <p class="muted small">Elle te servira de repère et remplacera la pochette si aucune n'est trouvée en ligne.</p>
         <CoverImage v-if="photo" :photo="photo" :size="96" label="Photo" />
         <PhotoCapture :has-photo="!!photo" @photo="photo = $event" />
       </section>
 
       <section class="card stack">
-        <h2>2. Rechercher par artiste et titre</h2>
+        <h2>2. Rechercher par {{ isBook ? 'titre et auteur' : 'artiste et titre' }}</h2>
+        <p v-if="isBook" class="muted small">
+          Dans le catalogue de la BnF (tout ce qui a été publié en France, même les livres anciens sans ISBN). Quelques
+          mots du titre suffisent ; ajoute le nom de l'auteur s'il y a trop de résultats.
+        </p>
         <form class="stack" @submit.prevent="search">
-          <label class="field">Artiste <input v-model="artist" autocomplete="off" /></label>
-          <label class="field">Titre de l'album <input v-model="title" autocomplete="off" /></label>
+          <template v-if="isBook">
+            <label class="field">Titre <input v-model="title" autocomplete="off" /></label>
+            <label class="field">Auteur (nom de famille) <input v-model="artist" autocomplete="off" /></label>
+          </template>
+          <template v-else>
+            <label class="field">Artiste <input v-model="artist" autocomplete="off" /></label>
+            <label class="field">Titre de l'album <input v-model="title" autocomplete="off" /></label>
+          </template>
           <button class="btn btn-primary" type="submit" :disabled="searching">
             {{ searching ? 'Recherche…' : '🔎 Rechercher' }}
           </button>
         </form>
-        <p v-if="!hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
+        <p v-if="!isBook && !hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
         <p v-if="searchError" class="notice notice-danger">{{ searchError }} Réessaie dans quelques secondes.</p>
         <p v-for="w in searchWarnings" :key="w" class="notice notice-warn small">{{ w }} Résultats partiels.</p>
 
@@ -158,10 +180,13 @@ async function save() {
                   <span class="title">{{ c.draft.title }}</span><br />
                   <span class="artist">
                     {{ c.draft.artist }}<template v-if="c.draft.year"> · {{ c.draft.year }}</template>
+                    <template v-if="c.draft.label && c.draft.media === 'livre'"> · {{ c.draft.label }}</template>
                     <template v-if="c.draft.genres.length"> · {{ c.draft.genres.join(', ') }}</template>
                   </span>
                 </span>
-                <span class="badge badge-info">{{ picking === c.key ? '…' : c.key.startsWith('mb') ? 'MusicBrainz' : 'Discogs' }}</span>
+                <span class="badge badge-info">
+                  {{ picking === c.key ? '…' : c.key.startsWith('bnf') ? 'BnF' : c.key.startsWith('mb') ? 'MusicBrainz' : 'Discogs' }}
+                </span>
               </button>
             </li>
           </ul>
@@ -179,7 +204,8 @@ async function save() {
         <CoverImage :urls="draft.coverUrls" :photo="draft.coverPhoto" :label="draft.title" :size="96" />
         <p class="muted small grow">
           Vérifie et complète la fiche, puis enregistre.<br />
-          Format : {{ FORMAT_LABELS[draft.format] }} (par défaut si inconnu — corrige si besoin).
+          <template v-if="isBook">Épaisseur estimée d'après le nombre de pages : corrige-la si tu l'as mesurée.</template>
+          <template v-else>Format : {{ FORMAT_LABELS[draft.format] }} (par défaut si inconnu — corrige si besoin).</template>
         </p>
       </div>
       <CdForm v-model="draft" />

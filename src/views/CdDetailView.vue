@@ -69,9 +69,9 @@ async function save(status?: CdStatus) {
   const themeChoiceChanged =
     before.themeOverride !== edited.value.themeOverride || !!before.personalCompilation !== !!edited.value.personalCompilation
   moved.value = 0
-  if (themeChoiceChanged && settings.layoutAppliedAt) {
+  if (themeChoiceChanged && settings.layoutAppliedAt && mediaOf(before) === 'cd') {
     // Le CD change-t-il vraiment de thème par rapport au rangement appliqué ?
-    const plan = await computePlan()
+    const plan = await computePlan('cd')
     const newTheme = plan.placement.get(props.id)?.themeId
     if (newTheme && newTheme !== before.themeId) {
       moved.value = await releasePlacement(edited.value, !edited.value.personalCompilation && !before.personalCompilation)
@@ -92,7 +92,7 @@ async function remove() {
 
 <template>
   <main class="page stack">
-    <p v-if="loaded && !edited" class="notice notice-danger">Ce CD n'existe plus dans ta collection.</p>
+    <p v-if="loaded && !edited" class="notice notice-danger">Cet élément n'existe plus dans ta collection.</p>
 
     <template v-if="edited">
       <div class="row head">
@@ -104,7 +104,7 @@ async function remove() {
         </div>
       </div>
 
-      <details v-if="live && (live.location || settings.layoutAppliedAt)" class="card" :open="!live.shelvedAt">
+      <details v-if="live && mediaOf(live) === 'cd' && (live.location || settings.layoutAppliedAt)" class="card" :open="!live.shelvedAt">
         <summary>
           <strong>📦 Où le ranger</strong>
           <span v-if="live.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(live) }}</span>
@@ -118,7 +118,7 @@ async function remove() {
         <div class="row">
           <button class="btn btn-small" @click="save('identifie')">✓ C'est bon</button>
           <RouterLink class="btn btn-small" :to="{ name: 'ajouter', query: { cd: id, code: edited.barcode } }">
-            🔎 Rechercher le bon album
+            🔎 {{ mediaOf(edited) === 'livre' ? 'Rechercher le bon livre' : 'Rechercher le bon album' }}
           </RouterLink>
         </div>
       </div>
@@ -141,13 +141,14 @@ async function remove() {
         <a v-if="edited.discogsReleaseId" :href="`https://www.discogs.com/release/${edited.discogsReleaseId}`" target="_blank" rel="noopener">
           Voir sur Discogs
         </a>
+        <a v-if="edited.bnfArk" :href="`https://catalogue.bnf.fr/${edited.bnfArk}`" target="_blank" rel="noopener">Voir à la BnF</a>
         <span v-if="edited.releaseYear && edited.releaseYear !== edited.year">Cette édition : {{ edited.releaseYear }}</span>
         <span v-if="edited.catalogNumber">Réf. {{ edited.catalogNumber }}</span>
       </p>
 
       <p v-if="saved" class="notice notice-ok" role="status">Modifications enregistrées.</p>
       <p v-if="sortSpread" class="notice notice-ok" role="status">
-        Nom de tri appliqué aussi aux {{ sortSpread }} autre(s) CD de cet artiste.
+        Nom de tri appliqué aussi aux {{ sortSpread }} autre(s) {{ mediaOf(edited) === 'livre' ? 'livre(s) de cet auteur ou de cette série' : 'CD de cet artiste' }}.
       </p>
       <p v-if="moved" class="notice notice-warn" role="status">
         Changement de thème : {{ moved }} CD à déplacer. {{ moved > 1 ? 'Ils sont' : 'Il est' }} maintenant « à ranger » ; la

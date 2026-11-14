@@ -48,7 +48,10 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ url }) =>
               url.hostname === 'coverartarchive.org' ||
               url.hostname.endsWith('.archive.org') ||
-              url.hostname === 'i.discogs.com',
+              url.hostname === 'i.discogs.com' ||
+              // Couvertures de livres (v2)
+              url.hostname === 'covers.openlibrary.org' ||
+              (url.hostname === 'catalogue.bnf.fr' && url.pathname === '/couverture'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'pochettes',

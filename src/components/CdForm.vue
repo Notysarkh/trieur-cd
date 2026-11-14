@@ -1,24 +1,39 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { CdDraft, CdFormat } from '../db/types'
-import { FORMAT_LABELS } from '../lib/formats'
+import { computed, ref, watch } from 'vue'
+import type { BookKind, CdDraft, CdFormat } from '../db/types'
+import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
+import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
-import { settings } from '../services/settings'
+import { invertPersonName } from '../services/books'
+import { rulesFor, settings } from '../services/settings'
 
-// Formulaire de fiche CD, utilisé pour la saisie manuelle et pour la modification.
+// Formulaire de fiche (CD ou livre), utilisé pour la saisie manuelle et pour la modification.
 // Le formulaire modifie directement l'objet `model` qu'on lui passe.
 
 const model = defineModel<CdDraft>({ required: true })
+const isBook = computed(() => mediaOf(model.value) === 'livre')
+const themes = computed(() => rulesFor(mediaOf(model.value)).themes)
 
-// Le nom de tri suit le nom d'artiste… tant que tu ne l'as pas modifié toi-même.
-if (!model.value.artistSort) model.value.artistSort = guessSortName(model.value.artist)
-const sortTouched = ref(model.value.artistSort !== '' && model.value.artistSort !== guessSortName(model.value.artist))
+// Le nom de tri suit le nom d'artiste (ou d'auteur : « Albert Camus » → « Camus, Albert »)…
+// tant que tu ne l'as pas modifié toi-même.
+const autoSort = (name: string) => (isBook.value ? invertPersonName(name.split(/\s*&\s*/)[0] ?? name) : guessSortName(name))
+if (!model.value.artistSort) model.value.artistSort = autoSort(model.value.artist)
+const sortTouched = ref(model.value.artistSort !== '' && model.value.artistSort !== autoSort(model.value.artist))
 watch(
   () => model.value.artist,
   (artist) => {
-    if (!sortTouched.value) model.value.artistSort = guessSortName(artist)
+    if (!sortTouched.value) model.value.artistSort = autoSort(artist)
   },
 )
+
+// Livres : le type (BD, manga, comics) décide du thème ; on garde le genre en accord.
+const KIND_GENRES: Record<BookKind, string | undefined> = { livre: undefined, bd: 'BD', manga: 'Manga', comics: 'Comics' }
+function setKind(kind: BookKind) {
+  model.value.bookKind = kind
+  const kindGenres = Object.values(KIND_GENRES).filter(Boolean) as string[]
+  const others = model.value.genres.filter((g) => !kindGenres.includes(g))
+  model.value.genres = KIND_GENRES[kind] ? [KIND_GENRES[kind]!] : others
+}
 
 // Changer de format met à jour l'épaisseur par défaut.
 function setFormat(format: CdFormat) {
@@ -59,9 +74,9 @@ function toNumber(text: string): number | undefined {
     <div class="full row flags">
       <label class="row small">
         <input type="checkbox" :checked="!!model.noBarcode" @change="model.noBarcode = ($event.target as HTMLInputElement).checked || undefined" />
-        Sans code-barres
+        {{ isBook ? 'Sans ISBN / code-barres' : 'Sans code-barres' }}
       </label>
-      <label class="row small">
+      <label v-if="!isBook" class="row small">
         <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
         Compilation perso (CD gravé, mix…)
       </label>
@@ -70,11 +85,88 @@ function toNumber(text: string): number | undefined {
       Thème
       <select :value="model.themeOverride ?? ''" @change="model.themeOverride = ($event.target as HTMLSelectElement).value || undefined">
         <option value="">{{ model.personalCompilation ? '— à choisir —' : "Automatique (d'après les genres)" }}</option>
-        <option v-for="t in settings.classification.themes" :key="t.id" :value="t.id">{{ t.name }}</option>
+        <option v-for="t in themes" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
       <span v-if="model.personalCompilation" class="hint">Rangée à la fin de ce thème, par ordre alphabétique de son nom.</span>
+      <span v-else-if="model.themeOverride && isBook" class="hint">
+        S'applique à tous les livres de cet auteur (ou de cette série) : ils restent ensemble.
+      </span>
       <span v-else-if="model.themeOverride" class="hint">S'applique à tous les CD de cet artiste (un artiste n'est jamais coupé en deux thèmes).</span>
     </label>
+
+    <!-- Livres / BD -->
+    <template v-if="isBook">
+      <label class="field">
+        Type
+        <select :value="model.bookKind ?? 'livre'" @change="setKind(($event.target as HTMLSelectElement).value as BookKind)">
+          <option v-for="(label, key) in BOOK_KIND_LABELS" :key="key" :value="key">{{ label }}</option>
+        </select>
+      </label>
+      <label class="field">
+        Auteur(s)
+        <input v-model="model.artist" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Nom de tri (ex. « Camus, Albert »)
+        <input v-model="model.artistSort" autocomplete="off" @input="sortTouched = true" />
+      </label>
+      <label class="field full">
+        Titre
+        <input v-model="model.title" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Série (BD, manga, saga…)
+        <input v-model="model.series" autocomplete="off" />
+      </label>
+      <label class="field">
+        Tome
+        <input :value="model.volume ?? ''" inputmode="numeric" @input="model.volume = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="field">
+        Année
+        <input :value="model.year ?? ''" inputmode="numeric" @input="model.year = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="field">
+        Éditeur
+        <input v-model="model.label" autocomplete="off" />
+      </label>
+      <label class="field">
+        Collection
+        <input v-model="model.bookCollection" autocomplete="off" />
+      </label>
+      <label class="field">
+        Genres (séparés par des virgules)
+        <input :value="model.genres.join(', ')" autocomplete="off" @change="model.genres = toList(($event.target as HTMLInputElement).value)" />
+      </label>
+      <div class="row full">
+        <label class="field grow">
+          Pages
+          <input :value="model.pages ?? ''" inputmode="numeric" @input="model.pages = toNumber(($event.target as HTMLInputElement).value)" />
+        </label>
+        <label class="field grow">
+          Hauteur (cm)
+          <input :value="model.heightCm ?? ''" inputmode="decimal" @input="model.heightCm = toNumber(($event.target as HTMLInputElement).value)" />
+        </label>
+        <label class="field grow">
+          Épaisseur (mm)
+          <input
+            :value="model.thicknessMm"
+            inputmode="decimal"
+            @input="model.thicknessMm = toNumber(($event.target as HTMLInputElement).value) ?? model.thicknessMm"
+          />
+        </label>
+      </div>
+      <label class="field">
+        ISBN / code-barres
+        <input v-model="model.barcode" inputmode="numeric" autocomplete="off" />
+      </label>
+      <label class="field full">
+        Notes
+        <textarea v-model="model.notes" rows="2"></textarea>
+      </label>
+    </template>
+
+    <template v-else>
     <template v-if="!model.personalCompilation">
       <label class="field">
         Artiste
@@ -157,6 +249,7 @@ function toNumber(text: string): number | undefined {
       Notes
       <textarea v-model="model.notes" rows="2"></textarea>
     </label>
+    </template>
   </div>
 </template>
 

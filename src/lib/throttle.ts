@@ -100,6 +100,27 @@ export async function throttledJson<T>(
   priority: Priority = 'normal',
   retries = priority === 'high' ? 1 : 3,
 ): Promise<T> {
+  return (await (await throttledResponse(throttle, url, init, priority, retries)).json()) as T
+}
+
+/** Comme `throttledJson`, pour un service qui répond en texte (ex. XML de la BnF). */
+export async function throttledText(
+  throttle: Throttle,
+  url: string,
+  init: RequestInit = {},
+  priority: Priority = 'normal',
+  retries = priority === 'high' ? 1 : 3,
+): Promise<string> {
+  return (await throttledResponse(throttle, url, init, priority, retries)).text()
+}
+
+async function throttledResponse(
+  throttle: Throttle,
+  url: string,
+  init: RequestInit,
+  priority: Priority,
+  retries: number,
+): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const res = await throttle.run(
       () =>
@@ -115,7 +136,7 @@ export async function throttledJson<T>(
         }),
       priority,
     )
-    if (res.ok) return (await res.json()) as T
+    if (res.ok) return res
     if ((res.status === 503 || res.status === 429) && attempt < retries) {
       await sleep((priority === 'high' ? 1500 : 2000) * (attempt + 1))
       continue

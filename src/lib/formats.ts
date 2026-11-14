@@ -1,4 +1,4 @@
-import type { CdFormat } from '../db/types'
+import type { BookKind, CdFormat } from '../db/types'
 
 // Formats physiques et épaisseurs par défaut.
 //
@@ -20,6 +20,14 @@ export const FORMAT_LABELS: Record<CdFormat, string> = {
 }
 
 export type ThicknessTable = Record<CdFormat, number>
+
+/** Types de livres (v2). */
+export const BOOK_KIND_LABELS: Record<BookKind, string> = {
+  livre: 'Livre',
+  bd: 'BD',
+  manga: 'Manga',
+  comics: 'Comics',
+}
 
 export const DEFAULT_THICKNESS: ThicknessTable = {
   standard: 10.4,
