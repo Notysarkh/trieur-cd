@@ -156,7 +156,9 @@ export function gameDraftFromRawg(g: RawgResult, platform?: Platform): CdDraft {
 /** Complète une fiche de jeu avec RAWG (si une clé est configurée) : image, année d'origine, genres. */
 export async function enrichGame(draft: CdDraft, priority: Priority = 'normal'): Promise<CdDraft> {
   if (!hasRawgKey() || draft.rawgId) return draft
-  const match = bestRawgMatch(await searchRawg(draft.title, draft.platform, priority), draft.title)
+  // RAWG injoignable ou clé refusée : on garde simplement la fiche de la BnF.
+  const results = await searchRawg(draft.title, draft.platform, priority).catch(() => [])
+  const match = bestRawgMatch(results, draft.title)
   if (!match) return draft
   const d: CdDraft = { ...draft, rawgId: match.id }
   if (match.year) d.year = match.year

@@ -149,4 +149,12 @@ describe('jeux : classement (console puis titre)', () => {
     expect(plan.merges).toEqual([])
     expect(plan.unclassified[0].reason).toBe('Console inconnue')
   })
+
+  it('une console ajoutée comme thème passe avant « Autres consoles »', () => {
+    const rules = defaultGameRules()
+    rules.themes.push({ id: 'ps4', name: 'PlayStation 4', color: '#000', keywords: ['PlayStation 4'], sortBy: 'titre' })
+    const plan = buildPlan([game('Uncharted 4', 'ps4'), game('Mario Kart 8', 'wiiu')], rules)
+    expect(plan.placement.get(plan.themes.find((t) => t.theme.id === 'ps4')!.cds[0].id)?.themeId).toBe('ps4')
+    expect(plan.themes.find((t) => t.theme.id === 'autres')!.cds.map((c) => c.title)).toEqual(['Mario Kart 8'])
+  })
 })

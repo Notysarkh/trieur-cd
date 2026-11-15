@@ -218,7 +218,10 @@ export function cdVotes(cd: Cd, rules: ClassificationRules, matcher: Matcher): V
   // Jeux vidéo : seule la console compte (les genres sont gardés pour information).
   if (mediaOf(cd) === 'jeu') {
     // (pas de nettoyage des étiquettes ici : « PlayStation 2 » contient un chiffre)
-    if (cd.platform) for (const id of themesForTag(platformLabel(cd.platform), matcher)) votes.set(id, 1)
+    // Une console qui a son propre thème (créé par toi) passe avant « Autres consoles ».
+    const ids = cd.platform ? themesForTag(platformLabel(cd.platform), matcher) : []
+    const own = ids.filter((id) => rules.themes.find((t) => t.id === id)?.special !== 'divers')
+    for (const id of own.length ? own : ids) votes.set(id, 1)
     return votes
   }
   addTags(votes, cd.genres, 1, matcher)
