@@ -180,6 +180,41 @@ export async function setScanPlatform(itemId: string, platform: Platform): Promi
   await db.scans.update(itemId, { platform, candidates })
 }
 
+/**
+ * Code introuvable : tu as cherché l'objet par son titre directement dans la file et choisi un résultat.
+ * Il prend la place de la proposition, AVEC le code-barres scanné (la prochaine fois, ce code sera reconnu
+ * comme déjà dans ta collection). Jeu sans console connue : celle choisie pour la recherche.
+ */
+export async function useSearchResult(itemId: string, picked: Candidate, platform?: Platform): Promise<void> {
+  const item = await db.scans.get(itemId)
+  if (!item) return
+  // Copie simple : le résultat affiché est un objet « réactif » de Vue, que la base ne sait pas enregistrer.
+  const c: Candidate = JSON.parse(JSON.stringify(picked))
+  const d = c.draft
+  const fixPlatform = d.media === 'jeu' && !d.platform && platform ? { platform, ...gameSize(platform, d.discCount) } : {}
+  const draft = {
+    ...d,
+    ...fixPlatform,
+    barcode: item.barcode,
+    noBarcode: undefined,
+    status: 'identifie' as const,
+    confidence: Math.max(d.confidence, 85),
+    confidenceReasons: ['Code-barres inconnu : choisi par toi après une recherche par titre'],
+  }
+  const key = `titre:${c.key}`
+  await db.scans.update(itemId, {
+    state: 'trouve',
+    candidates: [{ ...c, key, draft }],
+    chosenKey: key,
+    chosenByUser: false,
+    include: !item.duplicateOfIds.length,
+    platform: draft.platform ?? item.platform,
+    error: undefined,
+  })
+  // Détails complémentaires (image RAWG, affiche TMDB…) si la proposition n'est pas encore complète.
+  startProcessing()
+}
+
 export async function setInclude(itemId: string, include: boolean): Promise<void> {
   await db.scans.update(itemId, { include })
 }

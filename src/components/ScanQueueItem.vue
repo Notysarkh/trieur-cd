@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ScanItem } from '../db/types'
+import { computed, ref } from 'vue'
+import type { Candidate, Platform, ScanItem } from '../db/types'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { CONFIDENCE_THRESHOLD } from '../services/identify'
-import { chooseCandidate, finalDraft, isReady, removeScan, retryErrors, setInclude, setScanPlatform } from '../services/scanQueue'
+import { chooseCandidate, finalDraft, isBookScan, isReady, removeScan, retryErrors, setInclude, setScanPlatform, useSearchResult } from '../services/scanQueue'
+import { searchBooks } from '../services/books'
+import { searchFilms } from '../services/films'
+import { searchGames } from '../services/games'
+import { searchByText } from '../services/identify'
+import { settings } from '../services/settings'
 import { platformLabel } from '../lib/platforms'
 import CoverImage from './CoverImage.vue'
 import PlatformSelect from './PlatformSelect.vue'
@@ -39,6 +44,47 @@ const stateInfo = computed(() => {
       return { cls: 'badge-danger', text: 'Erreur' }
   }
 })
+
+// --- Code introuvable : recherche par titre directement dans la file ---
+const media = computed(() => (isBookScan(props.item) ? 'livre' : (props.item.media ?? 'cd')))
+const query = ref('')
+/** Auteur (livres) ou artiste (CD). */
+const who = ref('')
+const searchPlatform = ref<Platform | undefined>(props.item.platform ?? (settings.scanPlatform || undefined))
+const results = ref<Candidate[] | null>(null)
+const searching = ref(false)
+const searchError = ref('')
+const picking = ref('')
+
+async function searchTitle() {
+  if (!query.value.trim() && !who.value.trim()) return
+  searching.value = true
+  searchError.value = ''
+  try {
+    if (media.value === 'jeu') results.value = await searchGames(query.value, searchPlatform.value)
+    else if (media.value === 'video') results.value = await searchFilms(query.value)
+    else if (media.value === 'livre') results.value = await searchBooks(query.value, who.value)
+    else results.value = (await searchByText(who.value, query.value)).candidates
+  } catch (e) {
+    searchError.value = e instanceof Error ? e.message : 'Recherche impossible pour le moment.'
+  } finally {
+    searching.value = false
+  }
+}
+async function pick(c: Candidate) {
+  picking.value = c.key
+  try {
+    await useSearchResult(props.item.id, c, searchPlatform.value)
+    results.value = null
+  } finally {
+    picking.value = ''
+  }
+}
+const sourceOf = (key: string) =>
+  key.startsWith('rawg') ? 'RAWG' : key.startsWith('tmdb') ? 'TMDB' : key.startsWith('bnf') ? 'BnF' : key.startsWith('ol') ? 'Open Library' : key.startsWith('mb') ? 'MusicBrainz' : 'Discogs'
+const placeholder = computed(() =>
+  media.value === 'jeu' ? 'Titre du jeu' : media.value === 'video' ? 'Titre du film ou de la série' : media.value === 'livre' ? 'Titre du livre' : "Titre de l'album",
+)
 
 const otherEdition = computed(
   () =>
@@ -84,9 +130,43 @@ const otherEdition = computed(
       <PlatformSelect :model-value="undefined" @update:model-value="$event && setScanPlatform(item.id, $event)" />
     </label>
     <p v-if="item.state === 'erreur'" class="notice notice-danger small">{{ item.error }}</p>
-    <p v-if="item.state === 'introuvable'" class="muted small">
-      Aucune base ne connaît ce code. Envoie-le dans « à vérifier » (tu compléteras la fiche), ou ajoute-le par une recherche texte.
-    </p>
+    <!-- Code introuvable : on cherche par le titre, sans quitter la file -->
+    <form v-if="item.state === 'introuvable'" class="stack find" @submit.prevent="searchTitle">
+      <p class="muted small">
+        Code-barres inconnu (souvent une réédition ou un import). Cherche-le par son titre : le code-barres sera gardé.
+      </p>
+      <input v-model="query" type="search" :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" enterkeyhint="search" />
+      <div class="row">
+        <input
+          v-if="media === 'cd' || media === 'livre'"
+          v-model="who"
+          class="grow"
+          :placeholder="media === 'cd' ? 'Artiste' : 'Auteur (facultatif)'"
+          :aria-label="media === 'cd' ? 'Artiste' : 'Auteur'"
+          autocomplete="off"
+        />
+        <PlatformSelect v-if="media === 'jeu'" v-model="searchPlatform" class="grow" empty-label="Toutes les consoles" />
+        <button class="btn btn-small btn-primary" type="submit" :disabled="searching || (!query.trim() && !who.trim())">
+          {{ searching ? 'Recherche…' : '🔎 Chercher' }}
+        </button>
+      </div>
+      <p v-if="searchError" class="notice notice-danger small">{{ searchError }}</p>
+      <p v-if="results && !results.length" class="small muted">Aucun résultat : essaie avec moins de mots, ou une autre console.</p>
+      <div v-if="results?.length" class="choices">
+        <button v-for="c in results.slice(0, 8)" :key="c.key" type="button" class="choice" :disabled="!!picking" @click="pick(c)">
+          <CoverImage :urls="c.draft.coverUrls" :label="c.draft.title" :size="44" />
+          <span class="grow">
+            <strong>{{ c.draft.title }}</strong><br />
+            <span class="muted small">
+              <template v-if="c.draft.media === 'jeu'">{{ c.draft.platform ? platformLabel(c.draft.platform) : 'Console ?' }} · </template>
+              {{ c.draft.artist }}<template v-if="c.draft.year"> · {{ c.draft.year }}</template>
+            </span>
+          </span>
+          <span class="badge badge-info">{{ picking === c.key ? '…' : sourceOf(c.key) }}</span>
+        </button>
+      </div>
+      <p class="small muted">Toujours rien ? Le bouton « Introuvables → À vérifier » (en haut de la file) le garde pour plus tard.</p>
+    </form>
 
     <!-- Plusieurs albums possibles : tu choisis -->
     <fieldset v-if="item.state === 'a_choisir'" class="choices">
@@ -125,7 +205,7 @@ const otherEdition = computed(
         class="btn btn-small"
         :to="{ name: 'ajouter', query: { code: item.barcode, scan: item.id } }"
       >
-        Chercher par texte
+        {{ item.state === 'introuvable' ? 'Recherche complète' : 'Chercher par texte' }}
       </RouterLink>
       <button class="btn btn-small btn-danger" @click="removeScan(item.id)">Retirer</button>
     </div>
@@ -176,6 +256,12 @@ const otherEdition = computed(
 }
 .actions {
   justify-content: flex-end;
+}
+.find {
+  gap: 8px;
+}
+.find p {
+  margin: 0;
 }
 details ul {
   margin: 4px 0;

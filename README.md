@@ -163,6 +163,7 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Sauvegarde** : elle garde les dates de rangement de chaque univers ; un appareil qui n'a pas encore rangé un univers reprend celui du fichier. Une ancienne sauvegarde reçoit les meubles de l'étape E.
 - **Pas encore vérifié** : la profondeur des boîtiers DVD / jeux dans les meubles (seule celle des CD l'est).
 - **Export CSV** : tous les univers (colonne « Univers », plus série, tome, console, support vidéo, hauteur…) ; l'import remet chaque ligne dans son univers.
+- **Code-barres introuvable** (réédition, import) : recherche par titre directement dans la file du scanner (titre + console pour les jeux, titre + auteur pour les livres, titre pour les films, artiste + titre pour les CD) ; le résultat choisi garde le code-barres scanné.
 - **Mes consoles** : à la première ouverture de l'univers Jeux vidéo, chacun choisit ses consoles et leur ordre (un thème par console, les autres dans « Autres consoles ») ; modifiable ensuite depuis Thèmes et règles. Un appareil qui a déjà des jeux garde ses consoles sans rien demander.
 
 ## Commandes utiles
