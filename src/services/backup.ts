@@ -1,6 +1,7 @@
 import { db } from '../db/database'
 import type { ClassificationRules } from '../classification/themes'
 import type { Furniture, LayoutOptions } from '../layout/furniture'
+import type { Platform } from '../db/types'
 import type { Cd } from '../db/types'
 import { saveSetting, settings } from './settings'
 import { addV2Furniture } from '../layout/furniture'
@@ -40,6 +41,7 @@ interface BackupFile {
   videoClassificationAppliedAt?: number
   gameClassification?: ClassificationRules
   gameClassificationAppliedAt?: number
+  myPlatforms?: Platform[]
 }
 
 /** Prépare le fichier de sauvegarde. */
@@ -66,6 +68,7 @@ export async function buildBackup(): Promise<File> {
     videoClassificationAppliedAt: settings.videoClassificationAppliedAt,
     gameClassification: JSON.parse(JSON.stringify(settings.gameClassification)),
     gameClassificationAppliedAt: settings.gameClassificationAppliedAt,
+    myPlatforms: [...settings.myPlatforms],
   }
   const date = new Date().toISOString().slice(0, 10)
   return new File([JSON.stringify(data, null, 1)], `mediamwa-${date}.json`, { type: 'application/json' })
@@ -173,6 +176,11 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   const adoptGames = !!data.gameClassificationAppliedAt && !settings.gameClassificationAppliedAt
   if ((replaceRules || adoptGames) && data.gameClassification?.themes?.length) {
     await saveSetting('gameClassification', data.gameClassification)
+    // Les consoles vont avec les thèmes des jeux.
+    if (data.myPlatforms?.length) {
+      await saveSetting('myPlatforms', data.myPlatforms)
+      await saveSetting('platformsSetupDone', 1)
+    }
     if (data.gameClassificationAppliedAt) await saveSetting('gameClassificationAppliedAt', data.gameClassificationAppliedAt)
     report.rulesReplaced = true
   }

@@ -43,6 +43,7 @@ export const router = createRouter({
     { path: '/imprimer/plan', name: 'imprimer-plan', component: () => import('./views/PrintPlanView.vue'), meta: cdOnly },
     { path: '/imprimer/etiquettes', name: 'etiquettes', component: () => import('./views/LabelsView.vue'), meta: cdOnly },
     { path: '/reglages', name: 'reglages', component: () => import('./views/SettingsView.vue') },
+    { path: '/consoles', name: 'consoles', component: () => import('./views/ConsolesView.vue'), meta: { onlyFor: ['jeu'] } },
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
@@ -54,4 +55,9 @@ router.beforeEach((to) => {
   const first = firstNavigation
   firstNavigation = false
   if (first && to.name === 'accueil' && settings.lastMedia) return { name: 'collection' }
+  // Premier passage dans l'univers Jeux vidéo : on choisit d'abord ses consoles.
+  const free = ['accueil', 'consoles', 'reglages']
+  if (settings.lastMedia === 'jeu' && !settings.platformsSetupDone && !free.includes(String(to.name))) {
+    return { name: 'consoles', query: { suite: to.fullPath } }
+  }
 })

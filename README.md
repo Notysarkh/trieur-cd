@@ -161,7 +161,9 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Rangement, plan imprimable, étiquettes, « Où est… ? », mode « Ranger » du scanner, pile triée des objets sans code-barres** : disponibles dans les quatre univers, chacun avec ses meubles et sa date de rangement appliqué.
 - **Contrôle de la hauteur** : chaque objet est comparé à la hauteur utile de son étagère (CD sans hauteur connue : 12,5 cm) ; les objets trop hauts sont listés dans l'onglet Rangement (simple avertissement, la répartition ne change pas).
 - **Sauvegarde** : elle garde les dates de rangement de chaque univers ; un appareil qui n'a pas encore rangé un univers reprend celui du fichier. Une ancienne sauvegarde reçoit les meubles de l'étape E.
-- **Pas encore vérifié** : la profondeur des boîtiers DVD / jeux dans les meubles (seule celle des CD l'est). L'export CSV ne contient toujours que les CD.
+- **Pas encore vérifié** : la profondeur des boîtiers DVD / jeux dans les meubles (seule celle des CD l'est).
+- **Export CSV** : tous les univers (colonne « Univers », plus série, tome, console, support vidéo, hauteur…) ; l'import remet chaque ligne dans son univers.
+- **Mes consoles** : à la première ouverture de l'univers Jeux vidéo, chacun choisit ses consoles et leur ordre (un thème par console, les autres dans « Autres consoles ») ; modifiable ensuite depuis Thèmes et règles. Un appareil qui a déjà des jeux garde ses consoles sans rien demander.
 
 ## Commandes utiles
 

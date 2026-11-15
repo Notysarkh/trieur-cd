@@ -1,4 +1,5 @@
 import { MY_PLATFORMS, PLATFORMS } from '../lib/platforms'
+import type { Platform } from '../db/types'
 
 // Les thèmes de classement et les règles modifiables.
 //
@@ -228,22 +229,51 @@ export function defaultVideoRules(): ClassificationRules {
  * puis « Autres consoles ». Dans chaque console, les jeux sont rangés par titre.
  * Aucun regroupement automatique : même une poignée de jeux Super Nintendo garde sa place.
  */
-export function defaultGameRules(): ClassificationRules {
-  const mine = MY_PLATFORMS.map((id) => PLATFORMS.find((p) => p.id === id)!)
-  const others = PLATFORMS.filter((p) => !MY_PLATFORMS.includes(p.id))
-  return {
-    version: RULES_VERSION,
-    maxThemes: 40,
-    minCdsPerTheme: 0,
-    frenchTheme: false,
-    artistOverrides: {},
-    cdOverrides: {},
-    themes: [
-      ...mine.map((p, i): ThemeDef => ({ id: p.id, name: p.label, color: THEME_COLORS[i % THEME_COLORS.length], keywords: [p.label], sortBy: 'titre' })),
-      { id: 'autres', name: 'Autres consoles', color: '#95a5a6', keywords: others.map((p) => p.label), sortBy: 'titre', special: 'divers' },
-    ],
-  }
+export function defaultGameRules(platforms: Platform[] = MY_PLATFORMS): ClassificationRules {
+  return withPlatforms(
+    {
+      version: RULES_VERSION,
+      maxThemes: 40,
+      minCdsPerTheme: 0,
+      frenchTheme: false,
+      artistOverrides: {},
+      cdOverrides: {},
+      themes: [],
+    },
+    platforms,
+  )
 }
+
+/**
+ * Règles des jeux avec TES consoles (écran « Mes consoles ») : un thème par console, dans l'ordre choisi,
+ * puis « Autres consoles » (toutes les autres) et les thèmes que tu as créés toi-même.
+ * Un thème de console déjà existant garde son nom et sa couleur ; une console retirée rejoint « Autres consoles ».
+ */
+export function withPlatforms(rules: ClassificationRules, platforms: Platform[]): ClassificationRules {
+  const isPlatform = (id: string) => PLATFORMS.some((p) => p.id === id)
+  const used = new Set(rules.themes.map((t) => t.color))
+  const freeColor = (i: number) => THEME_COLORS.find((c) => !used.has(c)) ?? THEME_COLORS[i % THEME_COLORS.length]
+  const mine = platforms.map((id, i): ThemeDef => {
+    const existing = rules.themes.find((t) => t.id === id)
+    if (existing) return existing
+    const p = PLATFORMS.find((x) => x.id === id)!
+    const color = freeColor(i)
+    used.add(color)
+    return { id, name: p.label, color, keywords: [p.label], sortBy: 'titre' }
+  })
+  const otherLabels = PLATFORMS.filter((p) => !platforms.includes(p.id)).map((p) => p.label)
+  const allLabels = new Set(PLATFORMS.map((p) => normalizeKeyword(p.label)))
+  const oldOthers = rules.themes.find((t) => t.id === 'autres')
+  const others: ThemeDef = {
+    ...(oldOthers ?? { id: 'autres', name: 'Autres consoles', color: '#95a5a6', sortBy: 'titre', special: 'divers' }),
+    // Les consoles qui ne sont pas « à toi », plus les mots-clés ajoutés à la main.
+    keywords: [...otherLabels, ...(oldOthers?.keywords ?? []).filter((k) => !allLabels.has(normalizeKeyword(k)))],
+  }
+  const custom = rules.themes.filter((t) => !isPlatform(t.id) && t.id !== 'autres')
+  return { ...rules, themes: [...mine, others, ...custom] }
+}
+
+const normalizeKeyword = (k: string) => k.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 /** Crée un identifiant de thème lisible à partir de son nom. */
 export function themeIdFromName(name: string, existing: string[]): string {

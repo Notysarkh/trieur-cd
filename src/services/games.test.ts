@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPlan } from '../classification/engine'
-import { defaultGameRules } from '../classification/themes'
+import { defaultGameRules, withPlatforms } from '../classification/themes'
 import type { Cd, Platform } from '../db/types'
 import { platformFromRawg, platformFromText } from '../lib/platforms'
 import { parseSru } from './books'
@@ -156,5 +156,29 @@ describe('jeux : classement (console puis titre)', () => {
     const plan = buildPlan([game('Uncharted 4', 'ps4'), game('Mario Kart 8', 'wiiu')], rules)
     expect(plan.placement.get(plan.themes.find((t) => t.theme.id === 'ps4')!.cds[0].id)?.themeId).toBe('ps4')
     expect(plan.themes.find((t) => t.theme.id === 'autres')!.cds.map((c) => c.title)).toEqual(['Mario Kart 8'])
+  })
+})
+
+describe('Mes consoles', () => {
+  it('un ami avec une Switch et une PS4 : ses deux consoles, puis « Autres consoles »', () => {
+    const rules = defaultGameRules(['switch', 'ps4'])
+    expect(rules.themes.map((t) => t.id)).toEqual(['switch', 'ps4', 'autres'])
+    const autres = rules.themes.find((t) => t.id === 'autres')!
+    expect(autres.keywords).toContain('PlayStation 2')
+    expect(autres.keywords).not.toContain('PlayStation 4')
+  })
+
+  it('changer ses consoles garde les noms, couleurs et thèmes ajoutés à la main', () => {
+    const before = defaultGameRules()
+    before.themes[0] = { ...before.themes[0], name: 'PS1 (salon)' }
+    before.themes.push({ id: 'collector', name: 'Éditions collector', color: '#000', keywords: [], sortBy: 'titre' })
+    const after = withPlatforms(before, ['ps2', 'ps1', 'switch'])
+    expect(after.themes.map((t) => t.id)).toEqual(['ps2', 'ps1', 'switch', 'autres', 'collector'])
+    expect(after.themes[1].name).toBe('PS1 (salon)')
+    expect(after.themes.find((t) => t.id === 'autres')!.keywords).toContain('Nintendo DS')
+    // Un jeu DS (console retirée) va dans « Autres consoles ».
+    let k = 0
+    const ds = { id: `ds${++k}`, media: 'jeu', platform: 'nds', title: 'Zelda', artist: 'N', artistSort: 'N', genres: [], styles: [] } as unknown as Cd
+    expect(buildPlan([ds], after).placement.get(ds.id)?.themeId).toBe('autres')
   })
 })

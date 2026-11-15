@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Platform } from '../db/types'
-import { MY_PLATFORMS, PLATFORMS } from '../lib/platforms'
+import { computed } from 'vue'
+import { PLATFORMS } from '../lib/platforms'
+import { myPlatforms } from '../services/settings'
 
 // Liste déroulante des consoles : les tiennes d'abord, puis les autres.
 
@@ -11,8 +13,9 @@ defineProps<{
 }>()
 const emit = defineEmits<{ 'update:modelValue': [Platform | undefined] }>()
 
-const mine = MY_PLATFORMS.map((id) => PLATFORMS.find((p) => p.id === id)!)
-const others = PLATFORMS.filter((p) => !MY_PLATFORMS.includes(p.id))
+// Tes consoles (écran « Mes consoles ») en premier.
+const mine = computed(() => myPlatforms().map((id) => PLATFORMS.find((p) => p.id === id)!))
+const others = computed(() => PLATFORMS.filter((p) => !myPlatforms().includes(p.id)))
 
 function onChange(e: Event) {
   const v = (e.target as HTMLSelectElement).value

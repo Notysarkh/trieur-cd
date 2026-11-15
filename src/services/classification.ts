@@ -1,13 +1,13 @@
 import { reactive } from 'vue'
 import { artistKey, buildPlan, groupKeyOf, type Plan } from '../classification/engine'
-import { defaultBookRules, defaultRules, defaultVideoRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, withPlatforms, type ClassificationRules } from '../classification/themes'
 import { db, itemsOf } from '../db/database'
 import { mediaOf, type MediaKind } from '../lib/media'
-import type { ArtistInfo, Cd } from '../db/types'
+import type { ArtistInfo, Cd, Platform } from '../db/types'
 import { hasDiscogsToken } from './discogs'
 import { completeWithDiscogs } from './identify'
 import { lookupArtist, lookupRelease, searchArtists } from './musicbrainz'
-import { appliedAtKey, rulesFor, rulesKey, saveSetting } from './settings'
+import { appliedAtKey, myPlatforms, rulesFor, rulesKey, saveSetting, settings } from './settings'
 import { isJunkTag, isLatin, latinArtistName } from '../lib/cleanup'
 import { guessSortName } from '../lib/sortName'
 import { titleCase } from '../lib/text'
@@ -27,7 +27,16 @@ export function saveRules(rules: ClassificationRules, media: MediaKind = 'cd'): 
 }
 
 export function resetRules(media: MediaKind = 'cd'): Promise<void> {
-  return saveRules(media === 'livre' ? defaultBookRules() : media === 'video' ? defaultVideoRules() : defaultRules(), media)
+  const rules =
+    media === 'livre' ? defaultBookRules() : media === 'video' ? defaultVideoRules() : media === 'jeu' ? defaultGameRules(myPlatforms()) : defaultRules()
+  return saveRules(rules, media)
+}
+
+/** « Mes consoles » : enregistre tes consoles et met les thèmes des jeux dans cet ordre. */
+export async function setMyPlatforms(platforms: Platform[]): Promise<void> {
+  await saveSetting('myPlatforms', platforms)
+  await saveSetting('gameClassification', withPlatforms(settings.gameClassification, platforms))
+  await saveSetting('platformsSetupDone', 1)
 }
 
 /** Après une fusion de thèmes : les CD dont la fiche choisissait l'ancien thème passent dans le nouveau. */

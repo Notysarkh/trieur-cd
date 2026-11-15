@@ -4,6 +4,7 @@ import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, mi
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import type { MediaKind } from '../lib/media'
 import type { Platform } from '../db/types'
+import { MY_PLATFORMS, PLATFORMS } from '../lib/platforms'
 import { addV2Furniture, DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
 // Les réglages de l'appli, gardés dans la base locale.
@@ -40,6 +41,10 @@ export interface Settings {
   gameClassificationAppliedAt: number
   /** Console choisie sur l'écran Scanner (jeux dont la notice n'indique pas la console). */
   scanPlatform: Platform | ''
+  /** Tes consoles, dans l'ordre de rangement (écran « Mes consoles »). */
+  myPlatforms: Platform[]
+  /** « Mes consoles » réglé : 0 = à demander à la première ouverture de l'univers Jeux vidéo. */
+  platformsSetupDone: number
   /** Les meubles, dans l'ordre de remplissage (le premier est rempli en premier). */
   furniture: Furniture[]
   /** Options de répartition des CD (marge de croissance…). */
@@ -76,6 +81,8 @@ const DEFAULTS: Settings = {
   gameClassification: defaultGameRules(),
   gameClassificationAppliedAt: 0,
   scanPlatform: '',
+  myPlatforms: [],
+  platformsSetupDone: 0,
   furniture: defaultFurniture(),
   layout: { ...DEFAULT_LAYOUT_OPTIONS },
   bookLayout: { ...DEFAULT_LAYOUT_OPTIONS },
@@ -112,6 +119,16 @@ export function loadSettings(): Promise<void> {
         await db.cds.filter((c) => c.themeOverride === 'folk').modify({ themeOverride: 'monde' })
       }
       await saveSetting('classification', migrated)
+    }
+    // Consoles : sur un appareil qui a déjà des jeux (ou un classement des jeux), on garde les consoles
+    // de ses thèmes, dans leur ordre ; sinon, l'écran « Mes consoles » s'ouvrira au premier passage.
+    if (!settings.platformsSetupDone) {
+      const hasGames = settings.gameClassificationAppliedAt || (await db.cds.filter((c) => c.media === 'jeu').count())
+      if (hasGames) {
+        const ids = new Set<string>(PLATFORMS.map((p) => p.id))
+        await saveSetting('myPlatforms', settings.gameClassification.themes.map((t) => t.id).filter((id): id is Platform => ids.has(id)))
+        await saveSetting('platformsSetupDone', 1)
+      }
     }
     // v2, étape E : meubles des livres, des films (Billy niveau 1) et des jeux, ajoutés une seule fois.
     if (!settings.furnitureV2) {
@@ -180,6 +197,11 @@ export function layoutOptionsFor(media: MediaKind): LayoutOptions {
 /** Date du dernier rangement appliqué dans un univers (0 = jamais). */
 export function layoutAppliedAtFor(media: MediaKind): number {
   return settings[LAYOUT_KEYS[media]]
+}
+
+/** Tes consoles (celles de l'écran « Mes consoles » ; à défaut, la liste de départ). */
+export function myPlatforms(): Platform[] {
+  return settings.myPlatforms.length ? settings.myPlatforms : MY_PLATFORMS
 }
 
 /** L'univers en cours (CD par défaut). */

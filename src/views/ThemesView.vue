@@ -206,6 +206,10 @@ const SORTS: Record<ThemeSort, string> = media === 'jeu'
   <main class="page stack">
     <RouterLink to="/classement" class="small">← Retour au classement</RouterLink>
     <h1>Thèmes et règles <span class="muted small">· {{ info.icon }} {{ info.label }}</span></h1>
+    <p v-if="media === 'jeu'" class="notice small row">
+      <span class="grow">Un thème par console : choisis tes consoles et leur ordre dans « Mes consoles ».</span>
+      <RouterLink class="btn btn-small" to="/consoles">🎮 Mes consoles</RouterLink>
+    </p>
 
     <section class="card stack">
       <h2>Regroupements automatiques</h2>
