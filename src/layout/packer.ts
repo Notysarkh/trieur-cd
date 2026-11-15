@@ -56,6 +56,8 @@ export interface Layout {
   /** Objets plus hauts que la hauteur utile de leur étagère (ils ne tiennent pas debout). */
   /** Objets qui dépassent de la hauteur de leur case (heightCm = ce qu'ils occupent : largeur s'ils sont couchés). */
   tooTall: { cd: Cd; slotLabel: string; heightCm: number; shelfCm: number; lying: boolean }[]
+  /** Objets sans boîte, rangés à part (hors des meubles), dans l'ordre du classement. */
+  apart: Cd[]
   /** Conseils en clair (surcharge, rangées vides…). */
   suggestions: string[]
   /** Pour chaque CD : rangée et position (1 = le plus à gauche). */
@@ -182,9 +184,27 @@ function bestMargin(plan: Plan, slots: Slot[], options: LayoutOptions, low: numb
   return fits(high) ? high : low
 }
 
-export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOptions, media: MediaKind = 'cd'): Layout {
+/**
+ * Le plan sans les objets rangés à part (sans boîte, en vrac) : ils gardent leur thème,
+ * mais ne prennent pas de place dans les meubles.
+ */
+function shelfPlan(plan: Plan): { plan: Plan; apart: Cd[] } {
+  const apart = plan.themes.flatMap((t) => t.cds.filter((cd) => cd.noBox))
+  if (!apart.length) return { plan, apart }
+  const themes = plan.themes
+    .map((t) => ({
+      ...t,
+      cds: t.cds.filter((cd) => !cd.noBox),
+      artists: t.artists.map((a) => ({ ...a, cds: a.cds.filter((cd) => !cd.noBox) })).filter((a) => a.cds.length),
+    }))
+    .filter((t) => t.cds.length)
+  return { plan: { ...plan, themes }, apart }
+}
+
+export function packLayout(fullPlan: Plan, furniture: Furniture[], options: LayoutOptions, media: MediaKind = 'cd'): Layout {
   const info = mediaInfo(media)
   const start = Date.now()
+  const { plan, apart } = shelfPlan(fullPlan)
   const slots = buildSlots(furniture)
   const { content, overflow, cuts } = pack(plan, slots, options)
 
@@ -284,6 +304,7 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
     neededMm,
     emptySlots,
     tooTall,
+    apart,
     suggestions,
     placement,
     durationMs: Date.now() - start,

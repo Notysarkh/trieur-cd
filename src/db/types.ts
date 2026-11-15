@@ -70,6 +70,8 @@ export interface Cd {
   isCompilation: boolean
   /** CD sans code-barres (ancien pressage, promo, import, CD gravé…). */
   noBarcode?: boolean
+  /** Sans boîte (jeu ou disque en vrac) : rangé à part, il ne prend pas de place dans les meubles. */
+  noBox?: boolean
   /** Compilation personnelle (CD gravé, mix…) : rangée à la fin de son thème, sous le nom donné (titre). */
   personalCompilation?: boolean
   /** Thème choisi par toi sur la fiche du CD (prioritaire sur le classement automatique). */

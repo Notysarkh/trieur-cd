@@ -221,6 +221,19 @@ async function apply() {
         </ul>
       </section>
 
+      <section v-if="layout.apart.length" class="card stack">
+        <h2 class="legend-title">📦 Rangés à part, sans boîte ({{ layout.apart.length }})</h2>
+        <p class="small muted">
+          Ces {{ w.many }} sont en vrac : ils ne prennent pas de place dans les meubles. Pour en remettre un dans les
+          meubles, décoche « Sans boîte » sur sa fiche.
+        </p>
+        <ul class="small plain">
+          <li v-for="cd in layout.apart" :key="cd.id">
+            <RouterLink :to="{ name: 'cd', params: { id: cd.id } }">{{ neighbour(cd) }}</RouterLink>
+          </li>
+        </ul>
+      </section>
+
       <section v-for="f in myFurniture" :key="f.id" class="stack">
         <h2>{{ f.name }}</h2>
         <p v-for="w in furnitureWarnings(f)" :key="w" class="small muted warn">⚠️ {{ w }}</p>

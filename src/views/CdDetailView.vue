@@ -54,6 +54,20 @@ async function save(status?: CdStatus) {
   // on ne les réécrit pas depuis le formulaire (ils ont pu changer pendant que la fiche était ouverte).
   const { location, shelvedAt, themeId, shelfOrder, ...fields } = edited.value
   await updateCd(props.id, fields)
+  // Champs vidés ou cases décochées (« Sans code-barres », « Sans boîte »…) : on les efface vraiment
+  // (une valeur vide n'est pas transmise par updateCd).
+  const MANAGED = ['location', 'shelvedAt', 'themeId', 'shelfOrder']
+  const cleared = Object.keys(before).filter(
+    (k) => !MANAGED.includes(k) && before[k as keyof Cd] !== undefined && fields[k as keyof typeof fields] === undefined,
+  )
+  // Passé « sans boîte » : il quitte sa place dans les meubles (rangé à part désormais).
+  const leaves = edited.value.noBox && !before.noBox && !!live.value?.location
+  if (cleared.length || leaves) {
+    await db.cds.update(props.id, {
+      ...Object.fromEntries(cleared.map((k) => [k, undefined])),
+      ...(leaves ? { location: undefined, shelvedAt: undefined } : {}),
+    })
+  }
   // Nom de tri corrigé : on l'applique à tous les CD de l'artiste (sinon il serait coupé en deux groupes).
   sortSpread.value = 0
   const newSort = (edited.value.artistSort ?? '').trim()
@@ -110,10 +124,11 @@ async function remove() {
         </div>
       </div>
 
-      <details v-if="live && (live.location || layoutAppliedAtFor(mediaOf(live)))" class="card" :open="!live.shelvedAt">
+      <details v-if="live && (live.location || live.noBox || layoutAppliedAtFor(mediaOf(live)))" class="card" :open="!live.shelvedAt">
         <summary>
           <strong>📦 Où le ranger</strong>
           <span v-if="live.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(live) }}</span>
+          <span v-else-if="live.noBox" class="small muted"> · à part (sans boîte)</span>
           <span v-else-if="live.location" class="small muted"> · {{ locationLabel(live) }}</span>
         </summary>
         <WhereToShelve :cd-id="live.id" done-label="Fermer" class="embedded" />

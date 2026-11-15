@@ -94,6 +94,10 @@ function toNumber(text: string): number | undefined {
         <input type="checkbox" :checked="!!model.noBarcode" @change="model.noBarcode = ($event.target as HTMLInputElement).checked || undefined" />
         {{ isBook ? 'Sans ISBN / code-barres' : 'Sans code-barres' }}
       </label>
+      <label v-if="!isBook" class="row small">
+        <input type="checkbox" :checked="!!model.noBox" @change="model.noBox = ($event.target as HTMLInputElement).checked || undefined" />
+        Sans boîte (en vrac) : rangé à part
+      </label>
       <label v-if="!isBook && !isVideo && !isGame" class="row small">
         <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
         Compilation perso (CD gravé, mix…)

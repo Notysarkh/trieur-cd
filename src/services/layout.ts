@@ -116,6 +116,8 @@ export function shortLocation(cd: Cd): string | null {
 
 /** Où glisser un CD pas encore rangé (null si aucun rangement n'a encore été appliqué). */
 export function insertionFor(cd: Cd, plan: Plan, cds: Cd[]): Insertion | null {
+  // Sans boîte : rangé à part, pas de place dans les meubles.
+  if (cd.noBox) return null
   const order = plan.themes.flatMap((t) => t.cds)
   return suggestInsertion(cd, order, cds, furnitureFor(settings.furniture, mediaOf(cd)), (c) => plan.placement.get(c.id)?.themeId)
 }

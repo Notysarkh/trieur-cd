@@ -173,6 +173,11 @@ const COLUMNS: Column[] = [
     },
   },
   {
+    header: 'Sans boîte',
+    get: (c) => (c.noBox ? 'oui' : 'non'),
+    set: (d, v) => (d.noBox = yes(v) || undefined),
+  },
+  {
     header: 'Hauteur (cm)',
     get: (c) => (c.heightCm ? String(c.heightCm).replace('.', ',') : ''),
     set: (d, v) => {

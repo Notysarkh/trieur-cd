@@ -90,7 +90,24 @@ describe('meubles de la v2', () => {
     expect(low.tooTall.map((t) => [t.cd.platform, t.heightCm, t.lying])).toEqual([['ps1', 14.2, true], ['ps2', 13.5, true], ['switch', 10.5, true]].filter((x) => (x[1] as number) > 12))
   })
 
-  it('meuble CD couché : les alertes tiennent compte de la largeur du boîtier', () => {
+  it('jeux sans boîte : rangés à part, sans place dans les meubles', () => {
+    const games = [
+      item({ media: 'jeu', platform: 'psp', title: 'Daxter', thicknessMm: 15 }),
+      item({ media: 'jeu', platform: 'psp', title: 'Lumines', thicknessMm: 15, noBox: true }),
+      item({ media: 'jeu', platform: 'psp', title: 'Patapon', thicknessMm: 15 }),
+    ]
+    const plan = buildPlan(games, defaultGameRules())
+    const layout = packLayout(plan, furnitureFor(addV2Furniture(myFurniture()), 'jeu'), { marginPct: 15, themeStartsNewSlot: false }, 'jeu')
+    expect(layout.apart.map((c) => c.title)).toEqual(['Lumines'])
+    expect(layout.placement.has(games[1].id)).toBe(false)
+    // Les autres se suivent sans trou.
+    expect([games[0], games[2]].map((g) => layout.placement.get(g.id)?.position)).toEqual([1, 2])
+    expect(layout.overflow).toEqual([])
+    // Il garde son thème (sa console) dans le classement.
+    expect(plan.placement.get(games[1].id)?.themeId).toBe('psp')
+  })
+
+  it('meuble CD couché :les alertes tiennent compte de la largeur du boîtier', () => {
     const [cd] = defaultFurniture()
     expect(furnitureWarnings({ ...cd, innerHeightCm: 13.5 })).toEqual([])
     expect(furnitureWarnings({ ...cd, innerHeightCm: 13.5, orientation: 'couche' }).join(' ')).toMatch(/couché \(14,2 cm de large\)/)

@@ -90,7 +90,7 @@ const instruction = computed(() => {
 async function shelve() {
   const c = cd.value
   if (!c) return
-  if (c.location) await setShelved(c.id, true)
+  if (c.location || c.noBox) await setShelved(c.id, true)
   else if (insertion.value?.ins) await placeCd(c, insertion.value.ins, insertion.value.plan)
   emit('done', c)
 }
@@ -122,7 +122,11 @@ async function unshelve() {
       <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
     </div>
 
-    <p v-if="!info" class="notice notice-warn">
+    <p v-if="cd.noBox" class="notice">
+      📦 Sans boîte : ce {{ w.one }} est rangé à part, hors des meubles, avec tes autres {{ w.many }} en vrac.
+    </p>
+
+    <p v-else-if="!info" class="notice notice-warn">
       Ce {{ w.one }} n'a pas encore d'emplacement : applique d'abord le rangement (onglet Rangement).
     </p>
 
@@ -211,7 +215,7 @@ async function unshelve() {
     <!-- Actions, toujours visibles en bas de l'écran -->
     <div class="actions">
       <template v-if="!cd.shelvedAt">
-        <button class="btn btn-primary btn-big" :disabled="!info" @click="shelve">✓ Rangé</button>
+        <button class="btn btn-primary btn-big" :disabled="!info && !cd.noBox" @click="shelve">✓ Rangé</button>
         <button class="btn" @click="emit('close')">Annuler</button>
       </template>
       <template v-else>
