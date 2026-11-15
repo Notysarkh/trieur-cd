@@ -146,6 +146,7 @@ async function remove() {
           Voir sur Discogs
         </a>
         <a v-if="edited.tmdbId" :href="`https://www.themoviedb.org/${edited.tmdbId.replace(':', '/')}`" target="_blank" rel="noopener">Voir sur TMDB</a>
+        <a v-if="edited.rawgId" :href="`https://rawg.io/games/${edited.rawgId}`" target="_blank" rel="noopener">Voir sur RAWG</a>
         <a v-if="edited.bnfArk" :href="`https://catalogue.bnf.fr/${edited.bnfArk}`" target="_blank" rel="noopener">Voir à la BnF</a>
         <span v-if="edited.releaseYear && edited.releaseYear !== edited.year">Cette édition : {{ edited.releaseYear }}</span>
         <span v-if="edited.catalogNumber">Réf. {{ edited.catalogNumber }}</span>

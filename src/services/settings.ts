@@ -1,8 +1,9 @@
 import { reactive } from 'vue'
 import { db } from '../db/database'
-import { defaultBookRules, defaultRules, defaultVideoRules, migrateRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, migrateRules, type ClassificationRules } from '../classification/themes'
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import type { MediaKind } from '../lib/media'
+import type { Platform } from '../db/types'
 import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
 // Les réglages de l'appli, gardés dans la base locale.
@@ -15,6 +16,8 @@ export interface Settings {
   discogsToken: string
   /** Clé personnelle TMDB (films) : comme le jeton Discogs, jamais dans le code ni dans les sauvegardes. */
   tmdbKey: string
+  /** Clé personnelle RAWG (jeux vidéo) : jamais dans le code ni dans les sauvegardes. */
+  rawgKey: string
   thickness: ThicknessTable
   /** Mode rafale : la caméra reste allumée et les scans s'enchaînent. */
   burstMode: boolean
@@ -32,6 +35,11 @@ export interface Settings {
   /** Règles de classement des DVD / Blu-ray (v2). */
   videoClassification: ClassificationRules
   videoClassificationAppliedAt: number
+  /** Règles de classement des jeux vidéo (v2) : une console par thème. */
+  gameClassification: ClassificationRules
+  gameClassificationAppliedAt: number
+  /** Console choisie sur l'écran Scanner (jeux dont la notice n'indique pas la console). */
+  scanPlatform: Platform | ''
   /** Les meubles, dans l'ordre de remplissage (le premier est rempli en premier). */
   furniture: Furniture[]
   /** Options de répartition (marge de croissance…). */
@@ -44,6 +52,7 @@ const DEFAULTS: Settings = {
   lastMedia: '',
   discogsToken: '',
   tmdbKey: '',
+  rawgKey: '',
   thickness: { ...DEFAULT_THICKNESS },
   burstMode: true,
   feedback: true,
@@ -54,6 +63,9 @@ const DEFAULTS: Settings = {
   bookClassificationAppliedAt: 0,
   videoClassification: defaultVideoRules(),
   videoClassificationAppliedAt: 0,
+  gameClassification: defaultGameRules(),
+  gameClassificationAppliedAt: 0,
+  scanPlatform: '',
   furniture: defaultFurniture(),
   layout: { ...DEFAULT_LAYOUT_OPTIONS },
   layoutAppliedAt: 0,
@@ -88,12 +100,13 @@ export function loadSettings(): Promise<void> {
   return loaded
 }
 
-type RulesKey = 'classification' | 'bookClassification' | 'videoClassification'
+type RulesKey = 'classification' | 'bookClassification' | 'videoClassification' | 'gameClassification'
+type AppliedAtKey = `${RulesKey}AppliedAt`
 const RULES_KEYS: Record<MediaKind, RulesKey> = {
   cd: 'classification',
   livre: 'bookClassification',
   video: 'videoClassification',
-  jeu: 'classification', // étape D
+  jeu: 'gameClassification',
 }
 
 /** Les règles de classement d'un univers. */
@@ -107,8 +120,8 @@ export function rulesKey(media: MediaKind): RulesKey {
 }
 
 /** Le réglage qui garde la date du dernier classement appliqué dans un univers. */
-export function appliedAtKey(media: MediaKind): 'classificationAppliedAt' | 'bookClassificationAppliedAt' | 'videoClassificationAppliedAt' {
-  return `${RULES_KEYS[media]}AppliedAt` as 'classificationAppliedAt' | 'bookClassificationAppliedAt' | 'videoClassificationAppliedAt'
+export function appliedAtKey(media: MediaKind): AppliedAtKey {
+  return `${RULES_KEYS[media]}AppliedAt`
 }
 
 /** Date du dernier classement appliqué dans un univers (0 = jamais). */

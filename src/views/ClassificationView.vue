@@ -160,7 +160,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
 
       <!-- Points d'attention -->
       <section v-if="plan.unclassified.length" class="notice notice-warn stack">
-        <strong>{{ plan.unclassified.length }} {{ isCd ? 'artiste(s)' : media === 'video' ? 'film(s) ou série(s)' : 'auteur(s) ou série(s)' }} sans genre connu</strong>
+        <strong>{{ plan.unclassified.length }} {{ isCd ? 'artiste(s)' : media === 'video' ? 'film(s) ou série(s)' : media === 'jeu' ? 'jeu(x)' : 'auteur(s) ou série(s)' }} {{ media === 'jeu' ? 'sans console connue' : 'sans genre connu' }}</strong>
         <span v-if="isCd" class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur thème ci-dessous, ou laisse l'appli chercher les
           genres des artistes sur MusicBrainz.
@@ -168,6 +168,9 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
         <span v-else-if="media === 'livre'" class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur genre ci-dessous : il vaudra pour tous les livres de
           cet auteur (ou de cette série), y compris les prochains.
+        </span>
+        <span v-else-if="media === 'jeu'" class="small">
+          Ils sont dans « À classer » (en fin de liste). Indique leur console sur leur fiche (ou choisis leur thème ci-dessous).
         </span>
         <span v-else class="small">
           Ils sont dans « À classer » (en fin de liste). Choisis leur genre ci-dessous<template v-if="!hasTmdbKey()">, ou
@@ -246,7 +249,7 @@ const etaMinutes = computed(() => Math.max(1, Math.ceil((toComplete.value * 1.1)
             <strong>{{ t.theme.name }}</strong><br />
             <span class="small muted">
               {{ count(t.cds.length) }} · {{ t.artists.length }}
-              {{ isCd ? `artiste${t.artists.length > 1 ? 's' : ''}` : media === 'video' ? `titre${t.artists.length > 1 ? 's' : ''}` : t.theme.sortBy === 'serie' ? `série${t.artists.length > 1 ? 's' : ''} ou auteur${t.artists.length > 1 ? 's' : ''}` : `auteur${t.artists.length > 1 ? 's' : ''}` }}
+              {{ isCd ? `artiste${t.artists.length > 1 ? 's' : ''}` : media === 'video' || media === 'jeu' ? `titre${t.artists.length > 1 ? 's' : ''}` : t.theme.sortBy === 'serie' ? `série${t.artists.length > 1 ? 's' : ''} ou auteur${t.artists.length > 1 ? 's' : ''}` : `auteur${t.artists.length > 1 ? 's' : ''}` }}
               · {{ cdLabel(t, t.cds[0]) }}<template v-if="cdLabel(t, t.cds.at(-1)) !== cdLabel(t, t.cds[0])"> → {{ cdLabel(t, t.cds.at(-1)) }}</template>
             </span>
           </span>

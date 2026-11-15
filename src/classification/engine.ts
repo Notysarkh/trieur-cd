@@ -3,6 +3,7 @@ import { cleanTags } from '../lib/cleanup'
 import { normalizeText } from '../lib/text'
 import { UNCLASSIFIED, type ClassificationRules, type ThemeDef } from './themes'
 import { mediaOf } from '../lib/media'
+import { platformLabel } from '../lib/platforms'
 
 // Le moteur de classement. Il ne modifie rien : il calcule un « plan » que tu valides ensuite.
 //
@@ -125,8 +126,8 @@ export function groupKeyOf(cd: Cd): string {
   if (cd.series?.trim() && (mediaOf(cd) === 'livre' || mediaOf(cd) === 'video')) {
     return `serie:${normalizeText(seriesSortKey(cd.series))}`
   }
-  // Un film seul est rangé à son titre, comme une compilation : un groupe à lui seul.
-  if (mediaOf(cd) === 'video') return `cd:${cd.id}`
+  // Un film seul (ou un jeu) est rangé à son titre, comme une compilation : un groupe à lui seul.
+  if (mediaOf(cd) === 'video' || mediaOf(cd) === 'jeu') return `cd:${cd.id}`
   return artistKey(cd.artistSort?.trim() || cd.artist)
 }
 
@@ -214,6 +215,12 @@ function addTags(votes: Votes, tags: string[], weight: number, matcher: Matcher)
  */
 export function cdVotes(cd: Cd, rules: ClassificationRules, matcher: Matcher): Votes {
   const votes: Votes = new Map()
+  // Jeux vidéo : seule la console compte (les genres sont gardés pour information).
+  if (mediaOf(cd) === 'jeu') {
+    // (pas de nettoyage des étiquettes ici : « PlayStation 2 » contient un chiffre)
+    if (cd.platform) for (const id of themesForTag(platformLabel(cd.platform), matcher)) votes.set(id, 1)
+    return votes
+  }
   addTags(votes, cd.genres, 1, matcher)
   addTags(votes, cd.styles, 1.5, matcher)
   const types = (cd.releaseTypes ?? []).map((t) => t.toLowerCase())
@@ -339,11 +346,13 @@ export function buildPlan(
     const agreement = ranked[0]?.share ?? 0
 
     if (themeId === UNCLASSIFIED) {
-      reason = 'Genre inconnu'
+      reason = mediaOf(first) === 'jeu' ? (first.platform ? `Aucun thème pour la console ${platformLabel(first.platform)}` : 'Console inconnue') : 'Genre inconnu'
     } else if (!reason) {
       const n = group.cds.length
       reason =
-        n === 1
+        mediaOf(first) === 'jeu'
+          ? `Console : ${platformLabel(first.platform)}`
+          : n === 1
           ? `Genre : ${[...first.genres, ...first.styles].slice(0, 3).join(', ')}`
           : `${Math.round(agreement * 100)} % des voix de ses ${n} ${({ cd: 'CD', livre: 'livres', video: 'films', jeu: 'jeux' } as const)[mediaOf(first)]}`
     }

@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => ({
               // Couvertures de livres (v2)
               url.hostname === 'covers.openlibrary.org' ||
               url.hostname === 'image.tmdb.org' ||
+              url.hostname === 'media.rawg.io' ||
               (url.hostname === 'catalogue.bnf.fr' && url.pathname === '/couverture'),
             handler: 'CacheFirst',
             options: {

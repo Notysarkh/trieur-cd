@@ -28,6 +28,8 @@ interface BackupFile {
   bookClassificationAppliedAt?: number
   videoClassification?: ClassificationRules
   videoClassificationAppliedAt?: number
+  gameClassification?: ClassificationRules
+  gameClassificationAppliedAt?: number
 }
 
 /** Prépare le fichier de sauvegarde. */
@@ -46,6 +48,8 @@ export async function buildBackup(): Promise<File> {
     bookClassificationAppliedAt: settings.bookClassificationAppliedAt,
     videoClassification: JSON.parse(JSON.stringify(settings.videoClassification)),
     videoClassificationAppliedAt: settings.videoClassificationAppliedAt,
+    gameClassification: JSON.parse(JSON.stringify(settings.gameClassification)),
+    gameClassificationAppliedAt: settings.gameClassificationAppliedAt,
   }
   const date = new Date().toISOString().slice(0, 10)
   return new File([JSON.stringify(data, null, 1)], `mediamwa-${date}.json`, { type: 'application/json' })
@@ -144,6 +148,12 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if ((replaceRules || adoptVideos) && data.videoClassification?.themes?.length) {
     await saveSetting('videoClassification', data.videoClassification)
     if (data.videoClassificationAppliedAt) await saveSetting('videoClassificationAppliedAt', data.videoClassificationAppliedAt)
+    report.rulesReplaced = true
+  }
+  const adoptGames = !!data.gameClassificationAppliedAt && !settings.gameClassificationAppliedAt
+  if ((replaceRules || adoptGames) && data.gameClassification?.themes?.length) {
+    await saveSetting('gameClassification', data.gameClassification)
+    if (data.gameClassificationAppliedAt) await saveSetting('gameClassificationAppliedAt', data.gameClassificationAppliedAt)
     report.rulesReplaced = true
   }
   if (adoptLayout) {

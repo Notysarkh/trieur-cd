@@ -7,6 +7,8 @@ import { enrichCandidate, identifyBarcode } from './identify'
 import { currentMedia, settings } from './settings'
 import { identifyBook, isIsbn } from './books'
 import { identifyFilm, videoSize } from './films'
+import { gameSize, identifyGame } from './games'
+import type { Platform } from '../db/types'
 import type { MediaKind } from '../lib/media'
 
 // La file d'attente du scan en rafale.
@@ -30,6 +32,7 @@ export async function addScan(raw: string, media: MediaKind = currentMedia()): P
     id: newId(),
     barcode: code,
     media,
+    ...(media === 'jeu' && settings.scanPlatform ? { platform: settings.scanPlatform } : {}),
     scannedAt: Date.now(),
     state: 'en_attente',
     candidates: [],
@@ -93,7 +96,9 @@ async function processItem(item: ScanItem): Promise<void> {
         ? await identifyBook(item.barcode)
         : item.media === 'video'
           ? await identifyFilm(item.barcode)
-          : await identifyBarcode(item.barcode)
+          : item.media === 'jeu'
+            ? await identifyGame(item.barcode, item.platform)
+            : await identifyBarcode(item.barcode)
       item = {
         ...item,
         state: result.state,
@@ -155,6 +160,26 @@ export async function chooseCandidate(itemId: string, key: string): Promise<void
   startProcessing()
 }
 
+/**
+ * Jeux : choisit la console d'un jeu de la file (quand la notice ne l'indique pas).
+ * Elle s'applique à toutes les propositions de ce code.
+ */
+export async function setScanPlatform(itemId: string, platform: Platform): Promise<void> {
+  const item = await db.scans.get(itemId)
+  if (!item) return
+  const candidates = item.candidates.map((c) => ({
+    ...c,
+    draft: {
+      ...c.draft,
+      platform,
+      ...gameSize(platform, c.draft.discCount),
+      confidence: Math.max(c.draft.confidence, 85),
+      confidenceReasons: [...c.draft.confidenceReasons.filter((r) => !/^Console/.test(r)), 'Console choisie par toi'],
+    },
+  }))
+  await db.scans.update(itemId, { platform, candidates })
+}
+
 export async function setInclude(itemId: string, include: boolean): Promise<void> {
   await db.scans.update(itemId, { include })
 }
@@ -213,25 +238,26 @@ export async function sendUnknownToReview(): Promise<number> {
   for (const item of items) {
     const book = isBookScan(item)
     const film = !book && item.media === 'video'
+    const game = !book && item.media === 'jeu'
     await db.transaction('rw', db.cds, db.scans, async () => {
       await addCd({
         ...(book ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
         ...(film ? { media: 'video' as const, videoFormat: 'dvd' as const, heightCm: videoSize('dvd', 1).heightCm } : {}),
+        ...(game ? { media: 'jeu' as const, platform: item.platform, heightCm: gameSize(item.platform).heightCm } : {}),
         barcode: item.barcode,
         artist: 'Inconnu',
         artistSort: 'Inconnu',
         title: book ? `ISBN ${item.barcode}` : `Code ${item.barcode}`,
-        ...(film ? { thicknessMm: videoSize('dvd', 1).thicknessMm } : {}),
         genres: [],
         styles: [],
         format: 'standard',
         discCount: 1,
-        thicknessMm: book ? 20 : settings.thickness.standard,
+        thicknessMm: book ? 20 : film ? videoSize('dvd', 1).thicknessMm : game ? gameSize(item.platform).thicknessMm : settings.thickness.standard,
         coverUrls: [],
         isCompilation: false,
         status: 'a_verifier',
         confidence: 0,
-        confidenceReasons: [book ? 'ISBN inconnu de la BnF et d\'Open Library' : film ? 'Code-barres inconnu de la BnF' : reason],
+        confidenceReasons: [book ? 'ISBN inconnu de la BnF et d\'Open Library' : film || game ? 'Code-barres inconnu de la BnF' : reason],
         source: 'manuel',
       })
       await db.scans.delete(item.id)

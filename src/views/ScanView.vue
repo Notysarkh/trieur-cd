@@ -12,6 +12,9 @@ import { hasDiscogsToken } from '../services/discogs'
 import { addScan, isReady, retryErrors, sendUnknownToReview, validateReady } from '../services/scanQueue'
 import { isIsbn } from '../services/books'
 import { hasTmdbKey } from '../services/tmdb'
+import { hasRawgKey } from '../services/rawg'
+import PlatformSelect from '../components/PlatformSelect.vue'
+import type { Platform } from '../db/types'
 import { currentMedia, saveSetting, settings } from '../services/settings'
 import { mediaInfo } from '../lib/media'
 
@@ -129,6 +132,22 @@ async function unknownToReview() {
       <RouterLink to="/reglages">Réglages</RouterLink></template>. Film non reconnu :
       <RouterLink to="/ajouter">recherche par titre</RouterLink>.
     </p>
+    <template v-if="media.id === 'jeu'">
+      <p class="notice small">
+        Scanne le code-barres au dos de la boîte. L'appli le cherche dans le catalogue de la BnF (jeux édités en
+        France)<template v-if="!hasRawgKey()">, puis complète avec RAWG si tu ajoutes ta clé dans les
+        <RouterLink to="/reglages">Réglages</RouterLink></template>. Jeu non reconnu (ou sans boîte) :
+        <RouterLink to="/ajouter">recherche par titre</RouterLink>.
+      </p>
+      <label class="stack console-pick">
+        <span class="small"><strong>Console des jeux que tu scannes</strong> (sert quand la BnF ne l'indique pas)</span>
+        <PlatformSelect
+          :model-value="settings.scanPlatform || undefined"
+          empty-label="Je la choisirai pour chaque jeu"
+          @update:model-value="saveSetting('scanPlatform', ($event ?? '') as Platform | '')"
+        />
+      </label>
+    </template>
 
     <div v-if="isCd" class="modes" role="tablist" aria-label="Mode du scanner">
       <button role="tab" class="chip" :class="{ active: mode === 'ajouter' }" :aria-selected="mode === 'ajouter'" @click="mode = 'ajouter'">
@@ -200,6 +219,9 @@ async function unknownToReview() {
 </template>
 
 <style scoped>
+.console-pick {
+  gap: 4px;
+}
 .modes {
   display: grid;
   grid-template-columns: 1fr 1fr;

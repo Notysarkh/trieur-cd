@@ -8,6 +8,7 @@ import { buildBackup, importBackup, shareOrDownload } from '../services/backup'
 import { buildCsv, importCsv } from '../services/csvExport'
 import { testToken } from '../services/discogs'
 import { testTmdbKey } from '../services/tmdb'
+import { testRawgKey } from '../services/rawg'
 import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
@@ -44,6 +45,20 @@ async function saveTmdbKey() {
   }
   tmdbStatus.value = 'test'
   tmdbStatus.value = (await testTmdbKey()) ? 'ok' : 'ko'
+}
+
+// --- RAWG (jeux vidéo) ---
+const rawgKey = ref(settings.rawgKey)
+const showRawgKey = ref(false)
+const rawgStatus = ref<'' | 'test' | 'ok' | 'ko'>('')
+async function saveRawgKey() {
+  await saveSetting('rawgKey', rawgKey.value.trim())
+  if (!rawgKey.value.trim()) {
+    rawgStatus.value = ''
+    return
+  }
+  rawgStatus.value = 'test'
+  rawgStatus.value = (await testRawgKey()) ? 'ok' : 'ko'
 }
 
 // --- Épaisseurs ---
@@ -202,6 +217,35 @@ async function wipeAll() {
     </section>
 
     <section class="card stack">
+      <h2>RAWG : jeux vidéo (facultatif)</h2>
+      <p class="small muted">
+        Pour les jeux vidéo, RAWG ajoute une image du jeu, l'année de sortie d'origine, les genres, et permet de chercher
+        un jeu par son titre (y compris les jeux importés que la BnF ne connaît pas). Il faut un compte RAWG gratuit,
+        puis une clé : sur rawg.io, page <em>API</em> → <em>Get API Key</em>, remplis le petit formulaire (usage
+        personnel), puis copie la clé ici. Elle reste uniquement sur cet appareil et n'est jamais incluse dans les
+        sauvegardes.
+      </p>
+      <a class="small" href="https://rawg.io/apidocs" target="_blank" rel="noopener">Ouvrir la page RAWG des clés ↗</a>
+      <div class="row">
+        <input
+          v-model="rawgKey"
+          class="grow"
+          :type="showRawgKey ? 'text' : 'password'"
+          autocomplete="off"
+          placeholder="Colle ta clé RAWG ici"
+          aria-label="Clé RAWG"
+        />
+        <button class="btn btn-small" @click="showRawgKey = !showRawgKey">{{ showRawgKey ? 'Masquer' : 'Afficher' }}</button>
+      </div>
+      <button class="btn btn-primary" @click="saveRawgKey">Enregistrer et tester</button>
+      <p v-if="rawgStatus === 'test'" class="notice small">Test en cours…</p>
+      <p v-if="rawgStatus === 'ok'" class="notice notice-ok small">Clé valide : RAWG est actif.</p>
+      <p v-if="rawgStatus === 'ko'" class="notice notice-danger small">
+        RAWG refuse cette clé (ou est injoignable). Vérifie qu'elle est complète.
+      </p>
+    </section>
+
+    <section class="card stack">
       <h2>Sauvegarde et transfert vers le PC</h2>
       <p class="small muted">
         Les données sont stockées dans ce navigateur, sur cet appareil uniquement. Pour passer du téléphone au PC :
@@ -293,7 +337,7 @@ async function wipeAll() {
 
     <p class="small muted">
       Données : MusicBrainz (CC0), Discogs, Cover Art Archive, catalogue de la BnF, Open Library, TMDB (ce produit
-      utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB). Mediamwa fonctionne sans compte et sans serveur.
+      utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB), RAWG. Mediamwa fonctionne sans compte et sans serveur.
     </p>
   </main>
 </template>

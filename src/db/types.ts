@@ -19,13 +19,19 @@ export type CdFormat =
   | 'coffret' // box set
   | 'autre'
 
-export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary'
+export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary' | 'rawg'
 
 /** Support d'un film (v2) : DVD et Blu-ray sont rangés ensemble. */
 export type VideoFormat = 'dvd' | 'bluray' | 'uhd'
 
 /** Type de livre : chacun a sa place (BD, mangas et comics à part). */
 export type BookKind = 'livre' | 'bd' | 'manga' | 'comics'
+
+/** Console d'un jeu vidéo (v2) : les jeux sont rangés par console, puis par titre. */
+export type Platform =
+  | 'ps1' | 'ps2' | 'ps3' | 'ps4' | 'ps5' | 'psp' | 'vita'
+  | 'nds' | '3ds' | 'switch' | 'switch2' | 'snes' | 'nes' | 'n64' | 'gc' | 'wii' | 'wiiu' | 'gb' | 'gba'
+  | 'xbox' | 'x360' | 'xone' | 'xsx' | 'pc' | 'md' | 'autre'
 
 /** Un objet de la collection (CD, et en v2 : livre, film, jeu). */
 export interface Cd {
@@ -119,6 +125,11 @@ export interface Cd {
   videoFormat?: VideoFormat
   /** Film ou série sur TMDB (« movie:194 », « tv:1399 »). */
   tmdbId?: string
+
+  // --- Jeux vidéo (v2) : « artist » = éditeur, « label » = éditeur / distributeur ---
+  platform?: Platform
+  /** Jeu sur RAWG (identifiant numérique). */
+  rawgId?: number
   createdAt: number
   updatedAt: number
 }
@@ -162,6 +173,8 @@ export interface ScanItem {
   barcode: string
   /** Univers dans lequel le code a été scanné (absent = CD). Un ISBN va toujours dans « Livres / BD ». */
   media?: MediaKind
+  /** Jeux : console choisie sur l'écran Scanner au moment du scan (sert si la notice ne l'indique pas). */
+  platform?: Platform
   scannedAt: number
   state: ScanState
   candidates: Candidate[]

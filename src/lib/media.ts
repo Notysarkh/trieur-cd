@@ -22,7 +22,7 @@ export const MEDIA: MediaInfo[] = [
   { id: 'cd', icon: '💿', label: 'CD', one: 'CD', many: 'CD', creator: 'artiste', creators: 'artistes' },
   { id: 'livre', icon: '📚', label: 'Livres / BD', one: 'livre', many: 'livres', creator: 'auteur ou série', creators: 'auteurs et séries' },
   { id: 'video', icon: '🎬', label: 'DVD / Blu-ray', one: 'film', many: 'films', creator: 'film ou série', creators: 'films et séries' },
-  { id: 'jeu', icon: '🎮', label: 'Jeux vidéo', one: 'jeu', many: 'jeux', creator: 'jeu', creators: 'jeux', comingInStep: 'D' },
+  { id: 'jeu', icon: '🎮', label: 'Jeux vidéo', one: 'jeu', many: 'jeux', creator: 'jeu', creators: 'jeux' },
 ]
 
 export function mediaInfo(id: MediaKind): MediaInfo {

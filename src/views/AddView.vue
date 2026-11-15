@@ -5,7 +5,7 @@ import CdForm from '../components/CdForm.vue'
 import CoverImage from '../components/CoverImage.vue'
 import PhotoCapture from '../components/PhotoCapture.vue'
 import { db } from '../db/database'
-import type { Candidate, CdDraft } from '../db/types'
+import type { Candidate, CdDraft, Platform } from '../db/types'
 import { FORMAT_LABELS } from '../lib/formats'
 import { addCd, updateCd } from '../services/collection'
 import { hasDiscogsToken } from '../services/discogs'
@@ -15,6 +15,10 @@ import { currentMedia, settings } from '../services/settings'
 import { isIsbn, searchBooks } from '../services/books'
 import { searchFilms, videoSize } from '../services/films'
 import { hasTmdbKey } from '../services/tmdb'
+import { gameSize, searchGames } from '../services/games'
+import { hasRawgKey } from '../services/rawg'
+import { platformLabel } from '../lib/platforms'
+import PlatformSelect from '../components/PlatformSelect.vue'
 import { mediaOf, type MediaKind } from '../lib/media'
 
 // Plan B quand le code-barres ne suffit pas :
@@ -36,6 +40,9 @@ const media = ref<MediaKind>(barcode && isIsbn(barcode) ? 'livre' : currentMedia
 // (un film choisi après un code-barres inconnu reste un film : l'univers en cours est « DVD / Blu-ray »)
 const isBook = computed(() => media.value === 'livre')
 const isVideo = computed(() => media.value === 'video')
+const isGame = computed(() => media.value === 'jeu')
+/** Jeux : console cherchée (par défaut celle de l'écran Scanner). */
+const platform = ref<Platform | undefined>(settings.scanPlatform || undefined)
 
 const photo = ref<string>()
 const artist = ref('')
@@ -52,7 +59,8 @@ if (cdId) {
     media.value = mediaOf(cd)
     if (cd.artist !== 'Inconnu') artist.value = cd.artist
     if (!cd.title.startsWith('Code ') && !cd.title.startsWith('ISBN ')) title.value = cd.title
-    if (media.value === 'video') artist.value = ''
+    if (media.value === 'video' || media.value === 'jeu') artist.value = ''
+    if (cd.platform) platform.value = cd.platform
     photo.value = cd.coverPhoto
   })
 }
@@ -68,6 +76,8 @@ async function search() {
       results.value = await searchBooks(title.value, artist.value)
     } else if (isVideo.value) {
       results.value = await searchFilms(title.value)
+    } else if (isGame.value) {
+      results.value = await searchGames(title.value, platform.value)
     } else {
       const found = await searchByText(artist.value, title.value)
       results.value = found.candidates
@@ -88,15 +98,18 @@ async function pick(c: Candidate) {
   picking.value = c.key
   const full = c.enriched ? c : await enrichCandidate(c, 'high').catch(() => c)
   picking.value = undefined
+  // Jeu sans console connue : celle choisie pour la recherche.
+  const chosenPlatform = isGame.value && !full.draft.platform && platform.value ? { platform: platform.value, ...gameSize(platform.value, full.draft.discCount) } : {}
   draft.value = {
     ...full.draft,
+    ...chosenPlatform,
     barcode: barcode ?? full.draft.barcode,
     noBarcode: !(barcode ?? full.draft.barcode) || undefined,
     coverPhoto: photo.value,
     status: 'identifie',
     confidence: 85,
     confidenceReasons: [
-      isBook.value ? 'Choisi par toi dans le catalogue de la BnF' : isVideo.value ? 'Choisi par toi après une recherche par titre' : 'Choisi par toi après une recherche texte',
+      isBook.value ? 'Choisi par toi dans le catalogue de la BnF' : isVideo.value || isGame.value ? 'Choisi par toi après une recherche par titre' : 'Choisi par toi après une recherche texte',
     ],
   }
   window.scrollTo(0, 0)
@@ -106,16 +119,18 @@ function manual() {
   draft.value = {
     ...(isBook.value ? { media: 'livre' as const, bookKind: 'livre' as const, heightCm: 20 } : {}),
     ...(isVideo.value ? { media: 'video' as const, videoFormat: 'dvd' as const } : {}),
+    ...(isGame.value ? { media: 'jeu' as const, platform: platform.value } : {}),
     barcode,
-    artist: isVideo.value ? 'Réalisateur inconnu' : artist.value.trim(),
+    artist: isVideo.value ? 'Réalisateur inconnu' : isGame.value ? 'Éditeur inconnu' : artist.value.trim(),
     artistSort: '',
     title: title.value.trim(),
     genres: [],
     styles: [],
-    format: isBook.value || isVideo.value ? 'autre' : 'standard',
+    format: isBook.value || isVideo.value || isGame.value ? 'autre' : 'standard',
     discCount: 1,
     thicknessMm: isBook.value ? 25 : settings.thickness.standard,
     ...(isVideo.value ? videoSize('dvd', 1) : {}),
+    ...(isGame.value ? gameSize(platform.value, 1) : {}),
     coverUrls: [],
     coverPhoto: photo.value,
     isCompilation: false,
@@ -146,21 +161,22 @@ async function save() {
 
 <template>
   <main class="page stack">
-    <h1 v-if="isVideo">{{ cdId ? 'Corriger un film' : 'Ajouter un film par son titre' }}</h1>
+    <h1 v-if="isGame">{{ cdId ? 'Corriger un jeu' : 'Ajouter un jeu par son titre' }}</h1>
+    <h1 v-else-if="isVideo">{{ cdId ? 'Corriger un film' : 'Ajouter un film par son titre' }}</h1>
     <h1 v-else-if="isBook">{{ cdId ? 'Corriger un livre' : 'Ajouter un livre sans ISBN' }}</h1>
     <h1 v-else>{{ cdId ? 'Corriger un CD' : 'Ajouter un CD sans code-barres' }}</h1>
     <p v-if="barcode" class="muted small">{{ isBook ? 'ISBN' : 'Code-barres' }} : {{ barcode }}</p>
 
     <template v-if="!draft">
       <section class="card stack">
-        <h2>1. Photo {{ isBook ? 'de la couverture' : isVideo ? 'de la jaquette' : 'de la pochette' }} (facultatif)</h2>
+        <h2>1. Photo {{ isBook ? 'de la couverture' : isVideo ? 'de la jaquette' : isGame ? 'de la boîte' : 'de la pochette' }} (facultatif)</h2>
         <p class="muted small">Elle te servira de repère et remplacera la pochette si aucune n'est trouvée en ligne.</p>
         <CoverImage v-if="photo" :photo="photo" :size="96" label="Photo" />
         <PhotoCapture :has-photo="!!photo" @photo="photo = $event" />
       </section>
 
       <section class="card stack">
-        <h2>2. Rechercher par {{ isBook ? 'titre et auteur' : isVideo ? 'titre' : 'artiste et titre' }}</h2>
+        <h2>2. Rechercher par {{ isBook ? 'titre et auteur' : isVideo ? 'titre' : isGame ? 'titre et console' : 'artiste et titre' }}</h2>
         <p v-if="isVideo" class="muted small">
           <template v-if="hasTmdbKey()">Sur TMDB (affiches, films du monde entier) et dans le catalogue de la BnF.</template>
           <template v-else>
@@ -168,12 +184,23 @@ async function save() {
             chercher aussi sur TMDB (affiches, films étrangers).
           </template>
         </p>
+        <p v-if="isGame" class="muted small">
+          <template v-if="hasRawgKey()">Sur RAWG (images, jeux du monde entier) et dans le catalogue de la BnF.</template>
+          <template v-else>
+            Dans le catalogue de la BnF (jeux édités en France). Ajoute ta clé RAWG dans les
+            <RouterLink to="/reglages">Réglages</RouterLink> pour chercher aussi sur RAWG (images, jeux importés).
+          </template>
+        </p>
         <p v-if="isBook" class="muted small">
           Dans le catalogue de la BnF (tout ce qui a été publié en France, même les livres anciens sans ISBN). Quelques
           mots du titre suffisent ; ajoute le nom de l'auteur s'il y a trop de résultats.
         </p>
         <form class="stack" @submit.prevent="search">
-          <template v-if="isVideo">
+          <template v-if="isGame">
+            <label class="field">Titre du jeu <input v-model="title" autocomplete="off" /></label>
+            <label class="field">Console <PlatformSelect v-model="platform" empty-label="Toutes les consoles" /></label>
+          </template>
+          <template v-else-if="isVideo">
             <label class="field">Titre du film ou de la série <input v-model="title" autocomplete="off" /></label>
           </template>
           <template v-else-if="isBook">
@@ -188,7 +215,7 @@ async function save() {
             {{ searching ? 'Recherche…' : '🔎 Rechercher' }}
           </button>
         </form>
-        <p v-if="!isBook && !isVideo && !hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
+        <p v-if="!isBook && !isVideo && !isGame && !hasDiscogsToken()" class="muted small">Recherche sur MusicBrainz uniquement (Discogs non configuré).</p>
         <p v-if="searchError" class="notice notice-danger">{{ searchError }} Réessaie dans quelques secondes.</p>
         <p v-for="w in searchWarnings" :key="w" class="notice notice-warn small">{{ w }} Résultats partiels.</p>
 
@@ -201,6 +228,7 @@ async function save() {
                 <span class="grow">
                   <span class="title">{{ c.draft.title }}</span><br />
                   <span class="artist">
+                    <template v-if="c.draft.media === 'jeu'">{{ c.draft.platform ? platformLabel(c.draft.platform) : 'Console ?' }} · </template>
                     {{ c.draft.artist }}<template v-if="c.draft.year"> · {{ c.draft.year }}</template>
                     <template v-if="c.draft.label && c.draft.media === 'livre'"> · {{ c.draft.label }}</template>
                     <template v-if="c.draft.genres.length"> · {{ c.draft.genres.join(', ') }}</template>
@@ -214,6 +242,8 @@ async function save() {
                         ? 'BnF'
                         : c.key.startsWith('tmdb')
                           ? 'TMDB'
+                          : c.key.startsWith('rawg')
+                            ? 'RAWG'
                           : c.key.startsWith('mb')
                             ? 'MusicBrainz'
                             : 'Discogs'
@@ -236,7 +266,8 @@ async function save() {
         <CoverImage :urls="draft.coverUrls" :photo="draft.coverPhoto" :label="draft.title" :size="96" />
         <p class="muted small grow">
           Vérifie et complète la fiche, puis enregistre.<br />
-          <template v-if="isVideo">Vérifie le support (DVD ou Blu-ray) et le nombre de disques : ils décident de la place occupée.</template>
+          <template v-if="isGame">Vérifie la console : elle décide de la place du jeu.</template>
+          <template v-else-if="isVideo">Vérifie le support (DVD ou Blu-ray) et le nombre de disques : ils décident de la place occupée.</template>
           <template v-else-if="isBook">Épaisseur estimée d'après le nombre de pages : corrige-la si tu l'as mesurée.</template>
           <template v-else>Format : {{ FORMAT_LABELS[draft.format] }} (par défaut si inconnu — corrige si besoin).</template>
         </p>

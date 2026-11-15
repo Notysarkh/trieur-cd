@@ -104,6 +104,8 @@ export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
 
 /** La notice décrit-elle une vidéo (et non un livre ou un CD) ? */
 function isVideo(r: BnfRecord): boolean {
+  // Un jeu (« Ressource électronique ») sur DVD-ROM ou Blu-ray n'est pas un film.
+  if (/ressource [ée]lectronique/i.test(first(r, '200', 'b') ?? '')) return false
   return /images anim/i.test(first(r, '200', 'b') ?? '') || /DVD|BD vid|blu/i.test(first(r, '215', 'a') ?? '')
 }
 

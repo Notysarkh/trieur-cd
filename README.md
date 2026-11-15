@@ -122,7 +122,7 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 | A | Accueil et univers, nom « Mediamwa », tes CD dans l'univers CD sans rien changer | ✅ fait |
 | B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | ✅ fait |
 | C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | ✅ fait |
-| D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | à venir |
+| D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | ✅ fait |
 | E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | à venir |
 
 ### Étape B : Livres / BD
@@ -144,6 +144,16 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Hypothèses** : boîtier DVD 14 mm × 19 cm, Blu-ray 11 mm × 17 cm, coffrets plus épais selon le nombre de disques ; « diffusé à la télévision » sur 2 disques ou plus = série TV.
 - **Pas encore** : rangement des films dans les meubles (Billy, étage 1 aujourd'hui) → étape E.
 
+### Étape D : Jeux vidéo
+
+- **Scan du code-barres** dans l'univers 🎮 : catalogue de la **BnF** (dépôt légal des jeux vidéo) → titre, console, éditeur, année, genre. Mesuré sur 150 notices par console (PS1, PS2, PS3, PSP, Nintendo DS, Switch, Super Nintendo) : 93 à 99 % ont un code-barres, la console est écrite dans 95 à 99 % des cas. La BnF garde le code tel qu'il a été saisi (13, 12 ou 11 chiffres) : l'appli essaie toutes les écritures.
+- **Console des jeux que tu scannes** (écran Scanner) : sert quand la notice ne l'indique pas (pré-notices des jeux récents, ex. *Mario Kart 8 Deluxe*). Sinon, l'appli la demande pour chaque jeu dans la file.
+- **RAWG (facultatif, clé gratuite dans les Réglages)** : image du jeu, année de sortie d'origine, genres, et recherche par titre (jeux importés). La clé reste sur l'appareil, jamais dans le code ni les sauvegardes. Non testé sans la clé de l'utilisateur.
+- **Classement** (règles propres aux jeux) : un thème par console, dans l'ordre PS1, PS2, PS3, PSP, Nintendo DS, Switch, Super Nintendo, puis « Autres consoles » ; dans chaque console, les jeux par titre (A → Z). Aucun regroupement automatique : les jeux Super Nintendo gardent leur place.
+- **Jeu non reconnu** : « + Jeu par son titre » (titre + console ; catalogue de la BnF, et RAWG si clé).
+- **Hypothèses** : épaisseur et hauteur des boîtes par console (PS1 10 mm × 13 cm, double 24 mm ; PS2 14 mm × 19 cm ; PS3 14 mm × 17 cm ; PSP 15 mm × 18 cm ; DS 14 mm × 14 cm ; Switch 11 mm × 17 cm ; boîte carton Super Nintendo 35 mm × 19 cm) ; un « (PlayStation) » sans numéro à la BnF = PS1.
+- **Pas encore** : rangement des jeux dans leurs meubles → étape E.
+
 ## Commandes utiles
 
 | Commande | Rôle |
@@ -161,7 +171,8 @@ src/
   classification/  thèmes par défaut et moteur de classement (sans écran, testé à part)
   layout/      meubles, répartition, insertion d'un nouveau CD, étiquettes (sans écran, testés à part)
   lib/         petits outils : codes-barres, noms de tri, formats/épaisseurs, comparaison de textes
-  services/    MusicBrainz, Discogs, identification + confiance, file de scan, collection, sauvegarde, réglages
+  services/    MusicBrainz, Discogs, BnF (livres, films, jeux), Open Library, TMDB, RAWG, identification + confiance,
+               file de scan, collection, sauvegarde, réglages
   components/  éléments d'écran réutilisables (lecteur de code-barres, pochette, formulaire CD…)
   views/       les écrans : Collection, Scanner, À vérifier, Ajouter, Fiche CD, Classement, Thèmes, Rangement, Meubles, Plan imprimable, Étiquettes, Réglages
 ```

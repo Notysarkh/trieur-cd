@@ -173,7 +173,14 @@ async function reset() {
   }
 }
 
-const SORTS: Record<ThemeSort, string> = media === 'video'
+const SORTS: Record<ThemeSort, string> = media === 'jeu'
+  ? {
+      artiste: 'Éditeur (A → Z), puis date',
+      titre: 'Titre (A → Z)',
+      compositeur: 'Compositeur (A → Z), puis date',
+      serie: 'Titre (A → Z)',
+    }
+  : media === 'video'
   ? {
       artiste: 'Réalisateur (A → Z), puis date',
       titre: 'Titre (A → Z)',

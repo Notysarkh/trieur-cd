@@ -1,3 +1,5 @@
+import { MY_PLATFORMS, PLATFORMS } from '../lib/platforms'
+
 // Les thèmes de classement et les règles modifiables.
 //
 // HYPOTHÈSE IMPORTANTE — correspondance genres → thèmes :
@@ -217,6 +219,28 @@ export function defaultVideoRules(): ClassificationRules {
       t('series', 'Séries TV', '#27ae60', ['serie tv', 'serie televisee', 'serie']),
       t('musique', 'Musique / Concerts', '#d35400', ['musique', 'film musical', 'videomusique', 'concert', 'rock', 'musique classique']),
       t('divers', 'Divers', '#95a5a6', ['telefilm'], { special: 'divers' }),
+    ],
+  }
+}
+
+/**
+ * Jeux vidéo (v2) : un thème par console, dans l'ordre où tu les as citées (modifiable dans Thèmes),
+ * puis « Autres consoles ». Dans chaque console, les jeux sont rangés par titre.
+ * Aucun regroupement automatique : même une poignée de jeux Super Nintendo garde sa place.
+ */
+export function defaultGameRules(): ClassificationRules {
+  const mine = MY_PLATFORMS.map((id) => PLATFORMS.find((p) => p.id === id)!)
+  const others = PLATFORMS.filter((p) => !MY_PLATFORMS.includes(p.id))
+  return {
+    version: RULES_VERSION,
+    maxThemes: 40,
+    minCdsPerTheme: 0,
+    frenchTheme: false,
+    artistOverrides: {},
+    cdOverrides: {},
+    themes: [
+      ...mine.map((p, i): ThemeDef => ({ id: p.id, name: p.label, color: THEME_COLORS[i % THEME_COLORS.length], keywords: [p.label], sortBy: 'titre' })),
+      { id: 'autres', name: 'Autres consoles', color: '#95a5a6', keywords: others.map((p) => p.label), sortBy: 'titre', special: 'divers' },
     ],
   }
 }

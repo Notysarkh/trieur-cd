@@ -4,8 +4,10 @@ import type { ScanItem } from '../db/types'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { CONFIDENCE_THRESHOLD } from '../services/identify'
-import { chooseCandidate, finalDraft, isReady, removeScan, retryErrors, setInclude } from '../services/scanQueue'
+import { chooseCandidate, finalDraft, isReady, removeScan, retryErrors, setInclude, setScanPlatform } from '../services/scanQueue'
+import { platformLabel } from '../lib/platforms'
 import CoverImage from './CoverImage.vue'
+import PlatformSelect from './PlatformSelect.vue'
 
 // Un code-barres dans la file d'attente, avec son état et les actions possibles.
 
@@ -62,9 +64,10 @@ const otherEdition = computed(
         <div class="muted small">
           <template v-if="draft">
             {{ draft.artist }}<template v-if="draft.year"> · {{ draft.year }}</template>
-            <template v-if="draft.media === 'video'">· {{ VIDEO_FORMAT_LABELS[draft.videoFormat ?? 'dvd'] }}<template v-if="draft.discCount > 1"> × {{ draft.discCount }}</template></template>
-            <template v-else-if="draft.media === 'livre'">· {{ BOOK_KIND_LABELS[draft.bookKind ?? 'livre'] }}<template v-if="draft.label"> · {{ draft.label }}</template></template>
-            <template v-else>· {{ FORMAT_LABELS[draft.format] }}</template>
+            <template v-if="draft.media === 'jeu'"> · {{ draft.platform ? platformLabel(draft.platform) : 'Console ?' }}</template>
+            <template v-else-if="draft.media === 'video'"> · {{ VIDEO_FORMAT_LABELS[draft.videoFormat ?? 'dvd'] }}<template v-if="draft.discCount > 1"> × {{ draft.discCount }}</template></template>
+            <template v-else-if="draft.media === 'livre'"> · {{ BOOK_KIND_LABELS[draft.bookKind ?? 'livre'] }}<template v-if="draft.label"> · {{ draft.label }}</template></template>
+            <template v-else> · {{ FORMAT_LABELS[draft.format] }}</template>
           </template>
           <template v-else>{{ item.barcode }}</template>
         </div>
@@ -76,6 +79,10 @@ const otherEdition = computed(
       Déjà dans ta collection : il ne sera pas ajouté, sauf si tu coches la case (2e exemplaire).
     </p>
     <p v-else-if="otherEdition" class="notice small">Tu as déjà cet album dans une autre édition.</p>
+    <label v-if="draft?.media === 'jeu' && (item.state === 'trouve' || item.state === 'a_choisir') && !draft.platform" class="field small">
+      La BnF n'indique pas la console de ce jeu : laquelle ?
+      <PlatformSelect :model-value="undefined" @update:model-value="$event && setScanPlatform(item.id, $event)" />
+    </label>
     <p v-if="item.state === 'erreur'" class="notice notice-danger small">{{ item.error }}</p>
     <p v-if="item.state === 'introuvable'" class="muted small">
       Aucune base ne connaît ce code. Envoie-le dans « à vérifier » (tu compléteras la fiche), ou ajoute-le par une recherche texte.

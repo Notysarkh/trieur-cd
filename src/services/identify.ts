@@ -1,5 +1,6 @@
 import type { Candidate, CdDraft, ConfidenceFactors, ScanState } from '../db/types'
 import { enrichFilm } from './films'
+import { enrichGame } from './games'
 import { canonicalBarcode, sameBarcode } from '../lib/barcode'
 import { formatFromDiscogs, formatFromMusicBrainz } from '../lib/formats'
 import { cleanDiscogsArtist, guessSortName } from '../lib/sortName'
@@ -332,6 +333,8 @@ export async function identifyBarcode(rawBarcode: string): Promise<IdentifyResul
 export async function enrichCandidate(c: Candidate, priority: Priority = 'normal'): Promise<Candidate> {
   // Films : détails TMDB (affiche, année du film, réalisateur), si une clé est configurée.
   if (c.draft.media === 'video') return { ...c, draft: await enrichFilm(c.draft, priority), enriched: true }
+  // Jeux : détails RAWG (image, année d'origine), si une clé est configurée.
+  if (c.draft.media === 'jeu') return { ...c, draft: await enrichGame(c.draft, priority), enriched: true }
   const draft: CdDraft = { ...c.draft }
   // Les demandes à MusicBrainz et à Discogs partent en même temps ; on applique ensuite les réponses dans l'ordre.
   const [rg, master, dgText] = await Promise.all([

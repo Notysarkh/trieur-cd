@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { BookKind, CdDraft, CdFormat, VideoFormat } from '../db/types'
+import type { BookKind, CdDraft, CdFormat, Platform, VideoFormat } from '../db/types'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
 import { invertPersonName } from '../services/books'
 import { VIDEO_FORMAT_LABELS, videoSize } from '../services/films'
 import { rulesFor, settings } from '../services/settings'
+import { gameSize } from '../services/games'
+import PlatformSelect from './PlatformSelect.vue'
 
 // Formulaire de fiche (CD ou livre), utilisé pour la saisie manuelle et pour la modification.
 // Le formulaire modifie directement l'objet `model` qu'on lui passe.
@@ -14,6 +16,13 @@ import { rulesFor, settings } from '../services/settings'
 const model = defineModel<CdDraft>({ required: true })
 const isBook = computed(() => mediaOf(model.value) === 'livre')
 const isVideo = computed(() => mediaOf(model.value) === 'video')
+const isGame = computed(() => mediaOf(model.value) === 'jeu')
+
+// Jeux : changer de console met à jour l'épaisseur et la hauteur du boîtier.
+function setPlatform(platform: Platform | undefined) {
+  model.value.platform = platform
+  if (platform) Object.assign(model.value, gameSize(platform, model.value.discCount))
+}
 
 // Films : changer de support (DVD / Blu-ray) ou de nombre de disques met à jour épaisseur et hauteur.
 function setVideo(format: VideoFormat, discCount = model.value.discCount) {
@@ -85,7 +94,7 @@ function toNumber(text: string): number | undefined {
         <input type="checkbox" :checked="!!model.noBarcode" @change="model.noBarcode = ($event.target as HTMLInputElement).checked || undefined" />
         {{ isBook ? 'Sans ISBN / code-barres' : 'Sans code-barres' }}
       </label>
-      <label v-if="!isBook && !isVideo" class="row small">
+      <label v-if="!isBook && !isVideo && !isGame" class="row small">
         <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
         Compilation perso (CD gravé, mix…)
       </label>
@@ -93,7 +102,7 @@ function toNumber(text: string): number | undefined {
     <label class="field full">
       Thème
       <select :value="model.themeOverride ?? ''" @change="model.themeOverride = ($event.target as HTMLSelectElement).value || undefined">
-        <option value="">{{ model.personalCompilation ? '— à choisir —' : "Automatique (d'après les genres)" }}</option>
+        <option value="">{{ model.personalCompilation ? '— à choisir —' : isGame ? "Automatique (d'après la console)" : "Automatique (d'après les genres)" }}</option>
         <option v-for="t in themes" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
       <span v-if="model.personalCompilation" class="hint">Rangée à la fin de ce thème, par ordre alphabétique de son nom.</span>
@@ -104,8 +113,58 @@ function toNumber(text: string): number | undefined {
       <span v-else-if="model.themeOverride" class="hint">S'applique à tous les CD de cet artiste (un artiste n'est jamais coupé en deux thèmes).</span>
     </label>
 
+    <!-- Jeux vidéo -->
+    <template v-if="isGame">
+      <label class="field">
+        Console
+        <PlatformSelect :model-value="model.platform" @update:model-value="setPlatform" />
+      </label>
+      <label class="field">
+        Nombre de disques
+        <input :value="model.discCount" inputmode="numeric" @change="model.discCount = toNumber(($event.target as HTMLInputElement).value) ?? 1" />
+      </label>
+      <label class="field full">
+        Titre
+        <input v-model="model.title" required autocomplete="off" />
+      </label>
+      <label class="field">
+        Éditeur
+        <input v-model="model.artist" required autocomplete="off" @change="model.label = model.artist" />
+      </label>
+      <label class="field">
+        Année
+        <input :value="model.year ?? ''" inputmode="numeric" @input="model.year = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="field full">
+        Genres (séparés par des virgules)
+        <input :value="model.genres.join(', ')" autocomplete="off" @change="model.genres = toList(($event.target as HTMLInputElement).value)" />
+      </label>
+      <div class="row full">
+        <label class="field grow">
+          Hauteur (cm)
+          <input :value="model.heightCm ?? ''" inputmode="decimal" @input="model.heightCm = toNumber(($event.target as HTMLInputElement).value)" />
+        </label>
+        <label class="field grow">
+          Épaisseur (mm)
+          <input
+            :value="model.thicknessMm"
+            inputmode="decimal"
+            @input="model.thicknessMm = toNumber(($event.target as HTMLInputElement).value) ?? model.thicknessMm"
+          />
+        </label>
+      </div>
+      <label class="field">
+        Code-barres
+        <input v-model="model.barcode" inputmode="numeric" autocomplete="off" />
+      </label>
+      <label class="field full">
+        Notes
+        <textarea v-model="model.notes" rows="2"></textarea>
+      </label>
+    </template>
+
     <!-- DVD / Blu-ray -->
-    <template v-if="isVideo">
+    <template v-else-if="isVideo">
       <label class="field">
         Support
         <select :value="model.videoFormat ?? 'dvd'" @change="setVideo(($event.target as HTMLSelectElement).value as VideoFormat)">
