@@ -123,7 +123,7 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 | B | Livres / BD : ISBN, genre → auteur → date ; BD par série et tome, mangas et comics à part | ✅ fait |
 | C | DVD / Blu-ray (mélangés) : genre → titre, clé TMDB gratuite | ✅ fait |
 | D | Jeux vidéo : console → titre (PS1, PS2, PS3, PSP, NDS, Switch, Super Nintendo), clé RAWG gratuite | ✅ fait |
-| E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | à venir |
+| E | Rangement par univers (Billy partagé livres / films, rangements des jeux), contrôle de la hauteur | ✅ fait |
 
 ### Étape B : Livres / BD
 
@@ -153,6 +153,15 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Jeu non reconnu** : « + Jeu par son titre » (titre + console ; catalogue de la BnF, et RAWG si clé).
 - **Hypothèses** : épaisseur et hauteur des boîtes par console (PS1 10 mm × 13 cm, double 24 mm ; PS2 14 mm × 19 cm ; PS3 14 mm × 17 cm ; PSP 15 mm × 18 cm ; DS 14 mm × 14 cm ; Switch 11 mm × 17 cm ; boîte carton Super Nintendo 35 mm × 19 cm) ; un « (PlayStation) » sans numéro à la BnF = PS1.
 - **Pas encore** : rangement des jeux dans leurs meubles → étape E.
+
+### Étape E : rangement de chaque univers
+
+- **Mes meubles** (accessible depuis chaque univers) : chaque meuble a un univers (CD, livres, films, jeux), et chaque niveau (ou case) peut en avoir un autre, ou être réservé à autre chose. Un meuble ajouté depuis un univers lui est attribué.
+- **Meubles ajoutés une seule fois** (identifiants fixes, pour que téléphone et PC restent d'accord) : Billy livres 1 et 2 (80 cm), Billy livres (demie, 40 cm), « Rangement jeux » (copie du meuble CD : hauteur utile 13,5 cm, à corriger). Le niveau 1 de la Billy passe aux DVD / Blu-ray s'il était réservé à autre chose. Rien d'autre ne change : les CD gardent exactement leurs places.
+- **Rangement, plan imprimable, étiquettes, « Où est… ? », mode « Ranger » du scanner, pile triée des objets sans code-barres** : disponibles dans les quatre univers, chacun avec ses meubles et sa date de rangement appliqué.
+- **Contrôle de la hauteur** : chaque objet est comparé à la hauteur utile de son étagère (CD sans hauteur connue : 12,5 cm) ; les objets trop hauts sont listés dans l'onglet Rangement (simple avertissement, la répartition ne change pas).
+- **Sauvegarde** : elle garde les dates de rangement de chaque univers ; un appareil qui n'a pas encore rangé un univers reprend celui du fichier. Une ancienne sauvegarde reçoit les meubles de l'étape E.
+- **Pas encore vérifié** : la profondeur des boîtiers DVD / jeux dans les meubles (seule celle des CD l'est). L'export CSV ne contient toujours que les CD.
 
 ## Commandes utiles
 

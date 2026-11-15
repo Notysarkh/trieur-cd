@@ -26,7 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const media = computed(() => mediaInfo(currentMedia()))
 const isCd = computed(() => media.value.id === 'cd')
-const mode = ref<'ajouter' | 'ranger'>(route.query.mode === 'ranger' && currentMedia() === 'cd' ? 'ranger' : 'ajouter')
+const mode = ref<'ajouter' | 'ranger'>(route.query.mode === 'ranger' ? 'ranger' : 'ajouter')
 watch(mode, (m) => void router.replace({ query: m === 'ranger' ? { mode: 'ranger' } : {} }))
 const shelving = ref<InstanceType<typeof ShelvingPanel>>()
 
@@ -149,12 +149,12 @@ async function unknownToReview() {
       </label>
     </template>
 
-    <div v-if="isCd" class="modes" role="tablist" aria-label="Mode du scanner">
+    <div class="modes" role="tablist" aria-label="Mode du scanner">
       <button role="tab" class="chip" :class="{ active: mode === 'ajouter' }" :aria-selected="mode === 'ajouter'" @click="mode = 'ajouter'">
-        ➕ Ajouter des CD
+        ➕ Ajouter des {{ media.many }}
       </button>
       <button role="tab" class="chip" :class="{ active: mode === 'ranger' }" :aria-selected="mode === 'ranger'" @click="mode = 'ranger'">
-        📦 Ranger mes CD
+        📦 Ranger mes {{ media.many }}
       </button>
     </div>
 

@@ -7,7 +7,11 @@ import type { ArtistInfo, Cd } from '../db/types'
 import { whereToShelve } from '../layout/assistant'
 import { shelvedDate } from '../services/collection'
 import { insertionFor, locationParts, placeCd } from '../services/layout'
-import { settings } from '../services/settings'
+import { layoutAppliedAtFor, rulesFor, settings } from '../services/settings'
+import { furnitureFor } from '../layout/furniture'
+import { itemLabel } from '../lib/media'
+import { platformLabel } from '../lib/platforms'
+import { useMedia } from '../composables/useMedia'
 import { setShelved } from '../services/shelving'
 import CoverImage from './CoverImage.vue'
 import LocationMap from './LocationMap.vue'
@@ -20,7 +24,8 @@ import LocationMap from './LocationMap.vue'
 const props = defineProps<{ cdId: string; doneLabel?: string }>()
 const emit = defineEmits<{ done: [cd: Cd]; close: [] }>()
 
-const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const { media, w } = useMedia()
+const all = useLiveQuery(() => itemsOf(media.value), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),
@@ -29,13 +34,13 @@ const artistInfos = useLiveQuery(
 const cd = computed(() => all.value.find((c) => c.id === props.cdId))
 // CD ajouté après le rangement : on calcule la place où le glisser (sans rien recalculer d'autre).
 const insertion = computed(() => {
-  if (!cd.value || cd.value.location || !settings.layoutAppliedAt) return null
-  const plan = buildPlan(all.value, settings.classification, artistInfos.value)
+  if (!cd.value || cd.value.location || !layoutAppliedAtFor(media.value)) return null
+  const plan = buildPlan(all.value, rulesFor(media.value), artistInfos.value)
   return { plan, ins: insertionFor(cd.value, plan, all.value) }
 })
 const info = computed(() =>
   cd.value
-    ? whereToShelve(cd.value, all.value, settings.furniture, settings.whereWindow, insertion.value?.ins ?? null)
+    ? whereToShelve(cd.value, all.value, furnitureFor(settings.furniture, media.value), settings.whereWindow, insertion.value?.ins ?? null)
     : null,
 )
 const parts = computed(() => {
@@ -49,10 +54,10 @@ const theme = computed(() => {
   const id =
     insertion.value?.plan.placement.get(props.cdId)?.themeId ??
     cd.value?.themeId
-  return (id && settings.classification.themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
+  return (id && rulesFor(media.value).themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
 })
 
-const name = (c: Cd | undefined) => (c ? (c.isCompilation || c.personalCompilation ? c.title : `${c.artist} – ${c.title}`) : '')
+const name = (c: Cd | undefined) => (c ? (c.personalCompilation ? c.title : itemLabel(c)) : '')
 const cm = (mm: number) => Math.max(1, Math.round(mm / 10))
 const pct = (p: { done: number; all: number }) => (p.all ? Math.round((p.done / p.all) * 100) : 0)
 
@@ -64,9 +69,9 @@ const instruction = computed(() => {
     if (r.before && r.after) return `Il est rangé entre « ${name(r.before)} » et « ${name(r.after)} ».`
     if (r.before) return `Il est rangé juste à droite de « ${name(r.before)} ».`
     if (r.after) return `Il est rangé juste à gauche de « ${name(r.after)} ».`
-    return 'C’est le seul CD déjà posé dans cette rangée.'
+    return `C’est le seul ${w.value.one} déjà posé dans cette rangée.`
   }
-  if (r.emptyRow) return `Premier CD de cette rangée : place-le ${r.hint}.`
+  if (r.emptyRow) return `Premier ${w.value.one} de cette rangée : place-le ${r.hint}.`
   if (r.before && r.after) return `Place-le entre « ${name(r.before)} » et « ${name(r.after)} ».`
   // Un seul voisin posé : « début / fin de rangée » seulement si aucun autre CD n'est prévu de ce côté.
   if (r.after) {
@@ -101,16 +106,24 @@ async function unshelve() {
       <CoverImage :urls="cd.coverUrls" :photo="cd.coverPhoto" :label="cd.title" :size="56" />
       <div class="grow">
         <div class="theme-name">{{ theme.name }}</div>
-        <strong>{{ cd.personalCompilation ? cd.title : cd.isCompilation ? cd.title : cd.artist }}</strong>
-        <div v-if="!cd.isCompilation && !cd.personalCompilation" class="small">
-          {{ cd.title }}<template v-if="cd.year"> ({{ cd.year }})</template>
-        </div>
+        <template v-if="media === 'cd'">
+          <strong>{{ cd.personalCompilation ? cd.title : cd.isCompilation ? cd.title : cd.artist }}</strong>
+          <div v-if="!cd.isCompilation && !cd.personalCompilation" class="small">
+            {{ cd.title }}<template v-if="cd.year"> ({{ cd.year }})</template>
+          </div>
+        </template>
+        <template v-else>
+          <strong>{{ cd.title }}</strong>
+          <div class="small">
+            <template v-if="cd.platform">{{ platformLabel(cd.platform) }} · </template>{{ cd.artist }}<template v-if="cd.year"> ({{ cd.year }})</template>
+          </div>
+        </template>
       </div>
       <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
     </div>
 
     <p v-if="!info" class="notice notice-warn">
-      Ce CD n'a pas encore d'emplacement : applique d'abord le rangement (onglet Rangement).
+      Ce {{ w.one }} n'a pas encore d'emplacement : applique d'abord le rangement (onglet Rangement).
     </p>
 
     <template v-else>
@@ -136,7 +149,7 @@ async function unshelve() {
             <div class="line">
               <CoverImage :urls="l.cd.coverUrls" :photo="l.cd.coverPhoto" :label="l.cd.title" :size="32" />
               <span class="grow text">{{ name(l.cd) }}</span>
-              <span v-if="l.isTarget" class="badge badge-info">ce CD</span>
+              <span v-if="l.isTarget" class="badge badge-info">ce {{ w.one }}</span>
               <span v-else-if="l.cd.shelvedAt" class="badge badge-ok">Rangé ✓</span>
               <span v-else class="badge badge-warn">À ranger</span>
             </div>
@@ -146,7 +159,7 @@ async function unshelve() {
 
       <!-- Bloc 3 : liste réelle -->
       <div class="block real">
-        <h3>Liste réelle (CD déjà posés)</h3>
+        <h3>Liste réelle ({{ w.many }} déjà posés)</h3>
         <p v-if="info.real.sameAsPlan && !info.real.emptyRow" class="same">Identique au plan ✓</p>
         <template v-else-if="!info.real.emptyRow">
           <div class="line">
@@ -156,7 +169,7 @@ async function unshelve() {
               <span class="grow text">{{ name(info.real.before) }}</span>
             </template>
             <span v-else class="grow text muted">
-              {{ info.real.gapBefore.count ? 'Aucun CD posé à sa gauche pour l’instant' : 'Début de rangée' }}<template v-if="info.real.nearestBefore">
+              {{ info.real.gapBefore.count ? `Aucun ${w.one} posé à sa gauche pour l’instant` : 'Début de rangée' }}<template v-if="info.real.nearestBefore">
                 (plus proche : « {{ name(info.real.nearestBefore.cd) }} », {{ info.real.nearestBefore.slot }})</template>
             </span>
           </div>
@@ -167,24 +180,24 @@ async function unshelve() {
               <span class="grow text">{{ name(info.real.after) }}</span>
             </template>
             <span v-else class="grow text muted">
-              {{ info.real.gapAfter.count ? 'Aucun CD posé à sa droite pour l’instant' : 'Fin de rangée' }}<template v-if="info.real.nearestAfter">
+              {{ info.real.gapAfter.count ? `Aucun ${w.one} posé à sa droite pour l’instant` : 'Fin de rangée' }}<template v-if="info.real.nearestAfter">
                 (plus proche : « {{ name(info.real.nearestAfter.cd) }} », {{ info.real.nearestAfter.slot }})</template>
             </span>
           </div>
         </template>
         <p class="instruction">{{ instruction }}</p>
         <p v-if="info.real.gapBefore.count" class="small gap">
-          ⬅ {{ info.real.gapBefore.count }} CD encore à venir à sa gauche : laisse environ {{ cm(info.real.gapBefore.mm) }} cm.
+          ⬅ {{ info.real.gapBefore.count }} {{ info.real.gapBefore.count > 1 ? w.many : w.one }} encore à venir à sa gauche : laisse environ {{ cm(info.real.gapBefore.mm) }} cm.
         </p>
         <p v-if="info.real.gapAfter.count" class="small gap">
-          ➡ {{ info.real.gapAfter.count }} CD encore à venir à sa droite : laisse environ {{ cm(info.real.gapAfter.mm) }} cm.
+          ➡ {{ info.real.gapAfter.count }} {{ info.real.gapAfter.count > 1 ? w.many : w.one }} encore à venir à sa droite : laisse environ {{ cm(info.real.gapAfter.mm) }} cm.
         </p>
       </div>
 
       <!-- Progression -->
       <div class="block progress small">
         <div class="row">
-          <span class="grow"><strong>{{ info.progress.total.done }} / {{ info.progress.total.all }}</strong> CD rangés</span>
+          <span class="grow"><strong>{{ info.progress.total.done }} / {{ info.progress.total.all }}</strong> {{ w.many }} rangés</span>
           <span>{{ pct(info.progress.total) }} %</span>
         </div>
         <progress :value="info.progress.total.done" :max="info.progress.total.all || 1"></progress>

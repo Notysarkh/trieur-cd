@@ -3,6 +3,9 @@ import type { ClassificationRules } from '../classification/themes'
 import type { Furniture, LayoutOptions } from '../layout/furniture'
 import type { Cd } from '../db/types'
 import { saveSetting, settings } from './settings'
+import { addV2Furniture } from '../layout/furniture'
+
+const OTHER_LAYOUTS = ['bookLayoutAppliedAt', 'videoLayoutAppliedAt', 'gameLayoutAppliedAt'] as const
 
 // Sauvegarde et transfert de la collection (téléphone → PC) via un fichier JSON.
 // Le jeton Discogs n'est volontairement PAS inclus dans le fichier.
@@ -22,6 +25,9 @@ interface BackupFile {
   layout?: LayoutOptions
   /** Date du rangement appliqué (v1.1) : les emplacements des CD en dépendent. */
   layoutAppliedAt?: number
+  bookLayoutAppliedAt?: number
+  videoLayoutAppliedAt?: number
+  gameLayoutAppliedAt?: number
   classificationAppliedAt?: number
   /** Thèmes et règles des livres / BD (v2). */
   bookClassification?: ClassificationRules
@@ -43,6 +49,9 @@ export async function buildBackup(): Promise<File> {
     furniture: JSON.parse(JSON.stringify(settings.furniture)),
     layout: { ...settings.layout },
     layoutAppliedAt: settings.layoutAppliedAt,
+    bookLayoutAppliedAt: settings.bookLayoutAppliedAt,
+    videoLayoutAppliedAt: settings.videoLayoutAppliedAt,
+    gameLayoutAppliedAt: settings.gameLayoutAppliedAt,
     classificationAppliedAt: settings.classificationAppliedAt,
     bookClassification: JSON.parse(JSON.stringify(settings.bookClassification)),
     bookClassificationAppliedAt: settings.bookClassificationAppliedAt,
@@ -112,6 +121,8 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   }
   const report: ImportReport = { added: 0, updated: 0, unchanged: 0, rulesReplaced: false, layoutAdopted: false }
   const adoptLayout = !!data.layoutAppliedAt && (replaceRules || !settings.layoutAppliedAt)
+  // Rangements des livres, films et jeux : repris s'ils n'ont pas encore été faits sur cet appareil.
+  const adoptOthers = OTHER_LAYOUTS.filter((k) => !!data[k] && (replaceRules || !settings[k]))
   await db.transaction('rw', db.cds, async () => {
     for (const cd of data.cds) {
       if (!cd?.id) continue
@@ -131,8 +142,9 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
     await saveSetting('classification', data.classification)
     report.rulesReplaced = true
   }
-  if ((replaceRules || adoptLayout) && data.furniture?.length) {
-    await saveSetting('furniture', data.furniture)
+  if ((replaceRules || adoptLayout || adoptOthers.length) && data.furniture?.length) {
+    // Sauvegarde d'avant l'étape E : on y ajoute les meubles des livres, films et jeux (sans rien changer d'autre).
+    await saveSetting('furniture', addV2Furniture(data.furniture))
     if (data.layout) await saveSetting('layout', data.layout)
     report.rulesReplaced = true
   }
@@ -159,6 +171,10 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if (adoptLayout) {
     await saveSetting('layoutAppliedAt', data.layoutAppliedAt!)
     if (data.classificationAppliedAt) await saveSetting('classificationAppliedAt', data.classificationAppliedAt)
+    report.layoutAdopted = true
+  }
+  for (const k of adoptOthers) {
+    await saveSetting(k, data[k]!)
     report.layoutAdopted = true
   }
   return report

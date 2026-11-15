@@ -1,18 +1,19 @@
 import { groupKeyOf, type Plan } from '../classification/engine'
 import { db, itemsOf } from '../db/database'
-import { mediaOf } from '../lib/media'
+import { mediaInfo, mediaOf, type MediaKind } from '../lib/media'
 import type { Cd } from '../db/types'
-import { buildSlots } from '../layout/furniture'
+import { buildSlots, furnitureFor } from '../layout/furniture'
 import { suggestInsertion, type Insertion } from '../layout/insertion'
 import { shelvedToKeep } from '../layout/keepShelved'
 import { packLayout, type Layout } from '../layout/packer'
 import { applyPlan } from './classification'
-import { saveSetting, settings } from './settings'
+import { layoutAppliedAtFor, layoutKey, saveSetting, settings } from './settings'
 
 // Lien entre l'algorithme de répartition et la base : calcul, application, emplacement d'un CD.
 
-export function computeLayout(plan: Plan): Layout {
-  return packLayout(plan, settings.furniture, settings.layout)
+/** Répartition d'un univers dans les cases qui lui sont attribuées. */
+export function computeLayout(plan: Plan, media: MediaKind = 'cd'): Layout {
+  return packLayout(plan, furnitureFor(settings.furniture, media), settings.layout, media)
 }
 
 export interface Moves {
@@ -60,10 +61,10 @@ export function countMoves(layout: Layout, cds: Cd[]): Moves {
  * Un CD déjà rangé GARDE son statut « rangé » s'il reste dans la même rangée et dans le même ordre
  * que ses voisins rangés : il n'a pas à bouger (voir keepShelved.ts).
  */
-export async function applyLayout(plan: Plan, layout: Layout): Promise<void> {
-  await applyPlan(plan)
+export async function applyLayout(plan: Plan, layout: Layout, media: MediaKind = 'cd'): Promise<void> {
+  await applyPlan(plan, media)
   const now = Date.now()
-  const cds = await itemsOf('cd')
+  const cds = await itemsOf(media)
   const keep = shelvedToKeep(cds, layout.placement)
   const updates = cds.flatMap((cd) => {
     const p = layout.placement.get(cd.id)
@@ -71,7 +72,7 @@ export async function applyLayout(plan: Plan, layout: Layout): Promise<void> {
     return [{ key: cd.id, changes: { location: p, shelvedAt: keep.has(cd.id) ? cd.shelvedAt : undefined, updatedAt: now } }]
   })
   await db.cds.bulkUpdate(updates)
-  await saveSetting('layoutAppliedAt', now)
+  await saveSetting(layoutKey(media), now)
 }
 
 export interface LocationParts {
@@ -116,7 +117,7 @@ export function shortLocation(cd: Cd): string | null {
 /** Où glisser un CD pas encore rangé (null si aucun rangement n'a encore été appliqué). */
 export function insertionFor(cd: Cd, plan: Plan, cds: Cd[]): Insertion | null {
   const order = plan.themes.flatMap((t) => t.cds)
-  return suggestInsertion(cd, order, cds, settings.furniture, (c) => plan.placement.get(c.id)?.themeId)
+  return suggestInsertion(cd, order, cds, furnitureFor(settings.furniture, mediaOf(cd)), (c) => plan.placement.get(c.id)?.themeId)
 }
 
 /**
@@ -153,7 +154,7 @@ export function locationLabel(cd: Cd): string | null {
   if (f.columns > 1) parts.push(`case ${column}`)
   if (f.layers > 1) parts.push(layer === 1 ? 'couche du haut' : 'couche du bas')
   if (f.depthRows > 1) parts.push(depthRow === 1 ? 'devant' : 'derrière')
-  parts.push(`${loc.position}${loc.position === 1 ? 'er' : 'e'} CD en partant de la gauche`)
+  parts.push(`${loc.position}${loc.position === 1 ? 'er' : 'e'} ${mediaInfo(mediaOf(cd)).one} en partant de la gauche`)
   return parts.join(' · ')
 }
 
@@ -179,7 +180,7 @@ export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntr
         const i = index.get(cd.location.slotId)!
         return { entry: { cd, slotLabel: slots[i].label, position: cd.location.position, located: true }, key: [i, cd.location.position] }
       }
-      const ins = plan && settings.layoutAppliedAt ? insertionFor(cd, plan, all) : null
+      const ins = plan && layoutAppliedAtFor(mediaOf(cd)) ? insertionFor(cd, plan, all) : null
       if (ins) {
         const i = index.get(ins.slot.id) ?? Infinity
         return { entry: { cd, slotLabel: ins.slot.label, position: ins.position, located: false }, key: [i, ins.position - 0.5] }
@@ -199,7 +200,7 @@ export function inShelfOrder(cds: Cd[], all: Cd[], plan: Plan | null): ShelfEntr
 export async function releasePlacement(cd: Cd, wholeArtist: boolean): Promise<number> {
   const key = groupKeyOf(cd)
   const targets = wholeArtist
-    ? await db.cds.filter((c) => mediaOf(c) === 'cd' && groupKeyOf(c) === key && !!c.location).toArray()
+    ? await db.cds.filter((c) => mediaOf(c) === mediaOf(cd) && groupKeyOf(c) === key && !!c.location).toArray()
     : cd.location
       ? [cd]
       : []

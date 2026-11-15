@@ -1,7 +1,8 @@
 import type { Plan, PlanTheme } from '../classification/engine'
 import type { ThemeDef } from '../classification/themes'
 import type { Cd } from '../db/types'
-import { buildSlots, CD_DEPTH_MM, STANDARD_THICKNESS_MM, thicknessOf, type Furniture, type LayoutOptions, type Slot } from './furniture'
+import { buildSlots, CD_DEPTH_MM, heightOf, STANDARD_THICKNESS_MM, thicknessOf, type Furniture, type LayoutOptions, type Slot } from './furniture'
+import { mediaInfo, type MediaKind } from '../lib/media'
 
 // Répartition des CD dans les meubles, rangée par rangée.
 //
@@ -52,6 +53,8 @@ export interface Layout {
   /** Épaisseur totale des CD à ranger. */
   neededMm: number
   emptySlots: number
+  /** Objets plus hauts que la hauteur utile de leur étagère (ils ne tiennent pas debout). */
+  tooTall: { cd: Cd; slotLabel: string; heightCm: number; shelfCm: number }[]
   /** Conseils en clair (surcharge, rangées vides…). */
   suggestions: string[]
   /** Pour chaque CD : rangée et position (1 = le plus à gauche). */
@@ -178,7 +181,8 @@ function bestMargin(plan: Plan, slots: Slot[], options: LayoutOptions, low: numb
   return fits(high) ? high : low
 }
 
-export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOptions): Layout {
+export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOptions, media: MediaKind = 'cd'): Layout {
+  const info = mediaInfo(media)
   const start = Date.now()
   const slots = buildSlots(furniture)
   const { content, overflow, cuts } = pack(plan, slots, options)
@@ -198,11 +202,22 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
   const neededMm = width(plan.themes.flatMap((t) => t.cds))
   const emptySlots = content.filter((c) => !c.cds.length).length
 
+  // Contrôle de la hauteur : chaque objet doit tenir debout dans son étagère.
+  const shelfHeight = new Map(furniture.map((f) => [f.id, f.innerHeightCm]))
+  const tooTall: Layout['tooTall'] = []
+  for (const c of content) {
+    const shelfCm = shelfHeight.get(c.slot.furnitureId) ?? Infinity
+    for (const cd of c.cds) {
+      const h = heightOf(cd)
+      if (h > shelfCm + 0.05) tooTall.push({ cd, slotLabel: c.slot.label, heightCm: h, shelfCm })
+    }
+  }
+
   // --- Conseils ---
   const suggestions: string[] = []
   const cm = (mm: number) => Math.round(mm / 10)
   if (overflow.length) {
-    suggestions.push(`${overflow.length} CD ne trouvent pas de place avec ces réglages.`)
+    suggestions.push(`${overflow.length} ${overflow.length > 1 ? info.many : info.one} ne trouvent pas de place avec ces réglages.`)
     const m = bestMargin(plan, slots, options, 0, Math.max(0, options.marginPct - 1))
     if (m !== null) {
       suggestions.push(`Avec une marge de croissance de ${m} % au lieu de ${options.marginPct} %, tout rentre.`)
@@ -210,11 +225,13 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
       const atZero = pack(plan, slots, { ...options, marginPct: 0 })
       const missing = width(atZero.overflow)
       suggestions.push(
-        `Même sans marge, il manque environ ${cm(missing)} cm de rangée (≈ ${Math.ceil(missing / STANDARD_THICKNESS_MM)} CD standard).`,
+        media === 'cd'
+          ? `Même sans marge, il manque environ ${cm(missing)} cm de rangée (≈ ${Math.ceil(missing / STANDARD_THICKNESS_MM)} CD standard).`
+          : `Même sans marge, il manque environ ${cm(missing)} cm de rangée.`,
       )
     }
     for (const f of furniture) {
-      if (f.depthRows === 1 && f.depthCm * 10 >= 2 * CD_DEPTH_MM - 25) {
+      if (media === 'cd' && f.depthRows === 1 && f.depthCm * 10 >= 2 * CD_DEPTH_MM - 25) {
         suggestions.push(`Passe « ${f.name} » en double rangée (profondeur ${f.depthCm} cm).`)
       }
     }
@@ -231,7 +248,17 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
     }
   }
   if (cuts.length) {
-    suggestions.push(`${cuts.length} artiste(s) à cheval sur deux rangées (trop grands pour une rangée, ou pour éviter un trou).`)
+    suggestions.push(
+      media === 'cd'
+        ? `${cuts.length} artiste(s) à cheval sur deux rangées (trop grands pour une rangée, ou pour éviter un trou).`
+        : `${cuts.length} ${info.creator}(s) à cheval sur deux rangées (trop grands pour une rangée, ou pour éviter un trou).`,
+    )
+  }
+  if (tooTall.length) {
+    const shelves = [...new Set(tooTall.map((t) => String(t.shelfCm).replace('.', ',')))].join(' ; ')
+    suggestions.push(
+      `${tooTall.length} ${tooTall.length > 1 ? info.many : info.one} trop haut${tooTall.length > 1 ? 's' : ''} pour ${tooTall.length > 1 ? "leur" : "son"} étagère (hauteur utile ${shelves} cm) : remonte la tablette, ou corrige la hauteur dans « Mes meubles ».`,
+    )
   }
 
   return {
@@ -242,6 +269,7 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
     capacityMm,
     neededMm,
     emptySlots,
+    tooTall,
     suggestions,
     placement,
     durationMs: Date.now() - start,

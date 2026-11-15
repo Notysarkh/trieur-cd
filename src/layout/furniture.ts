@@ -1,4 +1,5 @@
 import type { Cd } from '../db/types'
+import { mediaOf, type MediaKind } from '../lib/media'
 
 // Les meubles et leurs « cases ».
 //
@@ -33,8 +34,12 @@ export interface Furniture {
   depthRows: 1 | 2
   /** Couches superposées dans la hauteur. */
   layers: 1 | 2
-  /** Cases réservées à autre chose (livres…), sous la forme « niveau-colonne », ex. « 3-1 ». */
+  /** Cases réservées à autre chose (déco, objets…), sous la forme « niveau-colonne », ex. « 3-1 ». */
   reserved: string[]
+  /** Univers rangé dans ce meuble (v2) ; absent = CD. */
+  media?: MediaKind
+  /** Cases attribuées à un autre univers que celui du meuble (« 1-1 » → films), pour un meuble partagé. */
+  caseMedia?: Record<string, MediaKind>
 }
 
 /** Une rangée de CD : l'unité que l'algorithme remplit. */
@@ -192,6 +197,65 @@ export function defaultFurniture(): Furniture[] {
   return [cd, billy]
 }
 
+/**
+ * v2, étape E : les meubles des autres univers, ajoutés une seule fois à tes meubles existants.
+ * Identifiants FIXES : l'emplacement d'un objet contient l'identifiant de son meuble, et le téléphone
+ * et le PC font chacun cet ajout avant d'échanger leurs sauvegardes.
+ * - Billy, niveau 1 : il passe aux DVD / Blu-ray s'il était réservé à « autre chose » (c'est là que sont tes films) ;
+ * - livres : 2 grandes Billy (80 cm) et une demie (40 cm), une seule rangée ;
+ * - jeux : « Rangement jeux », copie du meuble CD (dimensions à corriger dans « Mes meubles »).
+ * Rien d'autre ne change dans tes meubles : les CD gardent exactement leurs rangées.
+ */
+export function addV2Furniture(list: Furniture[]): Furniture[] {
+  const out: Furniture[] = list.map((f) => {
+    if (f.id !== 'billy' || !f.reserved.includes('1-1')) return f
+    return { ...f, reserved: f.reserved.filter((k) => k !== '1-1'), caseMedia: { ...f.caseMedia, '1-1': 'video' } }
+  })
+  const add = (f: Furniture) => {
+    if (!out.some((x) => x.id === f.id)) out.push(f)
+  }
+  add({ ...furnitureFromModel(MODELS[1], 'billy-livres-1'), name: 'Billy livres 1', media: 'livre' })
+  add({ ...furnitureFromModel(MODELS[1], 'billy-livres-2'), name: 'Billy livres 2', media: 'livre' })
+  add({ ...furnitureFromModel(MODELS[2], 'billy-livres-demie'), name: 'Billy livres (demie)', media: 'livre' })
+  add({ ...furnitureFromModel(MODELS[0], 'rangement-jeux'), name: 'Rangement jeux', model: 'Copie du meuble CD', media: 'jeu' })
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Meubles partagés entre univers
+// ---------------------------------------------------------------------------
+
+/** L'univers d'une case : celui attribué à la case, sinon celui du meuble (CD par défaut). */
+export function caseMediaOf(f: Furniture, level: number, column: number): MediaKind {
+  return f.caseMedia?.[caseKey(level, column)] ?? f.media ?? 'cd'
+}
+
+/**
+ * Les meubles vus par un univers : les cases des autres univers sont traitées comme réservées.
+ * Les meubles sans aucune case pour cet univers disparaissent ; l'ordre de remplissage est conservé.
+ * Sert seulement aux calculs : cette liste n'est jamais enregistrée.
+ */
+export function furnitureFor(furniture: Furniture[], media: MediaKind): Furniture[] {
+  return furniture.flatMap((f) => {
+    const reserved = [...f.reserved]
+    let free = 0
+    for (let level = 1; level <= f.levels; level++) {
+      for (let column = 1; column <= f.columns; column++) {
+        const key = caseKey(level, column)
+        if (reserved.includes(key)) continue
+        if (caseMediaOf(f, level, column) !== media) reserved.push(key)
+        else free++
+      }
+    }
+    return free ? [{ ...f, reserved }] : []
+  })
+}
+
+/** Hauteur d'un objet en cm (CD sans hauteur connue : boîtier standard de 12,5 cm). */
+export function heightOf(cd: Cd): number {
+  return cd.heightCm && cd.heightCm > 0 ? cd.heightCm : mediaOf(cd) === 'cd' ? CD_HEIGHT_MM / 10 : 0
+}
+
 // ---------------------------------------------------------------------------
 // Rangées et capacité
 // ---------------------------------------------------------------------------
@@ -240,6 +304,9 @@ export function furnitureCapacity(f: Furniture): { mm: number; standardCds: numb
 /** Ce qui ne colle pas physiquement dans la configuration d'un meuble. */
 export function furnitureWarnings(f: Furniture): string[] {
   const w: string[] = []
+  // Ces vérifications concernent les boîtiers CD : sans aucune case pour les CD, rien à signaler ici
+  // (la hauteur des livres, films et jeux est vérifiée objet par objet dans le rangement).
+  if (!furnitureFor([f], 'cd').length) return w
   const neededDepth = (f.depthRows * CD_DEPTH_MM) / 10
   if (f.depthCm < neededDepth) {
     const over = (neededDepth - f.depthCm).toFixed(1).replace('.', ',')

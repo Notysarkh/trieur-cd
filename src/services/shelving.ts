@@ -1,5 +1,5 @@
 import { db } from '../db/database'
-import { mediaOf } from '../lib/media'
+import { mediaOf, type MediaKind } from '../lib/media'
 import type { Cd } from '../db/types'
 import { canonicalBarcode } from '../lib/barcode'
 import { findByBarcode } from './collection'
@@ -16,9 +16,10 @@ export interface ShelvingLookup {
 }
 
 /** Cherche le CD scanné (sans rien modifier). */
-export async function lookupForShelving(raw: string): Promise<ShelvingLookup> {
+export async function lookupForShelving(raw: string, media: MediaKind = 'cd'): Promise<ShelvingLookup> {
   const code = canonicalBarcode(raw)
-  const cds = await findByBarcode(code)
+  // Seulement dans l'univers en cours (un même code ne peut pas être rangé ici s'il est d'un autre univers).
+  const cds = (await findByBarcode(code)).filter((c) => mediaOf(c) === media)
   // S'il y a plusieurs exemplaires, on propose d'abord celui qui n'est pas encore rangé.
   const target = cds.find((c) => !c.shelvedAt) ?? cds[0]
   return { code, cds, target }
@@ -30,8 +31,8 @@ export async function setShelved(id: string, shelved: boolean): Promise<void> {
 }
 
 /** Remet le compteur « rangés » à zéro (pour recommencer un rangement). */
-export async function resetShelved(): Promise<void> {
-  const ids = await db.cds.filter((c) => mediaOf(c) === 'cd' && !!c.shelvedAt).primaryKeys()
+export async function resetShelved(media: MediaKind = 'cd'): Promise<void> {
+  const ids = await db.cds.filter((c) => mediaOf(c) === media && !!c.shelvedAt).primaryKeys()
   await db.cds.bulkUpdate(ids.map((key) => ({ key, changes: { shelvedAt: undefined } })))
 }
 

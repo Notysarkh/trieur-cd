@@ -5,28 +5,34 @@ import { buildPlan } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { db, itemsOf } from '../db/database'
 import type { ArtistInfo, Cd } from '../db/types'
-import { furnitureWarnings } from '../layout/furniture'
+import { furnitureFor, furnitureWarnings } from '../layout/furniture'
+import { itemLabel } from '../lib/media'
+import { useMedia } from '../composables/useMedia'
 import { applyLayout, computeLayout, countMoves, insertionFor, placeCd } from '../services/layout'
-import { saveSetting, settings } from '../services/settings'
+import { layoutAppliedAtFor, rulesFor, saveSetting, settings } from '../services/settings'
 
-// Écran « Rangement » : répartition des CD dans les meubles, case par case, avec vue visuelle.
+// Écran « Rangement » : répartition des objets de l'univers en cours dans ses meubles, case par case.
 
-const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const { media, w } = useMedia()
+const cds = useLiveQuery(() => itemsOf(media.value), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),
 )
 
 // Classement puis répartition, recalculés à chaque changement (collection, règles, meubles, options).
-const plan = computed(() => buildPlan(cds.value, settings.classification, artistInfos.value))
-const layout = computed(() => computeLayout(plan.value))
+const plan = computed(() => buildPlan(cds.value, rulesFor(media.value), artistInfos.value))
+const layout = computed(() => computeLayout(plan.value, media.value))
+/** Les meubles (ou parties de meubles) de cet univers. */
+const myFurniture = computed(() => furnitureFor(settings.furniture, media.value))
+const appliedAtMs = computed(() => layoutAppliedAtFor(media.value))
 const moves = computed(() => countMoves(layout.value, cds.value))
 
 const meters = (mm: number) => (mm / 1000).toFixed(1).replace('.', ',')
 const fillPct = computed(() => Math.round((layout.value.neededMm / Math.max(1, layout.value.capacityMm)) * 100))
 const appliedAt = computed(() =>
-  settings.layoutAppliedAt
-    ? new Date(settings.layoutAppliedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+  appliedAtMs.value
+    ? new Date(appliedAtMs.value).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
     : null,
 )
 
@@ -54,14 +60,14 @@ const themeColor = (cd: Cd) => {
 
 // --- Nouveaux CD à glisser à leur place (sans tout recalculer) ---
 const toInsert = computed(() => {
-  if (!settings.layoutAppliedAt) return []
+  if (!appliedAtMs.value) return []
   return cds.value
     .filter((cd) => !cd.location)
     .slice(0, 30)
     .map((cd) => ({ cd, ins: insertionFor(cd, plan.value, cds.value) }))
 })
 const unplacedCount = computed(() => cds.value.filter((cd) => !cd.location).length)
-const neighbour = (cd: Cd | undefined) => (cd ? (cd.isCompilation ? cd.title : `${cd.artist} — ${cd.title}`) : '')
+const neighbour = (cd: Cd | undefined) => (cd ? itemLabel(cd) : '')
 
 // --- Application ---
 const applying = ref(false)
@@ -69,8 +75,8 @@ const message = ref('')
 async function apply() {
   applying.value = true
   try {
-    await applyLayout(plan.value, layout.value)
-    message.value = `Rangement appliqué : chaque CD connaît maintenant son emplacement.`
+    await applyLayout(plan.value, layout.value, media.value)
+    message.value = `Rangement appliqué : chaque ${w.value.one} connaît maintenant son emplacement.`
   } finally {
     applying.value = false
   }
@@ -84,12 +90,12 @@ async function apply() {
       <RouterLink class="btn btn-small" to="/rangement/meubles">🪑 Mes meubles</RouterLink>
     </div>
 
-    <p v-if="!cds.length" class="notice">Scanne d'abord des CD : la répartition se calcule à partir de ta collection.</p>
+    <p v-if="!cds.length" class="notice">Scanne d'abord des {{ w.many }} : la répartition se calcule à partir de ta collection.</p>
 
     <template v-else>
       <section class="card stack">
         <p class="small summary">
-          <strong>{{ plan.cdCount }} CD</strong> · {{ meters(layout.neededMm) }} m de CD pour
+          <strong>{{ plan.cdCount }} {{ plan.cdCount > 1 ? w.many : w.one }}</strong> · {{ meters(layout.neededMm) }} m de {{ w.many }} pour
           {{ meters(layout.capacityMm) }} m de rangées ({{ fillPct }} %) · calculé en {{ layout.durationMs }} ms
         </p>
         <div class="form-grid">
@@ -108,7 +114,7 @@ async function apply() {
         </div>
 
         <div v-if="layout.overflow.length" class="notice notice-danger small">
-          <strong>Surcharge :</strong> {{ layout.overflow.length }} CD sans place.
+          <strong>Surcharge :</strong> {{ layout.overflow.length }} {{ w.many }} sans place.
         </div>
         <ul v-if="layout.suggestions.length" class="suggestions small">
           <li v-for="s in layout.suggestions" :key="s">{{ s }}</li>
@@ -118,17 +124,17 @@ async function apply() {
           <template v-if="!appliedAt">Ce rangement n'a pas encore été appliqué.</template>
           <template v-else-if="moves.total">
             Depuis le dernier rangement appliqué ({{ appliedAt }}) :
-            <template v-if="moves.added"><br />· {{ moves.added }} nouveau(x) CD à placer ;</template>
-            <template v-if="moves.otherRow"><br />· <strong>{{ moves.otherRow }} CD à changer de rangée</strong> ;</template>
-            <template v-if="moves.shifted"><br />· {{ moves.shifted }} CD qui glissent simplement d'une place dans leur rangée ;</template>
-            <template v-if="moves.removed"><br />· {{ moves.removed }} CD qui n'auraient plus de place.</template>
+            <template v-if="moves.added"><br />· {{ moves.added }} nouveau(x) {{ w.many }} à placer ;</template>
+            <template v-if="moves.otherRow"><br />· <strong>{{ moves.otherRow }} {{ w.many }} à changer de rangée</strong> ;</template>
+            <template v-if="moves.shifted"><br />· {{ moves.shifted }} {{ w.many }} qui glissent simplement d'une place dans leur rangée ;</template>
+            <template v-if="moves.removed"><br />· {{ moves.removed }} {{ w.many }} qui n'auraient plus de place.</template>
             <template v-if="moves.shelvedKept || moves.shelvedToMove">
-              <br />Parmi tes CD déjà rangés : <strong>{{ moves.shelvedKept }} restent en place</strong>,
+              <br />Parmi tes {{ w.many }} déjà rangés : <strong>{{ moves.shelvedKept }} restent en place</strong>,
               <strong>{{ moves.shelvedToMove }} sont à déplacer</strong> (ils repasseront « à ranger »).
             </template>
             <template v-if="moves.otherRow">
               <br /><span class="muted">
-                Inutile de tout réappliquer pour quelques nouveaux CD : la marge laisse de la place dans chaque rangée,
+                Inutile de tout réappliquer pour quelques nouveaux {{ w.many }} : la marge laisse de la place dans chaque rangée,
                 il suffit de les glisser à leur place (l'étape 4 t'indiquera où, sans rien recalculer).
               </span>
             </template>
@@ -146,14 +152,14 @@ async function apply() {
         <RouterLink class="btn" to="/imprimer/plan">🖨️ Plan imprimable (PDF)</RouterLink>
         <RouterLink class="btn" to="/imprimer/etiquettes">🏷️ Étiquettes intercalaires</RouterLink>
         <RouterLink class="btn" :to="{ name: 'scan', query: { mode: 'ranger' } }">📦 Ranger avec le scanner</RouterLink>
-        <RouterLink class="btn" to="/sans-code">💿 CD sans code-barres</RouterLink>
-        <RouterLink class="btn" to="/ou-est">🔍 Où est ce CD ?</RouterLink>
+        <RouterLink class="btn" to="/sans-code">{{ w.icon }} {{ w.many.charAt(0).toUpperCase() + w.many.slice(1) }} sans code-barres</RouterLink>
+        <RouterLink class="btn" to="/ou-est">🔍 Où est ce {{ w.one }} ?</RouterLink>
       </section>
 
       <section v-if="toInsert.length" class="card stack">
-        <h2 class="insert-title">Nouveaux CD à ranger ({{ unplacedCount }})</h2>
+        <h2 class="insert-title">Nouveaux {{ w.many }} à ranger ({{ unplacedCount }})</h2>
         <p class="small muted">
-          Sans rien recalculer : glisse chaque CD à la place indiquée (ses voisins de droite se décalent d'une place),
+          Sans rien recalculer : glisse chaque {{ w.one }} à la place indiquée (ses voisins de droite se décalent d'une place),
           puis appuie sur « C'est rangé ».
         </p>
         <ul class="plain inserts">
@@ -166,8 +172,8 @@ async function apply() {
                 <template v-if="x.ins.before"><br />juste avant « {{ neighbour(x.ins.before) }} »</template>
               </span>
               <span v-if="!x.ins.fits" class="small notice notice-warn">
-                Cette rangée est pleine : pousse le dernier CD de la rangée au début de la suivante, ou réapplique le
-                rangement complet si beaucoup de CD se sont ajoutés.
+                Cette rangée est pleine : pousse le dernier {{ w.one }} de la rangée au début de la suivante, ou réapplique le
+                rangement complet si beaucoup de {{ w.many }} se sont ajoutés.
               </span>
               <button class="btn btn-small" @click="placeCd(x.cd, x.ins, plan)">✓ C'est rangé</button>
             </template>
@@ -183,7 +189,7 @@ async function apply() {
           <li v-for="r in layout.themeRanges" :key="r.theme.id">
             <span class="dot" :style="{ background: r.theme.color }"></span>
             <span class="grow">
-              <strong>{{ r.theme.name }}</strong> <span class="muted">({{ r.cdCount }} CD)</span><br />
+              <strong>{{ r.theme.name }}</strong> <span class="muted">({{ r.cdCount }} {{ r.cdCount > 1 ? w.many : w.one }})</span><br />
               <span class="small muted">
                 {{ layout.slots[r.from].slot.label }}<template v-if="r.to !== r.from"> → {{ layout.slots[r.to].slot.label }}</template>
               </span>
@@ -193,7 +199,25 @@ async function apply() {
       </section>
 
       <!-- Les meubles -->
-      <section v-for="f in settings.furniture" :key="f.id" class="stack">
+      <p v-if="!myFurniture.length" class="notice notice-warn">
+        Aucun meuble n'est attribué aux {{ w.many }} : choisis l'univers d'un meuble (ou de quelques niveaux) dans
+        <RouterLink to="/rangement/meubles">Mes meubles</RouterLink>.
+      </p>
+      <section v-if="layout.tooTall.length" class="card stack">
+        <h2 class="legend-title">Trop hauts pour leur étagère ({{ layout.tooTall.length }})</h2>
+        <p class="small muted">
+          Ces {{ w.many }} ne tiennent pas debout à l'endroit prévu. Remonte la tablette (puis corrige sa hauteur utile dans
+          « Mes meubles »), ou corrige la hauteur de l'objet sur sa fiche si elle est fausse.
+        </p>
+        <ul class="small plain">
+          <li v-for="t in layout.tooTall.slice(0, 50)" :key="t.cd.id">
+            <RouterLink :to="{ name: 'cd', params: { id: t.cd.id } }">{{ neighbour(t.cd) }}</RouterLink> :
+            {{ String(t.heightCm).replace('.', ',') }} cm pour {{ String(t.shelfCm).replace('.', ',') }} cm ({{ t.slotLabel }})
+          </li>
+        </ul>
+      </section>
+
+      <section v-for="f in myFurniture" :key="f.id" class="stack">
         <h2>{{ f.name }}</h2>
         <p v-for="w in furnitureWarnings(f)" :key="w" class="small muted warn">⚠️ {{ w }}</p>
         <FurnitureDiagram :furniture="f" :slots="layout.slots" :selected="selected" @select="select" />
@@ -203,14 +227,14 @@ async function apply() {
             <button class="btn btn-small" @click="selected = undefined">Fermer</button>
           </div>
           <p class="small muted">
-            {{ selectedContent.cds.length }} CD · {{ Math.round(selectedContent.usedMm / 10) }} cm occupés sur
+            {{ selectedContent.cds.length }} {{ selectedContent.cds.length > 1 ? w.many : w.one }} · {{ Math.round(selectedContent.usedMm / 10) }} cm occupés sur
             {{ Math.round(selectedContent.slot.capacityMm / 10) }} cm · de gauche à droite :
           </p>
           <ol class="small cds">
             <li v-for="cd in selectedContent.cds" :key="cd.id">
               <span class="dot" :style="{ background: themeColor(cd) }"></span>
               <RouterLink :to="{ name: 'cd', params: { id: cd.id } }">
-                {{ cd.isCompilation ? cd.title : `${cd.artist} — ${cd.title}` }}
+                {{ neighbour(cd) }}
               </RouterLink>
               <span v-if="cd.year" class="muted"> ({{ cd.year }})</span>
             </li>
@@ -219,7 +243,7 @@ async function apply() {
       </section>
 
       <details v-if="layout.cuts.length" class="card">
-        <summary><strong>{{ layout.cuts.length }} artiste(s) sur plusieurs rangées</strong></summary>
+        <summary><strong>{{ layout.cuts.length }} {{ media === 'cd' ? 'artiste(s)' : `${w.creator}(s)` }} sur plusieurs rangées</strong></summary>
         <ul class="small plain">
           <li v-for="c in layout.cuts" :key="c.label + c.slotLabels[0]">
             <strong>{{ c.label }}</strong> : {{ c.slotLabels.join(' → ') }}
@@ -228,9 +252,9 @@ async function apply() {
       </details>
 
       <details v-if="layout.overflow.length" class="card">
-        <summary><strong>{{ layout.overflow.length }} CD sans place</strong></summary>
+        <summary><strong>{{ layout.overflow.length }} {{ w.many }} sans place</strong></summary>
         <ul class="small plain">
-          <li v-for="cd in layout.overflow" :key="cd.id">{{ cd.artist }} — {{ cd.title }}</li>
+          <li v-for="cd in layout.overflow" :key="cd.id">{{ neighbour(cd) }}</li>
         </ul>
       </details>
     </template>

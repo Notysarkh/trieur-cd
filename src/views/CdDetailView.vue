@@ -11,7 +11,7 @@ import WhereToShelve from '../components/WhereToShelve.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { computePlan } from '../services/classification'
 import { locationLabel, releasePlacement } from '../services/layout'
-import { settings } from '../services/settings'
+import { layoutAppliedAtFor } from '../services/settings'
 import { artistKey, groupKeyOf } from '../classification/engine'
 import { mediaOf } from '../lib/media'
 
@@ -71,11 +71,13 @@ async function save(status?: CdStatus) {
     sortSpread.value = others.length
   }
   const themeChoiceChanged =
-    before.themeOverride !== edited.value.themeOverride || !!before.personalCompilation !== !!edited.value.personalCompilation
+    before.themeOverride !== edited.value.themeOverride ||
+    !!before.personalCompilation !== !!edited.value.personalCompilation ||
+    before.platform !== edited.value.platform
   moved.value = 0
-  if (themeChoiceChanged && settings.layoutAppliedAt && mediaOf(before) === 'cd') {
-    // Le CD change-t-il vraiment de thème par rapport au rangement appliqué ?
-    const plan = await computePlan('cd')
+  if (themeChoiceChanged && layoutAppliedAtFor(mediaOf(before))) {
+    // L'objet change-t-il vraiment de thème par rapport au rangement appliqué ?
+    const plan = await computePlan(mediaOf(before))
     const newTheme = plan.placement.get(props.id)?.themeId
     if (newTheme && newTheme !== before.themeId) {
       moved.value = await releasePlacement(edited.value, !edited.value.personalCompilation && !before.personalCompilation)
@@ -108,7 +110,7 @@ async function remove() {
         </div>
       </div>
 
-      <details v-if="live && mediaOf(live) === 'cd' && (live.location || settings.layoutAppliedAt)" class="card" :open="!live.shelvedAt">
+      <details v-if="live && (live.location || layoutAppliedAtFor(mediaOf(live)))" class="card" :open="!live.shelvedAt">
         <summary>
           <strong>📦 Où le ranger</strong>
           <span v-if="live.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(live) }}</span>

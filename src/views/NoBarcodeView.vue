@@ -10,18 +10,21 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { withoutBarcode } from '../services/collection'
 import { setShelved } from '../services/shelving'
 import { inShelfOrder, type ShelfEntry } from '../services/layout'
-import { settings } from '../services/settings'
+import { layoutAppliedAtFor, rulesFor } from '../services/settings'
+import { useMedia } from '../composables/useMedia'
+import { platformLabel } from '../lib/platforms'
 
 // CD sans code-barres : méthode de la « pile triée ».
 // 1) L'appli affiche ces CD dans l'ordre exact du rangement final ; tu tries ta pile physique dans cet ordre.
 // 2) Tu les ranges un par un : la fiche « Où le ranger » s'ouvre, « Rangé ✓ » passe au suivant tout seul.
 
-const all = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const { media, w } = useMedia()
+const all = useLiveQuery(() => itemsOf(media.value), [] as Cd[])
 const artistInfos = useLiveQuery(
   async () => new Map((await db.artists.toArray()).map((a) => [a.mbArtistId, a])),
   new Map<string, ArtistInfo>(),
 )
-const plan = computed(() => buildPlan(all.value, settings.classification, artistInfos.value))
+const plan = computed(() => buildPlan(all.value, rulesFor(media.value), artistInfos.value))
 
 const step = ref<'trier' | 'ranger'>('trier')
 const themeFilter = ref('tous')
@@ -31,9 +34,14 @@ const search = ref('')
 const themeOf = (cd: Cd) => {
   // CD pas encore placé : le thème du classement actuel (son thème appliqué a pu changer depuis).
   const id = (!cd.location && plan.value.placement.get(cd.id)?.themeId) || cd.themeId || plan.value.placement.get(cd.id)?.themeId
-  return (id && settings.classification.themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
+  return (id && rulesFor(media.value).themes.find((t) => t.id === id)) || UNCLASSIFIED_THEME
 }
-const name = (cd: Cd) => (cd.personalCompilation || cd.isCompilation ? cd.title : cd.artist)
+/** Ligne principale (CD : l'artiste ; livres, films, jeux : le titre) et ligne secondaire. */
+const name = (cd: Cd) => (cd.personalCompilation || cd.isCompilation || media.value !== 'cd' ? cd.title : cd.artist)
+const sub = (cd: Cd) =>
+  media.value === 'cd'
+    ? cd.personalCompilation || cd.isCompilation ? '' : cd.title
+    : [cd.platform ? platformLabel(cd.platform) : '', cd.artist].filter(Boolean).join(' · ')
 
 const noBarcode = computed(() => all.value.filter(withoutBarcode))
 const toShelve = computed(() => noBarcode.value.filter((c) => !c.shelvedAt).length)
@@ -51,11 +59,11 @@ const pile = computed<ShelfEntry[]>(() => {
 })
 // Avec une recherche, les meilleures correspondances d'abord (pour retrouver un CD isolé).
 const shown = computed(() =>
-  fuzzyFilter(pile.value, search.value, (e) => `${e.cd.artist} ${e.cd.artistSort} ${e.cd.title} ${e.cd.year ?? ''}`),
+  fuzzyFilter(pile.value, search.value, (e) => `${e.cd.artist} ${e.cd.artistSort} ${e.cd.title} ${e.cd.series ?? ''} ${e.cd.year ?? ''}`),
 )
 const themesPresent = computed(() => {
   const ids = new Set(noBarcode.value.map((cd) => themeOf(cd).id))
-  return [...settings.classification.themes, UNCLASSIFIED_THEME].filter((t) => ids.has(t.id))
+  return [...rulesFor(media.value).themes, UNCLASSIFIED_THEME].filter((t) => ids.has(t.id))
 })
 
 // --- Étape « Ranger » : le CD en cours et le passage automatique au suivant ---
@@ -97,10 +105,10 @@ function next(done: Cd) {
 <template>
   <main class="page stack">
     <RouterLink to="/rangement" class="small">← Retour au rangement</RouterLink>
-    <h1>CD sans code-barres</h1>
+    <h1>{{ w.many.charAt(0).toUpperCase() + w.many.slice(1) }} sans code-barres</h1>
     <p class="small muted">
       {{ toShelve }} à ranger sur {{ noBarcode.length }}.
-      <template v-if="!settings.layoutAppliedAt"> Applique d'abord le rangement (onglet Rangement) pour connaître leur place.</template>
+      <template v-if="!layoutAppliedAtFor(media)"> Applique d'abord le rangement (onglet Rangement) pour connaître leur place.</template>
     </p>
 
     <div class="steps" role="tablist">
@@ -119,11 +127,11 @@ function next(done: Cd) {
     <!-- 1. Trier la pile -->
     <template v-if="step === 'trier'">
       <p class="notice small">
-        Trie ta pile dans cet ordre : le n° 1 sur le dessus. Ensuite, passe à « 2. Ranger ». Tu peux aussi toucher un CD
+        Trie ta pile dans cet ordre : le n° 1 sur le dessus. Ensuite, passe à « 2. Ranger ». Tu peux aussi toucher un {{ w.one }}
         pour ouvrir directement sa fiche.
       </p>
       <div class="row">
-        <input v-model="search" type="search" class="grow" placeholder="Retrouver un CD (artiste, titre…)" aria-label="Rechercher" />
+        <input v-model="search" type="search" class="grow" :placeholder="`Retrouver un ${w.one} (titre, ${w.creator}…)`" aria-label="Rechercher" />
         <RouterLink class="btn" to="/imprimer/sans-code">🖨️ Liste à cocher</RouterLink>
       </div>
       <ol class="pile">
@@ -133,7 +141,7 @@ function next(done: Cd) {
             <CoverImage :urls="e.cd.coverUrls" :photo="e.cd.coverPhoto" :label="e.cd.title" :size="48" />
             <span class="grow text">
               <span class="artist">{{ name(e.cd) }}</span>
-              <span v-if="!e.cd.personalCompilation && !e.cd.isCompilation" class="title">{{ e.cd.title }}</span>
+              <span v-if="sub(e.cd)" class="title">{{ sub(e.cd) }}</span>
               <span class="meta">
                 <span class="theme">{{ themeOf(e.cd).name }}</span>
                 <template v-if="e.slotLabel"> · {{ e.slotLabel }} · n° {{ e.position }}</template>
@@ -144,7 +152,7 @@ function next(done: Cd) {
         </li>
       </ol>
       <p v-if="!shown.length" class="notice notice-ok">
-        {{ search ? 'Aucun CD ne correspond.' : 'Aucun CD sans code-barres à ranger. 🎉' }}
+        {{ search ? `Aucun ${w.one} ne correspond.` : `Aucun ${w.one} sans code-barres à ranger. 🎉` }}
       </p>
       <button v-if="shown.length && !search" class="btn btn-primary btn-big" @click="step = 'ranger'">
         Pile triée : commencer le rangement →
@@ -156,16 +164,16 @@ function next(done: Cd) {
       <template v-if="current">
         <div class="row nav">
           <button class="btn btn-small" :disabled="currentIndex <= 0" @click="go(-1)">◀</button>
-          <span class="grow center">CD <strong>{{ currentIndex + 1 }}</strong> / {{ pile.length }} de la pile</span>
+          <span class="grow center">{{ w.one.charAt(0).toUpperCase() + w.one.slice(1) }} <strong>{{ currentIndex + 1 }}</strong> / {{ pile.length }} de la pile</span>
           <button class="btn btn-small" :disabled="currentIndex >= pile.length - 1" @click="go(1)">▶</button>
         </div>
         <button v-if="lastDone" class="btn btn-small undo" @click="undoLast">
           ↩ Annuler le dernier : « {{ name(lastDone) }} »
         </button>
-        <WhereToShelve :key="current.cd.id" :cd-id="current.cd.id" done-label="CD suivant" @done="next" @close="step = 'trier'" />
+        <WhereToShelve :key="current.cd.id" :cd-id="current.cd.id" :done-label="`${w.one.charAt(0).toUpperCase() + w.one.slice(1)} suivant`" @done="next" @close="step = 'trier'" />
       </template>
       <template v-else>
-        <p class="notice notice-ok">Tous les CD sans code-barres de cette sélection sont rangés. 🎉</p>
+        <p class="notice notice-ok">Tous les {{ w.many }} sans code-barres de cette sélection sont rangés. 🎉</p>
         <button v-if="lastDone" class="btn btn-small" @click="undoLast">↩ Annuler le dernier : « {{ name(lastDone) }} »</button>
       </template>
     </template>

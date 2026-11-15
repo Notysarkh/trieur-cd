@@ -1,4 +1,5 @@
-import { titleSortKey } from '../classification/engine'
+import { seriesSortKey, titleSortKey } from '../classification/engine'
+import { mediaOf } from '../lib/media'
 import type { ThemeDef } from '../classification/themes'
 import type { Cd } from '../db/types'
 import { buildSlots, type Furniture } from './furniture'
@@ -26,6 +27,12 @@ export function sortLetter(cd: Cd, theme: ThemeDef | undefined): string {
   const key =
     theme?.sortBy === 'titre' || cd.isCompilation || cd.personalCompilation
       ? titleSortKey(cd.title)
+      : theme?.sortBy === 'serie'
+        ? cd.series
+          ? seriesSortKey(cd.series)
+          : mediaOf(cd) === 'video'
+            ? titleSortKey(cd.title)
+            : cd.artistSort || cd.artist
       : theme?.sortBy === 'compositeur'
         ? cd.composer?.trim() || cd.artistSort || cd.artist
         : cd.artistSort || cd.artist

@@ -15,7 +15,7 @@ declare module 'vue-router' {
 }
 
 /** Écrans de rangement : les CD seulement (livres, films et jeux : étape E). */
-const cdOnly = { onlyFor: ['cd'] as MediaKind[] }
+const cdOnly = { onlyFor: ['cd', 'livre', 'video', 'jeu'] as MediaKind[] }
 /** Scan, ajout et classement : CD, livres et films (jeux : étape D). */
 const cdAndBooks = { onlyFor: ['cd', 'livre', 'video', 'jeu'] as MediaKind[] }
 

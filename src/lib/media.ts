@@ -33,3 +33,14 @@ export function mediaInfo(id: MediaKind): MediaInfo {
 export function mediaOf(item: { media?: MediaKind }): MediaKind {
   return item.media ?? 'cd'
 }
+
+/**
+ * Nom court d'un objet dans les listes de rangement :
+ * CD « Artiste — Album » (compilation : son titre) ; livre « Titre (Auteur) » ; film ou jeu : son titre.
+ */
+export function itemLabel(item: { media?: MediaKind; artist: string; title: string; isCompilation: boolean }): string {
+  const m = mediaOf(item)
+  if (m === 'cd') return item.isCompilation ? item.title : `${item.artist} — ${item.title}`
+  if (m === 'livre') return `${item.title} (${item.artist})`
+  return item.title
+}

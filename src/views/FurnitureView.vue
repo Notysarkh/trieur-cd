@@ -2,15 +2,19 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { newId } from '../db/database'
 import {
+  caseMediaOf,
   furnitureCapacity,
+  furnitureFor,
   furnitureFromModel,
   furnitureWarnings,
   MODELS,
   type Furniture,
 } from '../layout/furniture'
-import { saveSetting, settings } from '../services/settings'
+import { currentMedia, saveSetting, settings } from '../services/settings'
+import { MEDIA, type MediaKind } from '../lib/media'
 
-// Configurateur de meubles : dimensions, nombre de niveaux, double rangée, cases réservées, ordre de remplissage.
+// Configurateur de meubles : dimensions, nombre de niveaux, double rangée, univers de chaque case
+// (CD, livres, films, jeux, ou réservée à autre chose), ordre de remplissage.
 // Chaque modification est enregistrée immédiatement.
 
 const list = reactive<Furniture[]>(JSON.parse(JSON.stringify(settings.furniture)))
@@ -35,8 +39,10 @@ function commit() {
 }
 
 const total = computed(() =>
-  list.reduce((sum, f) => sum + furnitureCapacity(f).standardCds, 0),
+  furnitureFor(list, 'cd').reduce((sum, f) => sum + furnitureCapacity(f).standardCds, 0),
 )
+/** Mètres de rangée d'un meuble (toutes ses cases utilisées). */
+const meters = (f: Furniture) => (furnitureCapacity(f).mm / 1000).toFixed(1).replace('.', ',')
 
 function move(i: number, delta: number) {
   const j = i + delta
@@ -47,7 +53,7 @@ function move(i: number, delta: number) {
 }
 
 function remove(f: Furniture) {
-  if (!window.confirm(`Retirer « ${f.name} » ? Les CD qui y étaient seront répartis ailleurs au prochain calcul.`)) return
+  if (!window.confirm(`Retirer « ${f.name} » ? Ce qui y était rangé sera réparti ailleurs au prochain calcul.`)) return
   list.splice(list.indexOf(f), 1)
   void commit()
 }
@@ -60,13 +66,38 @@ function add() {
   let name = model.name
   for (let k = 2; list.some((x) => x.name === name); k++) name = `${model.name} ${k}`
   f.name = name
+  // Un meuble ajouté depuis un univers lui est attribué (modifiable ensuite).
+  if (currentMedia() !== 'cd') f.media = currentMedia()
   list.push(f)
   void commit()
 }
 
-function toggleCase(f: Furniture, level: number, column: number) {
+type CaseUse = MediaKind | 'reserve'
+const RESERVED_LABEL = '🚫 Autre chose'
+
+function caseUse(f: Furniture, level: number, column: number): CaseUse {
+  return f.reserved.includes(`${level}-${column}`) ? 'reserve' : caseMediaOf(f, level, column)
+}
+
+/** Univers d'une case (ou réservée à autre chose : déco, objets…). */
+function setCase(f: Furniture, level: number, column: number, use: CaseUse) {
   const key = `${level}-${column}`
-  f.reserved = f.reserved.includes(key) ? f.reserved.filter((k) => k !== key) : [...f.reserved, key]
+  const caseMedia = { ...f.caseMedia }
+  delete caseMedia[key]
+  f.reserved = f.reserved.filter((k) => k !== key)
+  if (use === 'reserve') f.reserved.push(key)
+  else if (use !== (f.media ?? 'cd')) caseMedia[key] = use
+  f.caseMedia = Object.keys(caseMedia).length ? caseMedia : undefined
+  void commit()
+}
+
+/** Univers du meuble entier : les cases attribuées à part le restent. */
+function setMedia(f: Furniture, media: MediaKind) {
+  f.media = media === 'cd' ? undefined : media
+  if (f.caseMedia) {
+    const kept = Object.fromEntries(Object.entries(f.caseMedia).filter(([, m]) => m !== media))
+    f.caseMedia = Object.keys(kept).length ? kept : undefined
+  }
   void commit()
 }
 
@@ -90,9 +121,18 @@ const modelNote = computed(() => MODELS.find((m) => m.key === modelKey.value)?.n
         <button class="btn btn-small" :disabled="i === list.length - 1" aria-label="Remplir après" @click="move(i, 1)">↓</button>
       </div>
       <p class="small muted">
-        Modèle : {{ f.model }} · {{ furnitureCapacity(f).perRow }} CD standard par rangée ·
-        <strong>≈ {{ furnitureCapacity(f).standardCds }} CD</strong> au total
+        Modèle : {{ f.model }} · {{ meters(f) }} m de rangées
+        <template v-if="(f.media ?? 'cd') === 'cd'">
+          · {{ furnitureCapacity(f).perRow }} CD standard par rangée · <strong>≈ {{ furnitureCapacity(f).standardCds }} CD</strong> au total
+        </template>
       </p>
+
+      <label class="field">
+        Univers rangé dans ce meuble
+        <select :value="f.media ?? 'cd'" @change="setMedia(f, ($event.target as HTMLSelectElement).value as MediaKind)">
+          <option v-for="m in MEDIA" :key="m.id" :value="m.id">{{ m.icon }} {{ m.label }}</option>
+        </select>
+      </label>
 
       <div class="form-grid">
         <label class="field">
@@ -137,17 +177,20 @@ const modelNote = computed(() => MODELS.find((m) => m.key === modelKey.value)?.n
 
       <div>
         <p class="small muted label">
-          Cases utilisées pour les CD (décoche celles réservées à autre chose : livres, déco…)
+          Ce que contient chaque case (un meuble peut être partagé : ex. un niveau pour les films, les autres pour les CD)
         </p>
         <div class="cases" :style="{ gridTemplateColumns: `repeat(${f.columns}, minmax(0, 1fr))` }">
           <template v-for="level in f.levels" :key="level">
-            <label v-for="column in f.columns" :key="`${level}-${column}`" class="case" :class="{ off: f.reserved.includes(`${level}-${column}`) }">
-              <input
-                type="checkbox"
-                :checked="!f.reserved.includes(`${level}-${column}`)"
-                @change="toggleCase(f, level, column)"
-              />
-              <span>Niv. {{ level }}<template v-if="f.columns > 1"> · case {{ column }}</template></span>
+            <label v-for="column in f.columns" :key="`${level}-${column}`" class="case" :class="{ off: caseUse(f, level, column) === 'reserve' }">
+              <span class="case-name">Niv. {{ level }}<template v-if="f.columns > 1"> · case {{ column }}</template></span>
+              <select
+                :value="caseUse(f, level, column)"
+                :aria-label="`Contenu du niveau ${level}${f.columns > 1 ? ` case ${column}` : ''}`"
+                @change="setCase(f, level, column, ($event.target as HTMLSelectElement).value as CaseUse)"
+              >
+                <option v-for="m in MEDIA" :key="m.id" :value="m.id">{{ m.icon }} {{ m.label }}</option>
+                <option value="reserve">{{ RESERVED_LABEL }}</option>
+              </select>
             </label>
           </template>
         </div>
@@ -199,9 +242,15 @@ const modelNote = computed(() => MODELS.find((m) => m.key === modelKey.value)?.n
   background: var(--surface-2);
   cursor: pointer;
 }
-.case input {
-  width: 18px;
-  height: 18px;
+.case select {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  min-height: 32px;
+}
+.case-name {
+  white-space: nowrap;
 }
 .case.off {
   background: repeating-linear-gradient(45deg, transparent 0 6px, var(--border) 6px 8px);

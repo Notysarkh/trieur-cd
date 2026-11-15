@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMedia } from '../composables/useMedia'
 import { computed } from 'vue'
 import type { Furniture } from '../layout/furniture'
 import type { SlotContent } from '../layout/packer'
@@ -18,6 +19,8 @@ const byCase = computed(() => {
   }
   return m
 })
+
+const { w } = useMedia()
 
 function rowName(s: SlotContent): string {
   const parts: string[] = []
@@ -40,7 +43,7 @@ const pct = (s: SlotContent) => Math.round((s.usedMm / s.slot.capacityMm) * 100)
             :key="s.slot.id"
             class="row-band"
             :class="{ selected: selected === s.slot.id, empty: !s.cds.length }"
-            :aria-label="`${s.slot.label} : ${s.cds.length} CD`"
+            :aria-label="`${s.slot.label} : ${s.cds.length} ${s.cds.length > 1 ? w.many : w.one}`"
             @click="emit('select', s.slot.id)"
           >
             <span class="fill">
@@ -57,7 +60,7 @@ const pct = (s: SlotContent) => Math.round((s.usedMm / s.slot.capacityMm) * 100)
                 <template v-else>vide</template>
               </span>
               <span class="meta">
-                <template v-if="rowName(s)">{{ rowName(s) }} · </template>{{ s.cds.length }} CD · {{ pct(s) }} %
+                <template v-if="rowName(s)">{{ rowName(s) }} · </template>{{ s.cds.length }} {{ s.cds.length > 1 ? w.many : w.one }} · {{ pct(s) }} %
               </span>
             </span>
           </button>

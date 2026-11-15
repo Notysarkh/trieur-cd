@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useMedia } from '../composables/useMedia'
+import { furnitureFor } from '../layout/furniture'
+import { itemLabel } from '../lib/media'
+import { platformLabel } from '../lib/platforms'
+import { rulesFor } from '../services/settings'
 import { computed, ref } from 'vue'
 import { UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
@@ -11,14 +16,17 @@ import { settings } from '../services/settings'
 // Il s'appuie sur les emplacements ENREGISTRÉS (dernier rangement appliqué + CD insérés depuis).
 // « Imprimer » ouvre la fenêtre d'impression du navigateur : choisis « Enregistrer en PDF » pour un PDF.
 
-const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const { media, w } = useMedia()
+const cds = useLiveQuery(() => itemsOf(media.value), [] as Cd[])
 const showYears = ref(true)
 const pagePerFurniture = ref(true)
 
-const themes = computed(() => new Map(settings.classification.themes.map((t) => [t.id, t])))
+const themes = computed(() => new Map(rulesFor(media.value).themes.map((t) => [t.id, t])))
 const themeOf = (cd: Cd) => (cd.themeId && themes.value.get(cd.themeId)) || UNCLASSIFIED_THEME
 
-const slots = computed(() => buildSlots(settings.furniture))
+/** Les meubles (ou parties de meubles) de cet univers. */
+const myFurniture = computed(() => furnitureFor(settings.furniture, media.value))
+const slots = computed(() => buildSlots(myFurniture.value))
 const bySlot = computed(() => {
   const m = new Map<string, Cd[]>()
   for (const cd of cds.value) if (cd.location) m.set(cd.location.slotId, [...(m.get(cd.location.slotId) ?? []), cd])
@@ -26,7 +34,7 @@ const bySlot = computed(() => {
   return m
 })
 const furnitureBlocks = computed(() =>
-  settings.furniture.map((f) => ({
+  myFurniture.value.map((f) => ({
     furniture: f,
     rows: slots.value
       .filter((s) => s.furnitureId === f.id)
@@ -56,13 +64,13 @@ const print = () => window.print()
         Dans la fenêtre d'impression, choisis « Enregistrer au format PDF » comme imprimante pour obtenir un fichier.
       </p>
       <p v-if="!placedCount" class="notice notice-warn">
-        Aucun CD n'a encore d'emplacement : applique d'abord le rangement (onglet Rangement).
+        Aucun {{ w.one }} n'a encore d'emplacement : applique d'abord le rangement (onglet Rangement).
       </p>
     </div>
 
     <header class="doc-head">
       <h1>Plan de rangement</h1>
-      <p class="small">{{ placedCount }} CD rangés · {{ today }}</p>
+      <p class="small">{{ placedCount }} {{ w.many }} rangés · {{ today }}</p>
     </header>
 
     <section
@@ -76,7 +84,7 @@ const print = () => window.print()
         <article v-for="r in b.rows" :key="r.slot.id" class="row-block">
           <h3>
             {{ r.slot.label.replace(`${b.furniture.name} · `, '') }}
-            <span class="small muted">· {{ r.cds.length }} CD</span>
+            <span class="small muted">· {{ r.cds.length }} {{ r.cds.length > 1 ? w.many : w.one }}</span>
           </h3>
           <p v-if="r.cds.length" class="themes small">
             <span v-for="t in rowThemes(r.cds)" :key="t.id" class="theme-chip">
@@ -85,8 +93,13 @@ const print = () => window.print()
           </p>
           <ol v-if="r.cds.length" class="list">
             <li v-for="cd in r.cds" :key="cd.id">
-              <strong>{{ cd.isCompilation ? cd.title : cd.artist }}</strong>
-              <template v-if="!cd.isCompilation"> — {{ cd.title }}</template>
+              <template v-if="media === 'cd'">
+                <strong>{{ cd.isCompilation ? cd.title : cd.artist }}</strong>
+                <template v-if="!cd.isCompilation"> — {{ cd.title }}</template>
+              </template>
+              <template v-else>
+                <strong>{{ cd.title }}</strong> — {{ cd.platform ? platformLabel(cd.platform) : cd.artist }}
+              </template>
               <span v-if="showYears && cd.year" class="muted"> ({{ cd.year }})</span>
             </li>
           </ol>
@@ -97,9 +110,9 @@ const print = () => window.print()
 
     <section v-if="unplaced.length && placedCount" class="furniture new-page">
       <h2>À ranger ({{ unplaced.length }})</h2>
-      <p class="small muted">CD ajoutés depuis le dernier rangement : l'onglet Rangement indique où les glisser.</p>
+      <p class="small muted">{{ w.many.charAt(0).toUpperCase() + w.many.slice(1) }} ajoutés depuis le dernier rangement : l'onglet Rangement indique où les glisser.</p>
       <ul class="list">
-        <li v-for="cd in unplaced" :key="cd.id">{{ cd.artist }} — {{ cd.title }}</li>
+        <li v-for="cd in unplaced" :key="cd.id">{{ itemLabel(cd) }}</li>
       </ul>
     </section>
   </main>

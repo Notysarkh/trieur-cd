@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useMedia } from '../composables/useMedia'
+import { furnitureFor } from '../layout/furniture'
+import { rulesFor } from '../services/settings'
 import { computed, ref } from 'vue'
 import { UNCLASSIFIED_THEME } from '../classification/engine'
 import { useLiveQuery } from '../composables/useLiveQuery'
@@ -14,16 +17,17 @@ import { settings } from '../services/settings'
 // - « Intercalaires » 12 × 14 cm, 2 par page : à coller sur du carton et glisser entre les CD,
 //   le haut dépasse des boîtiers (12,5 cm de haut) et porte le texte.
 
-const cds = useLiveQuery(() => itemsOf('cd'), [] as Cd[])
+const { media, w } = useMedia()
+const cds = useLiveQuery(() => itemsOf(media.value), [] as Cd[])
 const mode = ref<LabelMode>('rangee')
 const format = ref<'etiquette' | 'intercalaire'>('etiquette')
 const showWhere = ref(true)
 
-const themes = computed(() => new Map(settings.classification.themes.map((t) => [t.id, t])))
+const themes = computed(() => new Map(rulesFor(media.value).themes.map((t) => [t.id, t])))
 const labels = computed(() =>
   buildLabels(
     cds.value,
-    settings.furniture,
+    furnitureFor(settings.furniture, media.value),
     (cd) => (cd.themeId && themes.value.get(cd.themeId)) || UNCLASSIFIED_THEME,
     mode.value,
   ),
@@ -64,7 +68,7 @@ const MODES: Record<LabelMode, string> = {
         </button>
       </div>
       <p v-if="!labels.length" class="notice notice-warn">
-        Aucun CD n'a encore d'emplacement : applique d'abord le rangement (onglet Rangement).
+        Aucun {{ w.one }} n'a encore d'emplacement : applique d'abord le rangement (onglet Rangement).
       </p>
       <p v-else class="small muted">
         Dans la fenêtre d'impression : format A4, échelle 100 % (« taille réelle »), marges « par défaut ».

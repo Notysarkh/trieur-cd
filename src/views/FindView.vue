@@ -10,7 +10,8 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { shelvedDate } from '../services/collection'
 import { shortLocation } from '../services/layout'
 import { currentMedia } from '../services/settings'
-import { mediaOf } from '../lib/media'
+import { itemLabel, mediaInfo, mediaOf } from '../lib/media'
+import { platformLabel } from '../lib/platforms'
 
 // « Où est ce CD ? » : tu tapes quelques lettres (même avec une faute), tu touches le CD,
 // et la fiche montre son emplacement et ses voisins (prévus par le plan et réellement posés).
@@ -18,11 +19,13 @@ import { mediaOf } from '../lib/media'
 const everything = useLiveQuery(() => db.cds.toArray(), [] as Cd[])
 /** On cherche dans l'univers en cours. */
 const all = computed(() => everything.value.filter((c) => mediaOf(c) === currentMedia()))
+const w = computed(() => mediaInfo(currentMedia()))
 const query = ref('')
 const selectedId = ref<string>()
 const input = ref<HTMLInputElement>()
 
-const text = (cd: Cd) => `${cd.artist} ${cd.artistSort} ${cd.title} ${cd.composer ?? ''} ${cd.label ?? ''} ${cd.year ?? ''}`
+const text = (cd: Cd) =>
+  `${cd.artist} ${cd.artistSort} ${cd.title} ${cd.series ?? ''} ${cd.composer ?? ''} ${cd.label ?? ''} ${cd.year ?? ''} ${cd.platform ? platformLabel(cd.platform) : ''}`
 const results = computed(() => {
   const q = query.value.trim()
   if (q.length < 2) return []
@@ -30,7 +33,7 @@ const results = computed(() => {
   if (digits.length >= 5) return all.value.filter((cd) => cd.barcode?.includes(digits)).slice(0, 10)
   return fuzzyFilter(all.value, q, text).slice(0, 10)
 })
-const name = (cd: Cd) => (cd.personalCompilation || cd.isCompilation ? cd.title : `${cd.artist} – ${cd.title}`)
+const name = (cd: Cd) => (cd.personalCompilation ? cd.title : itemLabel(cd))
 
 function pick(cd: Cd) {
   selectedId.value = cd.id
@@ -47,7 +50,7 @@ onMounted(() => input.value?.focus())
 
 <template>
   <main class="page stack">
-    <h1>Où est ce CD ?</h1>
+    <h1>Où est ce {{ w.one }} ?</h1>
 
     <template v-if="!selectedId">
       <input
@@ -55,8 +58,8 @@ onMounted(() => input.value?.focus())
         v-model="query"
         type="search"
         class="big-input"
-        placeholder="Artiste, titre, année… (les fautes passent)"
-        aria-label="Rechercher un CD"
+        :placeholder="`${currentMedia() === 'cd' ? 'Artiste' : currentMedia() === 'livre' ? 'Auteur, série' : currentMedia() === 'jeu' ? 'Console' : 'Réalisateur'}, titre, année… (les fautes passent)`"
+        :aria-label="`Rechercher un ${w.one}`"
         autocomplete="off"
       />
       <ul class="results">
@@ -74,7 +77,7 @@ onMounted(() => input.value?.focus())
           </button>
         </li>
       </ul>
-      <p v-if="query.trim().length >= 2 && !results.length" class="notice">Aucun CD ne correspond.</p>
+      <p v-if="query.trim().length >= 2 && !results.length" class="notice">Aucun {{ w.one }} ne correspond.</p>
       <p v-else-if="query.trim().length < 2" class="small muted">Tape au moins 2 lettres, ou un code-barres.</p>
     </template>
 

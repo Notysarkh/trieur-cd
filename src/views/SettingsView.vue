@@ -261,11 +261,11 @@ async function wipeAll() {
         </label>
       </div>
       <p class="small muted">
-        Tableur (Excel, LibreOffice) : la liste complète avec thème et emplacement. À l'import, une ligne avec un « id »
+        Tableur (Excel, LibreOffice), <strong>CD seulement</strong> : la liste complète avec thème et emplacement. À l'import, une ligne avec un « id »
         connu met ce CD à jour (cellules vides = inchangé) ; une ligne sans id ajoute un CD.
       </p>
       <div class="row">
-        <button class="btn" @click="exportCsv">📊 Exporter en CSV</button>
+        <button class="btn" @click="exportCsv">📊 Exporter mes CD en CSV</button>
         <label class="btn">
           📥 Importer un CSV
           <input type="file" accept=".csv,text/csv" hidden @change="importCsvFile" />

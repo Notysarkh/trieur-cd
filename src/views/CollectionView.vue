@@ -10,7 +10,7 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { normalizeText } from '../lib/text'
 import { shelvedDate, updateCd, withoutBarcode } from '../services/collection'
 import { shortLocation } from '../services/layout'
-import { currentMedia, rulesFor, settings } from '../services/settings'
+import { currentMedia, layoutAppliedAtFor, rulesFor } from '../services/settings'
 import { seriesLabel } from '../classification/engine'
 import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { platformLabel } from '../lib/platforms'
@@ -181,7 +181,7 @@ async function confirm(cd: Cd) {
               <span v-if="cd.shelvedAt" class="badge badge-ok">✓ rangé le {{ shelvedDate(cd) }}</span>
               <span v-else class="badge badge-warn">à ranger</span>
             </div>
-            <div v-else-if="settings.layoutAppliedAt && !isBook && !isVideo && !isGame" class="small muted">📍 à ranger (voir la fiche)</div>
+            <div v-else-if="layoutAppliedAtFor(currentMedia())" class="small muted">📍 à ranger (voir la fiche)</div>
             <span v-if="withoutBarcode(cd)" class="badge badge-info nocode">sans code-barres</span>
             <div v-if="reviewMode" class="muted small reasons">{{ cd.confidenceReasons.join(' · ') }}</div>
           </div>

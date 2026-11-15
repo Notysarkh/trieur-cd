@@ -4,7 +4,7 @@ import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, mi
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import type { MediaKind } from '../lib/media'
 import type { Platform } from '../db/types'
-import { DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
+import { addV2Furniture, DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
 // Les réglages de l'appli, gardés dans la base locale.
 // Le jeton Discogs est saisi dans l'écran Réglages : il n'est JAMAIS écrit dans le code,
@@ -44,8 +44,14 @@ export interface Settings {
   furniture: Furniture[]
   /** Options de répartition (marge de croissance…). */
   layout: LayoutOptions
-  /** Date de la dernière répartition appliquée (0 = jamais). */
+  /** Date de la dernière répartition des CD appliquée (0 = jamais). */
   layoutAppliedAt: number
+  /** Dates des dernières répartitions des autres univers (v2, étape E). */
+  bookLayoutAppliedAt: number
+  videoLayoutAppliedAt: number
+  gameLayoutAppliedAt: number
+  /** Meubles des livres, films et jeux ajoutés (v2, étape E) : 0 = pas encore fait sur cet appareil. */
+  furnitureV2: number
 }
 
 const DEFAULTS: Settings = {
@@ -69,6 +75,10 @@ const DEFAULTS: Settings = {
   furniture: defaultFurniture(),
   layout: { ...DEFAULT_LAYOUT_OPTIONS },
   layoutAppliedAt: 0,
+  bookLayoutAppliedAt: 0,
+  videoLayoutAppliedAt: 0,
+  gameLayoutAppliedAt: 0,
+  furnitureV2: 0,
 }
 
 /** Les réglages en mémoire ; l'interface se met à jour toute seule quand ils changent. */
@@ -95,6 +105,11 @@ export function loadSettings(): Promise<void> {
         await db.cds.filter((c) => c.themeOverride === 'folk').modify({ themeOverride: 'monde' })
       }
       await saveSetting('classification', migrated)
+    }
+    // v2, étape E : meubles des livres, des films (Billy niveau 1) et des jeux, ajoutés une seule fois.
+    if (!settings.furnitureV2) {
+      await saveSetting('furniture', addV2Furniture(settings.furniture))
+      await saveSetting('furnitureV2', 1)
     }
   })()
   return loaded
@@ -127,6 +142,24 @@ export function appliedAtKey(media: MediaKind): AppliedAtKey {
 /** Date du dernier classement appliqué dans un univers (0 = jamais). */
 export function appliedAtFor(media: MediaKind): number {
   return settings[appliedAtKey(media)]
+}
+
+type LayoutKey = 'layoutAppliedAt' | 'bookLayoutAppliedAt' | 'videoLayoutAppliedAt' | 'gameLayoutAppliedAt'
+const LAYOUT_KEYS: Record<MediaKind, LayoutKey> = {
+  cd: 'layoutAppliedAt',
+  livre: 'bookLayoutAppliedAt',
+  video: 'videoLayoutAppliedAt',
+  jeu: 'gameLayoutAppliedAt',
+}
+
+/** Le réglage qui garde la date du dernier rangement appliqué dans un univers. */
+export function layoutKey(media: MediaKind): LayoutKey {
+  return LAYOUT_KEYS[media]
+}
+
+/** Date du dernier rangement appliqué dans un univers (0 = jamais). */
+export function layoutAppliedAtFor(media: MediaKind): number {
+  return settings[LAYOUT_KEYS[media]]
 }
 
 /** L'univers en cours (CD par défaut). */
