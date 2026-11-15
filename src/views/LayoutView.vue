@@ -208,13 +208,15 @@ async function apply() {
       <section v-if="layout.tooTall.length" class="card stack">
         <h2 class="legend-title">Trop hauts pour leur étagère ({{ layout.tooTall.length }})</h2>
         <p class="small muted">
-          Ces {{ w.many }} ne tiennent pas debout à l'endroit prévu. Remonte la tablette (puis corrige sa hauteur utile dans
-          « Mes meubles »), ou corrige la hauteur de l'objet sur sa fiche si elle est fausse.
+          Ces {{ w.many }} dépassent de la hauteur de leur case à l'endroit prévu. Remonte la tablette (puis corrige sa
+          hauteur utile dans « Mes meubles »), ou corrige la hauteur de l'objet sur sa fiche si elle est fausse. Si tu les
+          ranges couchés, tranche vers le haut (tiroir, bac), choisis « Couchés » pour ce meuble dans « Mes meubles ».
         </p>
         <ul class="small plain">
           <li v-for="t in layout.tooTall.slice(0, 50)" :key="t.cd.id">
             <RouterLink :to="{ name: 'cd', params: { id: t.cd.id } }">{{ neighbour(t.cd) }}</RouterLink> :
-            {{ String(t.heightCm).replace('.', ',') }} cm pour {{ String(t.shelfCm).replace('.', ',') }} cm ({{ t.slotLabel }})
+            {{ String(t.heightCm).replace('.', ',') }} cm{{ t.lying ? ' de large (couché)' : '' }} pour
+            {{ String(t.shelfCm).replace('.', ',') }} cm ({{ t.slotLabel }})
           </li>
         </ul>
       </section>

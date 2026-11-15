@@ -1,5 +1,6 @@
 import type { Cd } from '../db/types'
 import { mediaOf, type MediaKind } from '../lib/media'
+import { platformInfo } from '../lib/platforms'
 
 // Les meubles et leurs « cases ».
 //
@@ -40,7 +41,22 @@ export interface Furniture {
   media?: MediaKind
   /** Cases attribuées à un autre univers que celui du meuble (« 1-1 » → films), pour un meuble partagé. */
   caseMedia?: Record<string, MediaKind>
+  /**
+   * Position des objets : « debout » (par défaut, comme des livres sur une étagère : la hauteur de l'objet
+   * occupe la hauteur de la case) ou « couche », tranche vers le haut (tiroirs, bacs : c'est la LARGEUR
+   * de l'objet qui occupe la hauteur). Les objets restent côte à côte dans la rangée : la place est la même.
+   */
+  orientation?: Orientation
 }
+
+export type Orientation = 'debout' | 'couche'
+
+export const ORIENTATIONS: { id: Orientation; label: string }[] = [
+  { id: 'debout', label: 'Debout (la hauteur de l\'objet occupe la hauteur)' },
+  { id: 'couche', label: 'Couchés, tranche vers le haut (la largeur occupe la hauteur)' },
+]
+
+export const isLying = (f: Pick<Furniture, 'orientation'>): boolean => f.orientation === 'couche'
 
 /** Une rangée de CD : l'unité que l'algorithme remplit. */
 export interface Slot {
@@ -256,6 +272,23 @@ export function heightOf(cd: Cd): number {
   return cd.heightCm && cd.heightCm > 0 ? cd.heightCm : mediaOf(cd) === 'cd' ? CD_HEIGHT_MM / 10 : 0
 }
 
+/**
+ * Largeur d'un objet en cm, d'après son type de boîtier (0 = inconnue : pas de contrôle).
+ * HYPOTHÈSES : boîtier CD 14,2 cm, DVD 13,5 cm, Blu-ray 12,8 cm ; jeux : selon la console. Livres : inconnue.
+ */
+export function widthOf(cd: Cd): number {
+  const media = mediaOf(cd)
+  if (media === 'cd') return CD_DEPTH_MM / 10
+  if (media === 'video') return cd.videoFormat === 'dvd' || !cd.videoFormat ? 13.5 : 12.8
+  if (media === 'jeu') return platformInfo(cd.platform ?? 'autre')?.widthCm ?? 0
+  return 0
+}
+
+/** Ce qu'un objet occupe dans la hauteur d'une case de ce meuble (debout : sa hauteur ; couché : sa largeur). */
+export function verticalSizeOf(cd: Cd, f: Pick<Furniture, 'orientation'>): number {
+  return isLying(f) ? widthOf(cd) : heightOf(cd)
+}
+
 // ---------------------------------------------------------------------------
 // Rangées et capacité
 // ---------------------------------------------------------------------------
@@ -307,24 +340,31 @@ export function furnitureWarnings(f: Furniture): string[] {
   // Ces vérifications concernent les boîtiers CD : sans aucune case pour les CD, rien à signaler ici
   // (la hauteur des livres, films et jeux est vérifiée objet par objet dans le rangement).
   if (!furnitureFor([f], 'cd').length) return w
-  const neededDepth = (f.depthRows * CD_DEPTH_MM) / 10
+  // Couché, tranche vers le haut : la largeur du boîtier (14,2 cm) est à la verticale, sa hauteur (12,5 cm) en profondeur.
+  const lying = isLying(f)
+  const depthMm = lying ? CD_HEIGHT_MM : CD_DEPTH_MM
+  const upMm = lying ? CD_DEPTH_MM : CD_HEIGHT_MM
+  const cm = (mm: number) => String(mm / 10).replace('.', ',')
+  const neededDepth = (f.depthRows * depthMm) / 10
   if (f.depthCm < neededDepth) {
     const over = (neededDepth - f.depthCm).toFixed(1).replace('.', ',')
     w.push(
       f.depthRows > 1
         ? `Double rangée : il faut ${String(neededDepth).replace('.', ',')} cm de profondeur, il y en a ${f.depthCm} : les CD de devant dépasseront d'environ ${over} cm.`
-        : `Profondeur de ${f.depthCm} cm : un boîtier (14,2 cm) dépassera d'environ ${over} cm.`,
+        : `Profondeur de ${f.depthCm} cm : un boîtier (${cm(depthMm)} cm) dépassera d'environ ${over} cm.`,
     )
   }
-  const neededHeight = (f.layers * CD_HEIGHT_MM) / 10
+  const neededHeight = (f.layers * upMm) / 10
   if (f.innerHeightCm < neededHeight) {
     w.push(
       f.layers > 1
-        ? `Deux couches demandent au moins ${neededHeight} cm de hauteur utile (il y en a ${f.innerHeightCm}).`
-        : `Hauteur de ${f.innerHeightCm} cm : un boîtier standard (12,5 cm) ne tient pas debout.`,
+        ? `Deux couches demandent au moins ${String(neededHeight).replace('.', ',')} cm de hauteur utile (il y en a ${f.innerHeightCm}).`
+        : lying
+          ? `Hauteur de ${f.innerHeightCm} cm : un boîtier standard couché (14,2 cm de large) dépasse.`
+          : `Hauteur de ${f.innerHeightCm} cm : un boîtier standard (12,5 cm) ne tient pas debout.`,
     )
   }
-  if (f.layers === 1 && f.innerHeightCm >= 2 * (CD_HEIGHT_MM / 10) + 1) {
+  if (f.layers === 1 && f.innerHeightCm >= 2 * (upMm / 10) + 1) {
     w.push(`La hauteur (${f.innerHeightCm} cm) permettrait 2 couches de CD avec un petit plateau intermédiaire.`)
   }
   return w

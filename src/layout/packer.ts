@@ -1,7 +1,7 @@
 import type { Plan, PlanTheme } from '../classification/engine'
 import type { ThemeDef } from '../classification/themes'
 import type { Cd } from '../db/types'
-import { buildSlots, CD_DEPTH_MM, heightOf, STANDARD_THICKNESS_MM, thicknessOf, type Furniture, type LayoutOptions, type Slot } from './furniture'
+import { buildSlots, CD_DEPTH_MM, heightOf, isLying, STANDARD_THICKNESS_MM, thicknessOf, verticalSizeOf, widthOf, type Furniture, type LayoutOptions, type Slot } from './furniture'
 import { mediaInfo, type MediaKind } from '../lib/media'
 
 // Répartition des CD dans les meubles, rangée par rangée.
@@ -54,7 +54,8 @@ export interface Layout {
   neededMm: number
   emptySlots: number
   /** Objets plus hauts que la hauteur utile de leur étagère (ils ne tiennent pas debout). */
-  tooTall: { cd: Cd; slotLabel: string; heightCm: number; shelfCm: number }[]
+  /** Objets qui dépassent de la hauteur de leur case (heightCm = ce qu'ils occupent : largeur s'ils sont couchés). */
+  tooTall: { cd: Cd; slotLabel: string; heightCm: number; shelfCm: number; lying: boolean }[]
   /** Conseils en clair (surcharge, rangées vides…). */
   suggestions: string[]
   /** Pour chaque CD : rangée et position (1 = le plus à gauche). */
@@ -202,14 +203,22 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
   const neededMm = width(plan.themes.flatMap((t) => t.cds))
   const emptySlots = content.filter((c) => !c.cds.length).length
 
-  // Contrôle de la hauteur : chaque objet doit tenir debout dans son étagère.
-  const shelfHeight = new Map(furniture.map((f) => [f.id, f.innerHeightCm]))
+  // Contrôle de la hauteur : chaque objet doit tenir dans la hauteur de sa case
+  // (debout : sa hauteur ; couché, tranche vers le haut : sa largeur).
+  const byId = new Map(furniture.map((f) => [f.id, f]))
   const tooTall: Layout['tooTall'] = []
+  /** Objets trop hauts debout qui tiendraient couchés (pour le conseil). */
+  let fitLying = 0
   for (const c of content) {
-    const shelfCm = shelfHeight.get(c.slot.furnitureId) ?? Infinity
+    const f = byId.get(c.slot.furnitureId)
+    if (!f) continue
+    const shelfCm = f.innerHeightCm
     for (const cd of c.cds) {
-      const h = heightOf(cd)
-      if (h > shelfCm + 0.05) tooTall.push({ cd, slotLabel: c.slot.label, heightCm: h, shelfCm })
+      const h = verticalSizeOf(cd, f)
+      if (h <= shelfCm + 0.05) continue
+      tooTall.push({ cd, slotLabel: c.slot.label, heightCm: h, shelfCm, lying: isLying(f) })
+      const w = widthOf(cd)
+      if (!isLying(f) && w > 0 && w <= shelfCm + 0.05 && heightOf(cd) <= f.depthCm) fitLying++
     }
   }
 
@@ -259,6 +268,11 @@ export function packLayout(plan: Plan, furniture: Furniture[], options: LayoutOp
     suggestions.push(
       `${tooTall.length} ${tooTall.length > 1 ? info.many : info.one} trop haut${tooTall.length > 1 ? 's' : ''} pour ${tooTall.length > 1 ? "leur" : "son"} étagère (hauteur utile ${shelves} cm) : remonte la tablette, ou corrige la hauteur dans « Mes meubles ».`,
     )
+    if (fitLying) {
+      suggestions.push(
+        `${fitLying} d'entre eux tiendrai${fitLying > 1 ? 'ent' : 't'} couché${fitLying > 1 ? 's' : ''}, tranche vers le haut : si c'est ainsi que tu les ranges (tiroir, bac), choisis « Couchés » dans « Mes meubles ».`,
+      )
+    }
   }
 
   return {

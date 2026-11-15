@@ -67,6 +67,35 @@ describe('meubles de la v2', () => {
     expect(layout.suggestions.join(' ')).toMatch(/1 jeu trop haut/)
   })
 
+  it('tiroirs où les jeux sont couchés, tranche vers le haut : c’est la largeur qui compte', () => {
+    // Ton meuble « Tiroirs jeux » : 3 tiroirs de 41 × 15 cm, 32 cm de profondeur, 2 rangées.
+    const drawers = { ...addV2Furniture(myFurniture()).find((f) => f.id === 'rangement-jeux')!, name: 'Tiroirs jeux', levels: 3, innerWidthCm: 41, innerHeightCm: 15, depthCm: 32, depthRows: 2 as const }
+    const games = [
+      item({ media: 'jeu', platform: 'ps2', heightCm: 19 }),
+      item({ media: 'jeu', platform: 'switch', heightCm: 17 }),
+      item({ media: 'jeu', platform: 'ps1', heightCm: 13 }),
+    ]
+    const plan = buildPlan(games, defaultGameRules())
+    const options = { marginPct: 15, themeStartsNewSlot: false }
+    const standing = packLayout(plan, furnitureFor([drawers], 'jeu'), options, 'jeu')
+    expect(standing.tooTall.map((t) => t.cd.platform)).toEqual(['ps2', 'switch'])
+    expect(standing.suggestions.join(' ')).toMatch(/2 d'entre eux tiendraient couchés/)
+    // Même meuble, réglé « couchés » : la PS2 (13,5 cm de large) et la Switch (10,5) tiennent dans 15 cm.
+    const lying = packLayout(plan, furnitureFor([{ ...drawers, orientation: 'couche' }], 'jeu'), options, 'jeu')
+    expect(lying.tooTall).toEqual([])
+    // La place dans les rangées ne change pas.
+    expect([...lying.placement]).toEqual([...standing.placement])
+    // Tiroir trop bas, même couché : la largeur est signalée.
+    const low = packLayout(plan, furnitureFor([{ ...drawers, orientation: 'couche', innerHeightCm: 12 }], 'jeu'), options, 'jeu')
+    expect(low.tooTall.map((t) => [t.cd.platform, t.heightCm, t.lying])).toEqual([['ps1', 14.2, true], ['ps2', 13.5, true], ['switch', 10.5, true]].filter((x) => (x[1] as number) > 12))
+  })
+
+  it('meuble CD couché : les alertes tiennent compte de la largeur du boîtier', () => {
+    const [cd] = defaultFurniture()
+    expect(furnitureWarnings({ ...cd, innerHeightCm: 13.5 })).toEqual([])
+    expect(furnitureWarnings({ ...cd, innerHeightCm: 13.5, orientation: 'couche' }).join(' ')).toMatch(/couché \(14,2 cm de large\)/)
+  })
+
   it('pas d’alerte « boîtier CD » sur un meuble à livres', () => {
     const books = addV2Furniture(myFurniture()).find((f) => f.id === 'billy-livres-1')!
     expect(furnitureWarnings(books)).toEqual([])

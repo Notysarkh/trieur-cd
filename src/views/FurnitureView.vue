@@ -8,7 +8,9 @@ import {
   furnitureFromModel,
   furnitureWarnings,
   MODELS,
+  ORIENTATIONS,
   type Furniture,
+  type Orientation,
 } from '../layout/furniture'
 import { currentMedia, saveSetting, settings } from '../services/settings'
 import { MEDIA, type MediaKind } from '../lib/media'
@@ -101,6 +103,12 @@ function setMedia(f: Furniture, media: MediaKind) {
   void commit()
 }
 
+/** Debout (par défaut) ou couchés, tranche vers le haut (tiroirs, bacs). */
+function setOrientation(f: Furniture, o: Orientation) {
+  f.orientation = o === 'couche' ? 'couche' : undefined
+  void commit()
+}
+
 const modelNote = computed(() => MODELS.find((m) => m.key === modelKey.value)?.note)
 </script>
 
@@ -160,6 +168,12 @@ const modelNote = computed(() => MODELS.find((m) => m.key === modelKey.value)?.n
           <select v-model.number="f.depthRows" @change="commit">
             <option :value="1">1 rangée</option>
             <option :value="2">2 rangées (devant + derrière)</option>
+          </select>
+        </label>
+        <label class="field full">
+          Position des objets
+          <select :value="f.orientation ?? 'debout'" @change="setOrientation(f, ($event.target as HTMLSelectElement).value as Orientation)">
+            <option v-for="o in ORIENTATIONS" :key="o.id" :value="o.id">{{ o.label }}</option>
           </select>
         </label>
         <label class="field">
