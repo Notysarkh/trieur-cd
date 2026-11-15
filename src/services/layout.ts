@@ -7,13 +7,13 @@ import { suggestInsertion, type Insertion } from '../layout/insertion'
 import { shelvedToKeep } from '../layout/keepShelved'
 import { packLayout, type Layout } from '../layout/packer'
 import { applyPlan } from './classification'
-import { layoutAppliedAtFor, layoutKey, saveSetting, settings } from './settings'
+import { layoutAppliedAtFor, layoutKey, layoutOptionsFor, saveSetting, settings } from './settings'
 
 // Lien entre l'algorithme de répartition et la base : calcul, application, emplacement d'un CD.
 
 /** Répartition d'un univers dans les cases qui lui sont attribuées. */
 export function computeLayout(plan: Plan, media: MediaKind = 'cd'): Layout {
-  return packLayout(plan, furnitureFor(settings.furniture, media), settings.layout, media)
+  return packLayout(plan, furnitureFor(settings.furniture, media), layoutOptionsFor(media), media)
 }
 
 export interface Moves {

@@ -9,7 +9,7 @@ import { furnitureFor, furnitureWarnings } from '../layout/furniture'
 import { itemLabel } from '../lib/media'
 import { useMedia } from '../composables/useMedia'
 import { applyLayout, computeLayout, countMoves, insertionFor, placeCd } from '../services/layout'
-import { layoutAppliedAtFor, rulesFor, saveSetting, settings } from '../services/settings'
+import { layoutAppliedAtFor, layoutOptionsFor, layoutOptionsKey, rulesFor, saveSetting, settings } from '../services/settings'
 
 // Écran « Rangement » : répartition des objets de l'univers en cours dans ses meubles, case par case.
 
@@ -37,14 +37,16 @@ const appliedAt = computed(() =>
 )
 
 // --- Options ---
-const margin = ref(settings.layout.marginPct)
+// Propres à cet univers : changer la marge des jeux ne touche pas au plan des CD.
+const options = computed(() => layoutOptionsFor(media.value))
+const margin = ref(options.value.marginPct)
 function saveMargin() {
   const m = Math.min(300, Math.max(0, Math.round(Number(margin.value) || 0)))
   margin.value = m
-  void saveSetting('layout', { ...settings.layout, marginPct: m })
+  void saveSetting(layoutOptionsKey(media.value), { ...options.value, marginPct: m })
 }
 function setNewSlot(v: boolean) {
-  void saveSetting('layout', { ...settings.layout, themeStartsNewSlot: v })
+  void saveSetting(layoutOptionsKey(media.value), { ...options.value, themeStartsNewSlot: v })
 }
 
 // --- Rangée sélectionnée (détail des CD) ---
@@ -106,7 +108,7 @@ async function apply() {
           <label class="row small checkbox">
             <input
               type="checkbox"
-              :checked="settings.layout.themeStartsNewSlot"
+              :checked="options.themeStartsNewSlot"
               @change="setNewSlot(($event.target as HTMLInputElement).checked)"
             />
             Chaque thème commence dans une nouvelle rangée

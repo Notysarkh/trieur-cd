@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { addV2Furniture, defaultFurniture } from '../layout/furniture'
 import { buildBackup, importBackup } from './backup'
 import { saveSetting, settings } from './settings'
+import { computeLayout } from './layout'
+import { buildPlan } from '../classification/engine'
+import { defaultRules } from '../classification/themes'
+import type { Cd } from '../db/types'
 
 // v2, étape E : la sauvegarde garde les rangements de chaque univers et les meubles partagés.
 
@@ -25,6 +29,19 @@ describe('sauvegarde des rangements par univers', () => {
     expect(settings.videoLayoutAppliedAt).toBe(111)
     expect(settings.gameLayoutAppliedAt).toBe(222)
     expect(settings.furniture.find((f) => f.id === 'billy')?.caseMedia).toEqual({ '1-1': 'video' })
+  })
+
+  it('changer la marge des jeux ne touche pas au plan des CD', async () => {
+    const cds = Array.from({ length: 200 }, (_, i) => ({
+      id: `c${i}`, artist: `Artiste ${i % 30}`, artistSort: `Artiste ${i % 30}`, title: `Album ${i}`, genres: [], styles: ['Rock'],
+      format: 'standard', discCount: 1, thicknessMm: 10.4, coverUrls: [], isCompilation: false, status: 'identifie', confidence: 90,
+      confidenceReasons: [], source: 'manuel', createdAt: 0, updatedAt: 0,
+    })) as Cd[]
+    const plan = buildPlan(cds, defaultRules())
+    const before = computeLayout(plan, 'cd').placement
+    await saveSetting('gameLayout', { marginPct: 80, themeStartsNewSlot: true })
+    expect([...computeLayout(plan, 'cd').placement]).toEqual([...before])
+    expect(settings.layout.marginPct).toBe(15)
   })
 
   it('une sauvegarde d’avant l’étape E reçoit les meubles des livres et des jeux', async () => {

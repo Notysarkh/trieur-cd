@@ -42,8 +42,12 @@ export interface Settings {
   scanPlatform: Platform | ''
   /** Les meubles, dans l'ordre de remplissage (le premier est rempli en premier). */
   furniture: Furniture[]
-  /** Options de répartition (marge de croissance…). */
+  /** Options de répartition des CD (marge de croissance…). */
   layout: LayoutOptions
+  /** Options de répartition des autres univers (v2, étape E) : indépendantes de celles des CD. */
+  bookLayout: LayoutOptions
+  videoLayout: LayoutOptions
+  gameLayout: LayoutOptions
   /** Date de la dernière répartition des CD appliquée (0 = jamais). */
   layoutAppliedAt: number
   /** Dates des dernières répartitions des autres univers (v2, étape E). */
@@ -74,6 +78,9 @@ const DEFAULTS: Settings = {
   scanPlatform: '',
   furniture: defaultFurniture(),
   layout: { ...DEFAULT_LAYOUT_OPTIONS },
+  bookLayout: { ...DEFAULT_LAYOUT_OPTIONS },
+  videoLayout: { ...DEFAULT_LAYOUT_OPTIONS },
+  gameLayout: { ...DEFAULT_LAYOUT_OPTIONS },
   layoutAppliedAt: 0,
   bookLayoutAppliedAt: 0,
   videoLayoutAppliedAt: 0,
@@ -155,6 +162,19 @@ const LAYOUT_KEYS: Record<MediaKind, LayoutKey> = {
 /** Le réglage qui garde la date du dernier rangement appliqué dans un univers. */
 export function layoutKey(media: MediaKind): LayoutKey {
   return LAYOUT_KEYS[media]
+}
+
+type LayoutOptionsKey = 'layout' | 'bookLayout' | 'videoLayout' | 'gameLayout'
+const LAYOUT_OPTIONS_KEYS: Record<MediaKind, LayoutOptionsKey> = { cd: 'layout', livre: 'bookLayout', video: 'videoLayout', jeu: 'gameLayout' }
+
+/** Le réglage qui garde les options de répartition d'un univers (marge, nouvelle rangée par thème). */
+export function layoutOptionsKey(media: MediaKind): LayoutOptionsKey {
+  return LAYOUT_OPTIONS_KEYS[media]
+}
+
+/** Options de répartition d'un univers : changer celles des jeux ne touche jamais au plan des CD. */
+export function layoutOptionsFor(media: MediaKind): LayoutOptions {
+  return settings[LAYOUT_OPTIONS_KEYS[media]]
 }
 
 /** Date du dernier rangement appliqué dans un univers (0 = jamais). */

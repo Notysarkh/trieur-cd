@@ -6,6 +6,7 @@ import { saveSetting, settings } from './settings'
 import { addV2Furniture } from '../layout/furniture'
 
 const OTHER_LAYOUTS = ['bookLayoutAppliedAt', 'videoLayoutAppliedAt', 'gameLayoutAppliedAt'] as const
+const OPTIONS_OF = { bookLayoutAppliedAt: 'bookLayout', videoLayoutAppliedAt: 'videoLayout', gameLayoutAppliedAt: 'gameLayout' } as const
 
 // Sauvegarde et transfert de la collection (téléphone → PC) via un fichier JSON.
 // Le jeton Discogs n'est volontairement PAS inclus dans le fichier.
@@ -28,6 +29,9 @@ interface BackupFile {
   bookLayoutAppliedAt?: number
   videoLayoutAppliedAt?: number
   gameLayoutAppliedAt?: number
+  bookLayout?: LayoutOptions
+  videoLayout?: LayoutOptions
+  gameLayout?: LayoutOptions
   classificationAppliedAt?: number
   /** Thèmes et règles des livres / BD (v2). */
   bookClassification?: ClassificationRules
@@ -52,6 +56,9 @@ export async function buildBackup(): Promise<File> {
     bookLayoutAppliedAt: settings.bookLayoutAppliedAt,
     videoLayoutAppliedAt: settings.videoLayoutAppliedAt,
     gameLayoutAppliedAt: settings.gameLayoutAppliedAt,
+    bookLayout: { ...settings.bookLayout },
+    videoLayout: { ...settings.videoLayout },
+    gameLayout: { ...settings.gameLayout },
     classificationAppliedAt: settings.classificationAppliedAt,
     bookClassification: JSON.parse(JSON.stringify(settings.bookClassification)),
     bookClassificationAppliedAt: settings.bookClassificationAppliedAt,
@@ -145,7 +152,8 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   if ((replaceRules || adoptLayout || adoptOthers.length) && data.furniture?.length) {
     // Sauvegarde d'avant l'étape E : on y ajoute les meubles des livres, films et jeux (sans rien changer d'autre).
     await saveSetting('furniture', addV2Furniture(data.furniture))
-    if (data.layout) await saveSetting('layout', data.layout)
+    // Options des CD : seulement si le rangement des CD est repris (sinon le plan des CD changerait).
+    if (data.layout && (replaceRules || adoptLayout)) await saveSetting('layout', data.layout)
     report.rulesReplaced = true
   }
   // Livres : les règles du fichier sont reprises si tu le demandes, ou si aucun classement de livres
@@ -175,6 +183,8 @@ export async function importBackup(file: File, replaceRules = false): Promise<Im
   }
   for (const k of adoptOthers) {
     await saveSetting(k, data[k]!)
+    const opts = OPTIONS_OF[k]
+    if (data[opts]) await saveSetting(opts, data[opts]!)
     report.layoutAdopted = true
   }
   return report
