@@ -22,7 +22,7 @@ export type CdFormat =
 export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary' | 'rawg'
 
 /** Support d'un film (v2) : DVD et Blu-ray sont rangés ensemble. */
-export type VideoFormat = 'dvd' | 'bluray' | 'uhd'
+export type VideoFormat = 'dvd' | 'bluray' | 'uhd' | 'hddvd' | 'usb' | 'laserdisc' | 'vhs' | 'betamax'
 
 /** Type de livre : chacun a sa place (BD, mangas et comics à part). */
 export type BookKind = 'livre' | 'bd' | 'manga' | 'comics'
@@ -128,7 +128,7 @@ export interface Cd {
   /** Identifiant de la notice BnF (ark:/12148/…). */
   bnfArk?: string
 
-  // --- DVD / Blu-ray (v2) : « artist » = réalisateur, « series » + « volume » = série TV et saison ---
+  // --- Films (v2) : « artist » = réalisateur, « series » + « volume » = série TV et saison ---
   videoFormat?: VideoFormat
   /** Film ou série sur TMDB (« movie:194 », « tv:1399 »). */
   tmdbId?: string

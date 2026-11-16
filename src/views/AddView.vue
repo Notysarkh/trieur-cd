@@ -37,7 +37,7 @@ const scanId = typeof route.query.scan === 'string' ? route.query.scan : undefin
 const cdId = typeof route.query.cd === 'string' ? route.query.cd : undefined
 /** CD ou livre : celui de la fiche à corriger, sinon un ISBN est un livre, sinon l'univers en cours. */
 const media = ref<MediaKind>(barcode && isIsbn(barcode) ? 'livre' : currentMedia())
-// (un film choisi après un code-barres inconnu reste un film : l'univers en cours est « DVD / Blu-ray »)
+// (un film choisi après un code-barres inconnu reste un film : l'univers en cours est « Films »)
 const isBook = computed(() => media.value === 'livre')
 const isVideo = computed(() => media.value === 'video')
 const isGame = computed(() => media.value === 'jeu')
@@ -267,7 +267,7 @@ async function save() {
         <p class="muted small grow">
           Vérifie et complète la fiche, puis enregistre.<br />
           <template v-if="isGame">Vérifie la console : elle décide de la place du jeu.</template>
-          <template v-else-if="isVideo">Vérifie le support (DVD ou Blu-ray) et le nombre de disques : ils décident de la place occupée.</template>
+          <template v-else-if="isVideo">Vérifie le support (DVD, Blu-ray, VHS…) et le nombre de disques ou de cassettes : ils décident de la place occupée.</template>
           <template v-else-if="isBook">Épaisseur estimée d'après le nombre de pages : corrige-la si tu l'as mesurée.</template>
           <template v-else>Format : {{ FORMAT_LABELS[draft.format] }} (par défaut si inconnu — corrige si besoin).</template>
         </p>

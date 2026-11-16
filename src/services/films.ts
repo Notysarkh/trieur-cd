@@ -5,7 +5,7 @@ import type { Priority } from '../lib/throttle'
 import { all, bnfRecords, cleanResponsibility, cql, first, invertPersonName, num, person, type BnfRecord } from './books'
 import { bestTmdbMatch, hasTmdbKey, searchTmdb, tmdbDirector, type TmdbResult } from './tmdb'
 
-// DVD et Blu-ray (v2, étape C).
+// Films : DVD, Blu-ray, HD DVD, VHS, LaserDisc… (v2, étape C).
 //
 // 1. Code-barres → catalogue de la BnF (dépôt légal des vidéos éditées en France) : titre, réalisateur,
 //    éditeur, DVD ou Blu-ray (« BD vidéo »), nombre de disques, genre (« film policier, thriller »…).
@@ -13,26 +13,32 @@ import { bestTmdbMatch, hasTmdbKey, searchTmdb, tmdbDirector, type TmdbResult } 
 // 2. Avec une clé TMDB (facultative) : affiche, année de sortie du film, genres manquants ;
 //    et recherche par titre pour les films que la BnF ne connaît pas.
 
-export const VIDEO_FORMAT_LABELS: Record<VideoFormat, string> = {
-  dvd: 'DVD',
-  bluray: 'Blu-ray',
-  uhd: 'Blu-ray 4K',
-}
+// Supports et dimensions : voir lib/videoFormats.ts.
+import { videoSize } from '../lib/videoFormats'
+export { VIDEO_FORMAT_LABELS, videoSize } from '../lib/videoFormats'
 
 /**
- * Épaisseur (mm) et hauteur (cm) par défaut. HYPOTHÈSES à mesurer :
- * boîtier DVD 14 mm × 19 cm ; Blu-ray 11 mm × 17 cm ; coffrets plus épais selon le nombre de disques.
+ * Support et nombre de disques (ou de cassettes), d'après la description physique BnF
+ * (« 2 DVD vidéo… », « 5 BD vidéo », « 1 vidéocassette (VHS) », « 1 vidéodisque »…).
  */
-export function videoSize(format: VideoFormat, discCount: number): { thicknessMm: number; heightCm: number } {
-  if (format === 'dvd') return { thicknessMm: discCount >= 5 ? 28 : discCount >= 3 ? 22 : 14, heightCm: 19 }
-  return { thicknessMm: discCount >= 5 ? 22 : discCount >= 3 ? 15 : 11, heightCm: 17 }
-}
-
-/** DVD, Blu-ray ou 4K, et nombre de disques, d'après la description physique BnF (« 2 DVD vidéo… », « 5 BD vidéo »). */
 export function videoFormatFrom(physical: string | undefined): { format: VideoFormat; discCount: number } {
   const p = physical ?? ''
-  const format: VideoFormat = /4k|uhd|ultra hd/i.test(p) ? 'uhd' : /\bBD vid|blu[- ]?ray/i.test(p) ? 'bluray' : 'dvd'
-  const n = p.match(/(\d+)\s*(?:DVD|BD|disques?)/i)?.[1]
+  const format: VideoFormat = /hd[\s-]?dvd/i.test(p)
+    ? 'hddvd'
+    : /4k|uhd|ultra hd/i.test(p)
+      ? 'uhd'
+      : /\bBD vid|blu[- ]?ray/i.test(p)
+        ? 'bluray'
+        : /betamax|\bbeta\b/i.test(p)
+          ? 'betamax'
+          : /vid[ée]ocassette|\bVHS\b/i.test(p)
+            ? 'vhs'
+            : /laser\s?dis[ck]|vid[ée]odisque/i.test(p)
+              ? 'laserdisc'
+              : /cl[ée]\s+USB|\bUSB\b/i.test(p)
+                ? 'usb'
+                : 'dvd'
+  const n = p.match(/(\d+)\s*(?:DVD|BD|HD[\s-]?DVD|disques?|vid[ée]ocassettes?|cassettes?|vid[ée]odisques?|laser\s?dis[ck]s?)/i)?.[1]
   return { format, discCount: n ? Number(n) : 1 }
 }
 

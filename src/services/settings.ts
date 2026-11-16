@@ -33,7 +33,7 @@ export interface Settings {
   /** Règles de classement des livres / BD (v2). */
   bookClassification: ClassificationRules
   bookClassificationAppliedAt: number
-  /** Règles de classement des DVD / Blu-ray (v2). */
+  /** Règles de classement des films (v2). */
   videoClassification: ClassificationRules
   videoClassificationAppliedAt: number
   /** Règles de classement des jeux vidéo (v2) : une console par thème. */

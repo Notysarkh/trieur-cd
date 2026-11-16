@@ -188,7 +188,7 @@ export function defaultBookRules(): ClassificationRules {
 }
 
 /**
- * Règles par défaut des DVD / Blu-ray (mélangés) : genre → titre (A → Z) ; les saisons d'une série restent ensemble.
+ * Règles par défaut des films (tous supports mélangés) : genre → titre (A → Z) ; les saisons d'une série restent ensemble.
  * Mots-clés : vocabulaire des genres de la BnF (« film policier, thriller, espionnage »…) et de TMDB (« Crime », « Familial »…).
  */
 export function defaultVideoRules(): ClassificationRules {

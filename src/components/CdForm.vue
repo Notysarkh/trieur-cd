@@ -24,7 +24,7 @@ function setPlatform(platform: Platform | undefined) {
   if (platform) Object.assign(model.value, gameSize(platform, model.value.discCount))
 }
 
-// Films : changer de support (DVD / Blu-ray) ou de nombre de disques met à jour épaisseur et hauteur.
+// Films : changer de support (DVD, Blu-ray, VHS…) ou de nombre de disques met à jour épaisseur et hauteur.
 function setVideo(format: VideoFormat, discCount = model.value.discCount) {
   model.value.videoFormat = format
   model.value.discCount = discCount
@@ -167,7 +167,7 @@ function toNumber(text: string): number | undefined {
       </label>
     </template>
 
-    <!-- DVD / Blu-ray -->
+    <!-- Films -->
     <template v-else-if="isVideo">
       <label class="field">
         Support
@@ -176,7 +176,7 @@ function toNumber(text: string): number | undefined {
         </select>
       </label>
       <label class="field">
-        Nombre de disques
+        Disques ou cassettes
         <input
           :value="model.discCount"
           inputmode="numeric"

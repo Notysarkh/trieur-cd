@@ -256,7 +256,7 @@ export async function importCsv(file: File): Promise<CsvReport> {
     } else if (changes.title || changes.artist) {
       const artist = changes.artist ?? 'Inconnu'
       const format = changes.format ?? (media === 'cd' ? 'standard' : 'autre')
-      // Épaisseur et hauteur par défaut selon l'univers (boîtier CD, livre, DVD / Blu-ray, boîte de jeu).
+      // Épaisseur et hauteur par défaut selon l'univers (boîtier CD, livre, film, boîte de jeu).
       const size =
         media === 'livre'
           ? { thicknessMm: 25, heightCm: 20 }

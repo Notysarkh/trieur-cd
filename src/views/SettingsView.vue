@@ -188,7 +188,7 @@ async function wipeAll() {
     <section class="card stack">
       <h2>TMDB : films et séries (recommandé)</h2>
       <p class="small muted">
-        Pour les DVD / Blu-ray, TMDB ajoute l'affiche, l'année de sortie du film, les genres manquants, et permet de
+        Pour les films, TMDB ajoute l'affiche, l'année de sortie du film, les genres manquants, et permet de
         chercher un film par son titre. Il faut un compte TMDB gratuit, puis une clé : sur themoviedb.org, menu
         <em>Paramètres → API</em>, demande une clé « Developer » (usage personnel), puis copie la
         <em>Clé d'API</em> (ou le <em>Jeton d'accès en lecture</em>) ici. Elle reste uniquement sur cet appareil et

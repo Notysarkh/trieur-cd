@@ -1,6 +1,7 @@
 import type { Cd } from '../db/types'
 import { mediaOf, type MediaKind } from '../lib/media'
 import { platformInfo } from '../lib/platforms'
+import { VIDEO_FORMATS } from '../lib/videoFormats'
 
 // Les meubles et leurs « cases ».
 //
@@ -217,7 +218,7 @@ export function defaultFurniture(): Furniture[] {
  * v2, étape E : les meubles des autres univers, ajoutés une seule fois à tes meubles existants.
  * Identifiants FIXES : l'emplacement d'un objet contient l'identifiant de son meuble, et le téléphone
  * et le PC font chacun cet ajout avant d'échanger leurs sauvegardes.
- * - Billy, niveau 1 : il passe aux DVD / Blu-ray s'il était réservé à « autre chose » (c'est là que sont tes films) ;
+ * - Billy, niveau 1 : il passe aux films s'il était réservé à « autre chose » (c'est là que sont tes films) ;
  * - livres : 2 grandes Billy (80 cm) et une demie (40 cm), une seule rangée ;
  * - jeux : « Rangement jeux », copie du meuble CD (dimensions à corriger dans « Mes meubles »).
  * Rien d'autre ne change dans tes meubles : les CD gardent exactement leurs rangées.
@@ -274,12 +275,12 @@ export function heightOf(cd: Cd): number {
 
 /**
  * Largeur d'un objet en cm, d'après son type de boîtier (0 = inconnue : pas de contrôle).
- * HYPOTHÈSES : boîtier CD 14,2 cm, DVD 13,5 cm, Blu-ray 12,8 cm ; jeux : selon la console. Livres : inconnue.
+ * HYPOTHÈSES : boîtier CD 14,2 cm ; films : selon le support (lib/videoFormats.ts) ; jeux : selon la console. Livres : inconnue.
  */
 export function widthOf(cd: Cd): number {
   const media = mediaOf(cd)
   if (media === 'cd') return CD_DEPTH_MM / 10
-  if (media === 'video') return cd.videoFormat === 'dvd' || !cd.videoFormat ? 13.5 : 12.8
+  if (media === 'video') return VIDEO_FORMATS[cd.videoFormat ?? 'dvd']?.widthCm ?? 0
   if (media === 'jeu') return platformInfo(cd.platform ?? 'autre')?.widthCm ?? 0
   return 0
 }

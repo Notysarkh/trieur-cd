@@ -115,7 +115,7 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 
 ## Version 2 : Mediamwa
 
-Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, 📚 Livres / BD, 🎬 DVD / Blu-ray, 🎮 Jeux vidéo. Chaque univers a sa collection, son scanner, son classement et son rangement ; les réglages et la sauvegarde sont communs. Au démarrage, l'appli rouvre le dernier univers utilisé ; le bandeau en haut de l'écran ramène à l'accueil.
+Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, 📚 Livres / BD, 🎬 Films, 🎮 Jeux vidéo. Chaque univers a sa collection, son scanner, son classement et son rangement ; les réglages et la sauvegarde sont communs. Au démarrage, l'appli rouvre le dernier univers utilisé ; le bandeau en haut de l'écran ramène à l'accueil.
 
 | Étape | Contenu | État |
 |---|---|---|
@@ -135,7 +135,9 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
 
-### Étape C : DVD / Blu-ray
+### Étape C : Films (DVD, Blu-ray…)
+
+- **Supports** (16/11/2026) : DVD, Blu-ray, Blu-ray 4K, HD DVD, clé USB, LaserDisc, VHS, Betamax, reconnus aussi dans les notices BnF (« vidéocassette », « vidéodisque »…). Dimensions par défaut : HYPOTHÈSES (voir `src/lib/videoFormats.ts`) ; pour les cassettes et les LaserDisc, l’épaisseur est multipliée par leur nombre. L’univers s’appelle désormais « Films ».
 
 - **Scan du code-barres** dans l'univers 🎬 : catalogue de la **BnF** (dépôt légal des vidéos éditées en France) → titre, réalisateur, éditeur, DVD ou Blu-ray (« BD vidéo »), nombre de disques, genre. Mesuré sur 193 DVD / Blu-ray de grands éditeurs : 81 % ont un genre, 87 % un réalisateur.
 - **TMDB (facultatif, clé gratuite dans les Réglages)** : affiche, année de sortie du film, genres manquants, réalisateur, et recherche par titre (films étrangers). La clé reste sur l'appareil, jamais dans le code ni les sauvegardes. Non testé sans la clé de l'utilisateur.

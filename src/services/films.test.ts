@@ -48,6 +48,15 @@ describe('films : support, genres, épaisseur', () => {
     expect(videoFormatFrom('1 disque Blu-ray 4K Ultra HD')).toEqual({ format: 'uhd', discCount: 1 })
     expect(videoSize('dvd', 5).thicknessMm).toBe(28)
   })
+  it('anciens et autres supports : VHS, Betamax, LaserDisc, HD DVD, clé USB', () => {
+    expect(videoFormatFrom('2 vidéocassettes (VHS) (3 h 10 min) : coul., SECAM')).toEqual({ format: 'vhs', discCount: 2 })
+    expect(videoFormatFrom('1 vidéocassette (Betamax)')).toEqual({ format: 'betamax', discCount: 1 })
+    expect(videoFormatFrom('2 vidéodisques (LaserDisc)')).toEqual({ format: 'laserdisc', discCount: 2 })
+    expect(videoFormatFrom('1 disque HD DVD')).toEqual({ format: 'hddvd', discCount: 1 })
+    expect(videoFormatFrom('1 clé USB')).toEqual({ format: 'usb', discCount: 1 })
+    expect(videoSize('vhs', 2)).toEqual({ thicknessMm: 50, heightCm: 20.5 })
+    expect(videoSize('laserdisc', 1)).toEqual({ thicknessMm: 5, heightCm: 31 })
+  })
   it('garde les vrais genres ; une série télévisée devient « Série TV »', () => {
     expect(filmGenres(['film policier, thriller, espionnage', 'fiction', 'édition vidéo commerciale'])).toEqual(['film policier, thriller, espionnage'])
     expect(filmGenres(["film d'aventures et d'action", 'fiction', "document d'origine : diffusion à la télévision"], 5)).toEqual(['Série TV'])
