@@ -25,6 +25,11 @@ function setPlatform(platform: Platform | undefined) {
 }
 
 // Films : changer de support (DVD, Blu-ray, VHS…) ou de nombre de disques met à jour épaisseur et hauteur.
+/** Coffret : une ligne par film (lignes vides ignorées). */
+function setContents(text: string) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  model.value.contents = lines.length ? lines : undefined
+}
 function setVideo(format: VideoFormat, discCount = model.value.discCount) {
   model.value.videoFormat = format
   model.value.discCount = discCount
@@ -188,12 +193,28 @@ function toNumber(text: string): number | undefined {
         <input v-model="model.title" required autocomplete="off" />
       </label>
       <label class="field">
-        Série TV (les saisons restent ensemble)
-        <input v-model="model.series" autocomplete="off" />
+        Saga ou série TV (restent ensemble)
+        <input v-model="model.series" autocomplete="off" placeholder="ex. Harry Potter" />
       </label>
       <label class="field">
-        Saison
+        N° dans la saga (ou saison)
         <input :value="model.volume ?? ''" inputmode="numeric" @input="model.volume = toNumber(($event.target as HTMLInputElement).value)" />
+      </label>
+      <label class="row small full">
+        <input type="checkbox" :checked="!!model.boxSet" @change="model.boxSet = ($event.target as HTMLInputElement).checked || undefined" />
+        Coffret (plusieurs films dans une seule boîte)
+      </label>
+      <label v-if="model.boxSet" class="field full">
+        Films du coffret (un par ligne, dans l'ordre)
+        <textarea
+          :value="(model.contents ?? []).join('\n')"
+          rows="5"
+          placeholder="Harry Potter à l'école des sorciers&#10;Harry Potter et la chambre des secrets&#10;…"
+          @change="setContents(($event.target as HTMLTextAreaElement).value)"
+        ></textarea>
+        <span class="hint">
+          Le coffret est rangé comme un seul objet, en tête de sa saga. Chercher un de ces films trouve le coffret.
+        </span>
       </label>
       <label class="field">
         Réalisateur

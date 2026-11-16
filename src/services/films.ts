@@ -3,7 +3,7 @@ import { canonicalBarcode } from '../lib/barcode'
 import { normalizeText } from '../lib/text'
 import type { Priority } from '../lib/throttle'
 import { all, bnfRecords, cleanResponsibility, cql, first, invertPersonName, num, person, type BnfRecord } from './books'
-import { bestTmdbMatch, hasTmdbKey, searchTmdb, tmdbDirector, type TmdbResult } from './tmdb'
+import { bestTmdbMatch, hasTmdbKey, sagaName, searchTmdb, searchTmdbSaga, tmdbDirector, tmdbSagaOfMovie, type TmdbResult } from './tmdb'
 
 // Films : DVD, Blu-ray, HD DVD, VHS, LaserDisc… (v2, étape C).
 //
@@ -57,6 +57,29 @@ export function filmGenres(forms: string[], discCount = 1): string[] {
   return forms.filter((f) => !NOISE.test(normalizeText(f)))
 }
 
+/** Mots qui signalent un coffret dans le titre (« l'intégrale », « trilogie », « années 1-5 », « 5 films »…). */
+const BOX_WORDS = /coffret|int[ée]grale|trilogie|t[ée]tralogie|quadrilogie|hexalogie|\bsaga\b|\bcollection\b|ann[ée]es\s*\d+\s*(?:[-–à]|a)\s*\d+|\b\d+\s*films\b/i
+
+/**
+ * Les films d'un coffret d'après la note de contenu de la BnF (champ 327, ex. « Harry Potter et la coupe de feu /
+ * Mike Newell, réal »). Moins de 2 titres : pas une vraie liste (souvent le titre du coffret lui-même).
+ */
+export function boxContents(r: BnfRecord): string[] {
+  const items = all(r, '327', 'a')
+    .map((s) => s.replace(/\s+\/.*$/, '').replace(/[\s.,;:]+$/, '').trim())
+    .filter(Boolean)
+  const unique = [...new Set(items)]
+  return unique.length >= 2 ? unique : []
+}
+
+/** Nom de la saga d'un coffret, sans « l'intégrale », « coffret »… (« Les Tuche, l'intégrale 5 films » → « Les Tuche »). */
+export function sagaFromBoxTitle(title: string): string {
+  return title
+    .replace(/\s*[,:\-–]?\s*(?:(?:le|la|l['’])\s*)?(?:coffret|int[ée]grale|trilogie|t[ée]tralogie|quadrilogie|hexalogie|saga|collection)\b.*$/i, '')
+    .replace(/[\s.,;:\-–]+$/, '')
+    .trim()
+}
+
 export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
   // Réalisateur : rôle 300 ; sinon auteur (070) ; sinon la mention de responsabilité du titre.
   const people = r.fields.filter((f) => /^70[012]$/.test(f.tag))
@@ -74,7 +97,19 @@ export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
   const s461 = r.fields.find((f) => f.tag === '461')
   const series = s461?.sub.t?.[0] ?? (genres.includes('Série TV') || partNumber ? mainTitle : undefined)
   const volume = num(s461?.sub.v?.[0]) ?? partNumber
-  const title = partTitle ? `${mainTitle} — ${partTitle}` : partNumber ? `${mainTitle}, saison ${partNumber}` : mainTitle
+  // Coffret : liste des films (BnF), ou titre de coffret sur plusieurs disques (une saison seule n'en est pas un).
+  const contents = boxContents(r)
+  const subtitles = all(r, '200', 'e').filter((e) => !/^[ée]dition/i.test(e))
+  const boxText = [mainTitle, ...subtitles, ...all(r, '073', 'b')].join(' ')
+  // Une seule saison (« l'intégrale de la saison 1 ») n'est pas un coffret.
+  const tvSeason =
+    (genres.includes('Série TV') && !/saisons|de la s[ée]rie|coffret/i.test(boxText)) ||
+    (/\bsaison\s*\d+\b/i.test(boxText) && !/saisons/i.test(boxText))
+  const boxSet = contents.length >= 2 || (discCount >= 2 && !tvSeason && BOX_WORDS.test(boxText))
+  const baseTitle = partTitle ? `${mainTitle} — ${partTitle}` : partNumber ? `${mainTitle}, saison ${partNumber}` : mainTitle
+  const title = boxSet && subtitles.length ? `${baseTitle} : ${subtitles.join(' : ')}` : baseTitle
+  // La saga d'un coffret : celle de la BnF, sinon le titre sans « l'intégrale »… (pour le ranger avec les films de la saga).
+  const saga = series ?? (boxSet && !genres.includes('Série TV') ? sagaFromBoxTitle(mainTitle) || undefined : undefined)
   const year = num(first(r, '100', 'a')?.slice(9, 13))
   const code = ean ?? first(r, '073', 'a')
   const hasCover = all(r, '856', 'b').some((b) => /couverture|jaquette/i.test(b))
@@ -90,8 +125,9 @@ export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
     genres,
     styles: [],
     videoFormat: format,
-    series: series?.replace(/[\s.,;:]+$/, '').trim() || undefined,
+    series: saga?.replace(/[\s.,;:]+$/, '').trim() || undefined,
     volume: series ? volume : undefined,
+    ...(boxSet ? { boxSet: true, contents } : {}),
     format: 'autre',
     discCount,
     ...videoSize(format, discCount),
@@ -163,6 +199,7 @@ export function filmDraftFromTmdb(t: TmdbResult): CdDraft {
 export async function enrichFilm(draft: CdDraft, priority: Priority = 'normal'): Promise<CdDraft> {
   if (!hasTmdbKey()) return draft
   const d: CdDraft = { ...draft }
+  if (d.boxSet) return enrichBoxSet(d, priority)
   let match: TmdbResult | undefined
   if (d.tmdbId) {
     const [kind, id] = d.tmdbId.split(':')
@@ -184,6 +221,33 @@ export async function enrichFilm(draft: CdDraft, priority: Priority = 'normal'):
       d.artistSort = invertPersonName(director)
     }
   }
+  // Saga (Harry Potter, Star Wars…) : le film sera rangé avec les autres films de la saga, à son numéro.
+  if (match?.kind === 'movie' && !d.series) {
+    const saga = await tmdbSagaOfMovie(match.id, priority).catch(() => undefined)
+    const n = saga ? saga.parts.findIndex((p) => p.id === match.id) : -1
+    if (saga && n >= 0 && saga.parts.length >= 2) {
+      d.series = sagaName(saga.name)
+      d.volume = n + 1
+    }
+  }
+  return d
+}
+
+/**
+ * Coffret : la liste de ses films d'après la saga TMDB du même nom (si la BnF ne la donne pas),
+ * l'affiche de la saga et ses genres s'il en manque. HYPOTHÈSE : la saga trouvée est la bonne (à vérifier sur la fiche).
+ */
+async function enrichBoxSet(d: CdDraft, priority: Priority): Promise<CdDraft> {
+  const name = d.series ?? sagaFromBoxTitle(d.title.replace(/\s*:.*$/, ''))
+  const saga = await searchTmdbSaga(name, priority).catch(() => undefined)
+  if (!saga) return d
+  d.series ??= sagaName(saga.name)
+  if (!d.contents?.length) {
+    d.contents = saga.parts.map((p) => p.title)
+    d.confidenceReasons = [...d.confidenceReasons, `Films du coffret d'après la saga TMDB « ${saga.name} » : à vérifier`]
+  }
+  if (!d.genres.length) d.genres = saga.parts.find((p) => p.genres.length)?.genres ?? []
+  if (saga.posterUrl) d.coverUrls = [saga.posterUrl, ...d.coverUrls]
   return d
 }
 

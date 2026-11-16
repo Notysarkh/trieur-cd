@@ -25,7 +25,7 @@ const selectedId = ref<string>()
 const input = ref<HTMLInputElement>()
 
 const text = (cd: Cd) =>
-  `${cd.artist} ${cd.artistSort} ${cd.title} ${cd.series ?? ''} ${cd.composer ?? ''} ${cd.label ?? ''} ${cd.year ?? ''} ${cd.platform ? platformLabel(cd.platform) : ''}`
+  `${cd.artist} ${cd.artistSort} ${cd.title} ${cd.series ?? ''} ${cd.composer ?? ''} ${cd.label ?? ''} ${cd.year ?? ''} ${cd.platform ? platformLabel(cd.platform) : ''} ${(cd.contents ?? []).join(' ')}`
 const results = computed(() => {
   const q = query.value.trim()
   if (q.length < 2) return []

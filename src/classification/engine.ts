@@ -144,9 +144,13 @@ export function seriesLabel(series: string): string {
   return series.replace(/[\u0088\u0089]/g, '').trim()
 }
 
-/** Dans un groupe : les tomes dans l'ordre, puis l'ordre chronologique. */
+/**
+ * Dans un groupe : les tomes (ou épisodes d'une saga) dans l'ordre, puis l'ordre chronologique.
+ * Un coffret sans numéro passe en tête de sa saga.
+ */
 function byVolume(a: Cd, b: Cd): number {
-  return (a.volume ?? Infinity) - (b.volume ?? Infinity) || byYear(a, b)
+  const v = (c: Cd) => c.volume ?? (c.boxSet ? 0 : Infinity)
+  return v(a) - v(b) || byYear(a, b)
 }
 
 /** Titre sans article initial, pour le tri par titre (« The Godfather » → « Godfather »). */

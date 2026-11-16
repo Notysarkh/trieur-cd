@@ -130,6 +130,10 @@ export interface Cd {
 
   // --- Films (v2) : « artist » = réalisateur, « series » + « volume » = série TV et saison ---
   videoFormat?: VideoFormat
+  /** Coffret (plusieurs films dans une seule boîte) : rangé comme un seul objet. */
+  boxSet?: boolean
+  /** Coffret : titres des films qu'il contient, dans l'ordre (servent à la recherche). */
+  contents?: string[]
   /** Film ou série sur TMDB (« movie:194 », « tv:1399 »). */
   tmdbId?: string
 

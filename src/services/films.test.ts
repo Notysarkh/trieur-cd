@@ -3,13 +3,18 @@ import { buildPlan } from '../classification/engine'
 import { defaultVideoRules } from '../classification/themes'
 import type { Cd } from '../db/types'
 import { parseSru } from './books'
-import { filmDraftFromBnf, filmGenres, videoFormatFrom, videoSize } from './films'
-import { bestTmdbMatch } from './tmdb'
+import { filmDraftFromBnf, filmGenres, sagaFromBoxTitle, videoFormatFrom, videoSize } from './films'
+import { bestTmdbMatch, sagaName, toSaga } from './tmdb'
 
 // Vraies réponses du catalogue de la BnF (enregistrées le 14/11/2026).
 import amelieDvd from './fixtures/bnf-3384442032803.xml?raw'
 import intouchablesBr from './fixtures/bnf-3384442252324.xml?raw'
 import intouchablesDvd from './fixtures/bnf-3384442252317.xml?raw'
+// Coffrets (enregistrés le 16/11/2026)
+import hpBox from './fixtures/bnf-coffret-7321910230527.xml?raw'
+import tucheBox from './fixtures/bnf-coffret-3388337129708.xml?raw'
+import dawsonS1 from './fixtures/bnf-coffret-3333290001387.xml?raw'
+import reliques from './fixtures/bnf-coffret-5051889155195.xml?raw'
 
 const draftOf = (xml: string, ean: string) => filmDraftFromBnf(parseSru(xml).records[0], ean)
 
@@ -108,5 +113,75 @@ describe('films : classement (genre puis titre, DVD et Blu-ray mélangés)', () 
     const plan = buildPlan([a, b], rules)
     expect(plan.placement.get(a.id)?.themeId).toBe('drame')
     expect(plan.placement.get(b.id)?.themeId).toBe('comedie')
+  })
+})
+
+describe('films : coffrets et sagas', () => {
+  it('Harry Potter années 1-5 : coffret, liste des films lue à la BnF, saga « Harry Potter »', () => {
+    const d = draftOf(hpBox, '7321910230527')
+    expect(d.boxSet).toBe(true)
+    expect(d.title).toBe('Harry Potter : années 1-5')
+    expect(d.series).toBe('Harry Potter')
+    expect(d.contents).toEqual([
+      "Harry Potter à l'école des sorciers",
+      'Harry Potter et la chambre des secrets',
+      "Harry Potter et le prisonnier d'Azkaban",
+      'Harry Potter et la coupe de feu',
+      "Harry Potter et l'Ordre du Phénix",
+    ])
+    expect(d.discCount).toBe(5)
+  })
+
+  it('« Les Tuche, l’intégrale 5 films » : coffret sans liste, saga « Les Tuche »', () => {
+    const d = draftOf(tucheBox, '3388337129708')
+    expect(d.boxSet).toBe(true)
+    expect(d.contents).toEqual([])
+    expect(d.series).toBe('Les Tuche')
+  })
+
+  it('une seule saison de série, ou un film en 2 parties sans mot « coffret », n’est pas un coffret', () => {
+    expect(draftOf(dawsonS1, '3333290001387').boxSet).toBeUndefined()
+    expect(draftOf(reliques, '5051889155195').boxSet).toBeUndefined()
+  })
+
+  it('nom de saga', () => {
+    expect(sagaFromBoxTitle("Les Tuche, l'intégrale 5 films")).toBe('Les Tuche')
+    expect(sagaFromBoxTitle('Le Seigneur des anneaux : la trilogie')).toBe('Le Seigneur des anneaux')
+    expect(sagaName('Harry Potter - Saga')).toBe('Harry Potter')
+    expect(sagaName('Star Wars - Collection')).toBe('Star Wars')
+    expect(sagaName('Retour vers le futur - Saga')).toBe('Retour vers le futur')
+  })
+
+  it('saga TMDB : les films par date de sortie', () => {
+    const saga = toSaga({
+      id: 1241, name: 'Harry Potter - Saga', poster_path: '/hp.jpg',
+      parts: [
+        { id: 674, title: 'Harry Potter et la Coupe de feu', release_date: '2005-11-16' },
+        { id: 671, title: "Harry Potter à l'école des sorciers", release_date: '2001-11-16' },
+      ],
+    })
+    expect(saga.parts.map((p) => p.id)).toEqual([671, 674])
+    expect(saga.posterUrl).toBe('https://image.tmdb.org/t/p/w185/hp.jpg')
+  })
+
+  it('une saga reste ensemble, dans l’ordre, coffret en tête, tous supports mélangés', () => {
+    let n = 0
+    const film = (title: string, extra: Partial<Cd>): Cd =>
+      ({ id: `f${++n}`, media: 'video', artist: 'George Lucas', artistSort: 'Lucas, George', title, genres: ['Science-Fiction'], styles: [],
+        format: 'autre', discCount: 1, thicknessMm: 14, coverUrls: [], isCompilation: false, status: 'identifie', confidence: 95,
+        confidenceReasons: [], source: 'manuel', createdAt: 0, updatedAt: 0, ...extra }) as Cd
+    const items = [
+      film('Star Wars : L’Empire contre-attaque', { series: 'Star Wars', volume: 5, videoFormat: 'bluray', year: 1980 }),
+      film('Alien', { artist: 'Ridley Scott', artistSort: 'Scott, Ridley', year: 1979 }),
+      film('Star Wars : Un nouvel espoir', { series: 'Star Wars', volume: 4, videoFormat: 'vhs', year: 1977 }),
+      film('Star Wars : la prélogie', { series: 'Star Wars', boxSet: true, contents: ['La Menace fantôme', 'L’Attaque des clones', 'La Revanche des Sith'], year: 2005 }),
+    ]
+    const plan = buildPlan(items, defaultVideoRules())
+    const order = plan.themes.flatMap((t) => t.cds.map((c) => c.title))
+    const sw = order.filter((t) => t.startsWith('Star Wars'))
+    expect(sw).toEqual(['Star Wars : la prélogie', 'Star Wars : Un nouvel espoir', 'Star Wars : L’Empire contre-attaque'])
+    // côte à côte dans le rangement
+    const i = order.indexOf(sw[0])
+    expect(order.slice(i, i + 3)).toEqual(sw)
   })
 })

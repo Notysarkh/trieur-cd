@@ -110,6 +110,56 @@ export function bestTmdbMatch(results: TmdbResult[], title: string): TmdbResult 
   return results.find((r) => same(r.title) || same(r.originalTitle)) ?? results.find((r) => normalizeText(r.title).includes(t))
 }
 
+// --- Sagas (« collections » TMDB : Harry Potter, Star Wars…) ---
+
+export interface TmdbSaga {
+  id: number
+  name: string
+  posterUrl?: string
+  /** Les films de la saga, par date de sortie. */
+  parts: TmdbResult[]
+}
+
+interface RawCollection {
+  id: number
+  name: string
+  poster_path?: string | null
+  parts?: RawResult[]
+}
+
+/** Nom d'une saga sans « - Saga », « Collection »… (« Harry Potter - Saga » → « Harry Potter »). */
+export function sagaName(name: string): string {
+  return name
+    .replace(/\s*[-–:]\s*(?:la\s+)?(?:saga|collection|trilogie)\s*$/i, '')
+    .replace(/\s+(?:saga|collection)\s*$/i, '')
+    .replace(/^(?:la\s+)?(?:saga|collection)\s+/i, '')
+    .trim()
+}
+
+export function toSaga(c: RawCollection, names: Map<number, string> = new Map()): TmdbSaga {
+  const parts = (c.parts ?? [])
+    .map((p) => toResult(p, 'movie', names))
+    .sort((a, b) => (a.year ?? Infinity) - (b.year ?? Infinity))
+  return { id: c.id, name: c.name, posterUrl: c.poster_path ? `https://image.tmdb.org/t/p/w185${c.poster_path}` : undefined, parts }
+}
+
+/** La saga d'un film (si TMDB en connaît une). */
+export async function tmdbSagaOfMovie(movieId: number, priority: Priority = 'normal'): Promise<TmdbSaga | undefined> {
+  const movie = await get<{ belongs_to_collection?: { id: number } | null }>(`movie/${movieId}`, {}, priority)
+  if (!movie.belongs_to_collection) return undefined
+  return toSaga(await get<RawCollection>(`collection/${movie.belongs_to_collection.id}`, {}, priority), await genres(priority))
+}
+
+/** Une saga d'après son nom (pour remplir la liste des films d'un coffret). */
+export async function searchTmdbSaga(name: string, priority: Priority = 'normal'): Promise<TmdbSaga | undefined> {
+  if (!hasTmdbKey() || !name.trim()) return undefined
+  const found = await get<{ results: { id: number; name: string }[] }>('search/collection', { query: name }, priority)
+  const t = normalizeText(name)
+  const best = found.results.find((r) => normalizeText(sagaName(r.name)) === t) ?? found.results[0]
+  if (!best) return undefined
+  return toSaga(await get<RawCollection>(`collection/${best.id}`, {}, priority), await genres(priority))
+}
+
 /** Vérifie la clé (bouton « Tester » des Réglages). */
 export async function testTmdbKey(): Promise<boolean> {
   try {

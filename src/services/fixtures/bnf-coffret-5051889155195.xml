@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?><srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/" xmlns="http://catalogue.bnf.fr/namespaces/InterXMarc" xmlns:ixm="http://catalogue.bnf.fr/namespaces/InterXMarc" xmlns:mn="http://catalogue.bnf.fr/namespaces/motsnotices" xmlns:sd="http://www.loc.gov/zing/srw/diagnostic/">
+<srw:version>1.2</srw:version>
+<srw:echoedSearchRetrieveRequest>
+<srw:version>1.2</srw:version>
+<srw:query>bib.ean adj "5051889155195"</srw:query>
+</srw:echoedSearchRetrieveRequest>
+<srw:numberOfRecords>1</srw:numberOfRecords>
+<srw:records>
+<srw:record>
+<srw:recordSchema>marcxchange</srw:recordSchema>
+<srw:recordPacking>xml</srw:recordPacking>
+<srw:recordData>
+<mxc:record xmlns:mxc="info:lc/xmlns/marcxchange-v2" format="UNIMARC" id="ark:/12148/cb425686620" type="Bibliographic">
+<mxc:leader>     cgm  22        450 </mxc:leader>
+<mxc:controlfield tag="001">FRBNF425686620000005</mxc:controlfield>
+<mxc:controlfield tag="003">http://catalogue.bnf.fr/ark:/12148/cb425686620</mxc:controlfield>
+<mxc:datafield tag="020" ind1=" " ind2=" ">
+<mxc:subfield code="a">FR</mxc:subfield>
+<mxc:subfield code="b">71202896</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="071" ind1="4" ind2="1">
+<mxc:subfield code="a">1000226294</mxc:subfield>
+<mxc:subfield code="b">EDV 4</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="073" ind1=" " ind2="0">
+<mxc:subfield code="a">5051889155195</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="100" ind1=" " ind2=" ">
+<mxc:subfield code="a">20111219d2011       y0frey50      ba</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="101" ind1="1" ind2=" ">
+<mxc:subfield code="a">eng</mxc:subfield>
+<mxc:subfield code="a">fre</mxc:subfield>
+<mxc:subfield code="a">ger</mxc:subfield>
+<mxc:subfield code="a">dut</mxc:subfield>
+<mxc:subfield code="c">eng</mxc:subfield>
+<mxc:subfield code="j">eng</mxc:subfield>
+<mxc:subfield code="j">fre</mxc:subfield>
+<mxc:subfield code="j">ger</mxc:subfield>
+<mxc:subfield code="j">dut</mxc:subfield>
+<mxc:subfield code="g">fre</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="102" ind1=" " ind2=" ">
+<mxc:subfield code="a">FR</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="115" ind1=" " ind2=" ">
+<mxc:subfield code="a">c   baiz|||||||bk||c</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="181" ind1=" " ind2="0">
+<mxc:subfield code="6">01</mxc:subfield>
+<mxc:subfield code="a">b </mxc:subfield>
+<mxc:subfield code="b">xa2e  </mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="181" ind1=" " ind2=" ">
+<mxc:subfield code="6">02</mxc:subfield>
+<mxc:subfield code="c">tdi</mxc:subfield>
+<mxc:subfield code="2">rdacontent</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="182" ind1=" " ind2="0">
+<mxc:subfield code="6">01</mxc:subfield>
+<mxc:subfield code="a">g</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="182" ind1=" " ind2=" ">
+<mxc:subfield code="6">02</mxc:subfield>
+<mxc:subfield code="c">v</mxc:subfield>
+<mxc:subfield code="2">rdamedia</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="200" ind1="1" ind2=" ">
+<mxc:subfield code="a">Harry Potter et les reliques de la mort</mxc:subfield>
+<mxc:subfield code="e">1ère et 2ème parties</mxc:subfield>
+<mxc:subfield code="b">Images animées</mxc:subfield>
+<mxc:subfield code="f">David Yates, réal.</mxc:subfield>
+<mxc:subfield code="g">J. K. Rowling, aut. adaptée</mxc:subfield>
+<mxc:subfield code="g">Steve Kloves, scénario</mxc:subfield>
+<mxc:subfield code="g">Alexandre Desplat, comp.</mxc:subfield>
+<mxc:subfield code="g">Daniel Radcliffe, Rupert Grint, Emma Watson... [et al.], act.</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="210" ind1=" " ind2=" ">
+<mxc:subfield code="a">[Neuilly-sur-Seine]</mxc:subfield>
+<mxc:subfield code="c">Warner home video [éd., distrib.]</mxc:subfield>
+<mxc:subfield code="d">cop. 2011</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="215" ind1=" " ind2=" ">
+<mxc:subfield code="a">4 DVD vidéo monofaces double couche zone 2 (2 h 20 min, 2 h 10 min)</mxc:subfield>
+<mxc:subfield code="c">16/9, coul., son., surround (Dolby)</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="300" ind1=" " ind2=" ">
+<mxc:subfield code="a">Contient aussi : DVD bonus 1ère partie : les sept Harry ; rétrospective de 10 ans de Harry Potter avec Rupert, Tom, Oliver et James ; Dan, Rupert et Emma en compétition ; scènes coupées ; les secrets de la bande originale. DVD bonus 2ème partie : "Quand Harry quitte Poudlard", les gobelins de Gringott, les femmes dans Harry Potter, scènes coupées, visite des studios de Warner Bros à Londres, aperçu de Pottermore</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="300" ind1=" " ind2=" ">
+<mxc:subfield code="a">Interdit à la location</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="300" ind1=" " ind2=" ">
+<mxc:subfield code="a">Film en version originale anglaise, en versions française, allemande et néerlandaise, avec sous-titrage optionnel en anglais, français, allemand et néerlandais</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="300" ind1=" " ind2=" ">
+<mxc:subfield code="a">Adapté du roman éponyme</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="304" ind1=" " ind2=" ">
+<mxc:subfield code="a">Mention parallèle de titre ou de responsabilité : Harry Potter and the deathly hallows, part 1 and part 2</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="304" ind1=" " ind2=" ">
+<mxc:subfield code="a">Notice rédigée d'après la jaquette</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="306" ind1=" " ind2=" ">
+<mxc:subfield code="a">Cop. : 2010-2011</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="316" ind1=" " ind2=" ">
+<mxc:subfield code="5">FR-759999999:42568662001001</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="500" ind1="1" ind2="1">
+<mxc:subfield code="3">16249509</mxc:subfield>
+<mxc:subfield code="a">Harry Potter and the deathly hallows</mxc:subfield>
+<mxc:subfield code="i">Part 1</mxc:subfield>
+<mxc:subfield code="n">film</mxc:subfield>
+<mxc:subfield code="m">multilingue</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="500" ind1="1" ind2="0">
+<mxc:subfield code="3">16719689</mxc:subfield>
+<mxc:subfield code="a">Harry Potter and the deathly hallows</mxc:subfield>
+<mxc:subfield code="i">Part 2</mxc:subfield>
+<mxc:subfield code="n">film</mxc:subfield>
+<mxc:subfield code="m">multilingue</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="510" ind1="1" ind2=" ">
+<mxc:subfield code="a">Harry Potter and the deathly hallows, part 1 and part 2</mxc:subfield>
+<mxc:subfield code="z">eng</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">film fantastique</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">fiction</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">édition vidéo commerciale</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">document d'origine : salle de cinéma commerciale</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">adaptation</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="608" ind1=" " ind2=" ">
+<mxc:subfield code="a">Oeuvre d'origine : roman</mxc:subfield>
+<mxc:subfield code="2">frTAV</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="686" ind1=" " ind2=" ">
+<mxc:subfield code="a">207</mxc:subfield>
+<mxc:subfield code="2">Cadre de classement de la Bibliographie nationale française</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">15076044</mxc:subfield>
+<mxc:subfield code="o">ISNI000000008172537X</mxc:subfield>
+<mxc:subfield code="a">Yates</mxc:subfield>
+<mxc:subfield code="b">David</mxc:subfield>
+<mxc:subfield code="f">1963-....</mxc:subfield>
+<mxc:subfield code="4">300</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">13520013</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000069181891</mxc:subfield>
+<mxc:subfield code="a">Rowling</mxc:subfield>
+<mxc:subfield code="b">J. K.</mxc:subfield>
+<mxc:subfield code="f">1965-....</mxc:subfield>
+<mxc:subfield code="4">100</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">14071473</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000078399112</mxc:subfield>
+<mxc:subfield code="a">Kloves</mxc:subfield>
+<mxc:subfield code="b">Steve</mxc:subfield>
+<mxc:subfield code="f">1960-....</mxc:subfield>
+<mxc:subfield code="4">690</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">13979609</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000114506086</mxc:subfield>
+<mxc:subfield code="a">Desplat</mxc:subfield>
+<mxc:subfield code="b">Alexandre</mxc:subfield>
+<mxc:subfield code="f">1961-....</mxc:subfield>
+<mxc:subfield code="4">230</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">14071475</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000122814142</mxc:subfield>
+<mxc:subfield code="a">Radcliffe</mxc:subfield>
+<mxc:subfield code="b">Daniel</mxc:subfield>
+<mxc:subfield code="f">1989-....</mxc:subfield>
+<mxc:subfield code="4">005</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">14071476</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000114502042</mxc:subfield>
+<mxc:subfield code="a">Grint</mxc:subfield>
+<mxc:subfield code="b">Rupert</mxc:subfield>
+<mxc:subfield code="f">1988-....</mxc:subfield>
+<mxc:subfield code="4">005</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="702" ind1=" " ind2="|">
+<mxc:subfield code="3">14071477</mxc:subfield>
+<mxc:subfield code="o">ISNI0000000114453711</mxc:subfield>
+<mxc:subfield code="a">Watson</mxc:subfield>
+<mxc:subfield code="b">Emma</mxc:subfield>
+<mxc:subfield code="f">1990-....</mxc:subfield>
+<mxc:subfield code="4">005</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="801" ind1=" " ind2="0">
+<mxc:subfield code="a">FR</mxc:subfield>
+<mxc:subfield code="b">FR-751131015</mxc:subfield>
+<mxc:subfield code="c">20111219</mxc:subfield>
+<mxc:subfield code="g">AFNOR</mxc:subfield>
+<mxc:subfield code="h">FRBNF425686620000005</mxc:subfield>
+<mxc:subfield code="2">intermrc</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="930" ind1=" " ind2=" ">
+<mxc:subfield code="5">FR-759999999:42568662001001</mxc:subfield>
+<mxc:subfield code="a">VDVD-69133</mxc:subfield>
+<mxc:subfield code="b">759999999</mxc:subfield>
+<mxc:subfield code="c">Tolbiac - Rez de Jardin - Audiovisuel - Magasin</mxc:subfield>
+<mxc:subfield code="d">O</mxc:subfield>
+</mxc:datafield>
+<mxc:datafield tag="930" ind1=" " ind2=" ">
+<mxc:subfield code="5">FR-759999999:42568662002001</mxc:subfield>
+<mxc:subfield code="a">NUMAV-1069233</mxc:subfield>
+<mxc:subfield code="b">759999999</mxc:subfield>
+<mxc:subfield code="c">Tolbiac - Rez de Jardin - Audiovisuel - Magasin</mxc:subfield>
+<mxc:subfield code="d">O</mxc:subfield>
+</mxc:datafield>
+</mxc:record>      </srw:recordData>
+<srw:recordIdentifier>ark:/12148/cb425686620</srw:recordIdentifier>
+<srw:recordPosition>1</srw:recordPosition>
+<srw:extraRecordData>
+<ixm:attr name="CreationDate">20111219</ixm:attr>
+<ixm:attr name="LastModificationDate">20260414</ixm:attr>
+<mn:score>6.5658116</mn:score>
+</srw:extraRecordData>
+</srw:record>
+</srw:records>
+</srw:searchRetrieveResponse>

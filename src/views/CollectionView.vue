@@ -60,7 +60,7 @@ const haystacks = computed(
     new Map(
       cds.value.map((cd) => [
         cd.id,
-        normalizeText([cd.artist, cd.artistSort, cd.title, cd.series, cd.label, ...cd.genres, ...cd.styles, cd.year].join(' ')),
+        normalizeText([cd.artist, cd.artistSort, cd.title, cd.series, cd.label, ...cd.genres, ...cd.styles, cd.year, ...(cd.contents ?? [])].join(' ')),
       ]),
     ),
 )
@@ -169,6 +169,7 @@ async function confirm(cd: Cd) {
             <div class="artist">
               <template v-if="cd.media === 'jeu'">{{ platformLabel(cd.platform) }} · </template>
               <template v-if="cd.videoFormat">{{ VIDEO_FORMAT_LABELS[cd.videoFormat] }} · </template>
+              <template v-if="cd.boxSet">Coffret<template v-if="cd.contents?.length"> de {{ cd.contents.length }} films</template> · </template>
               <template v-if="cd.series && !cd.videoFormat">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>
               <template v-if="cd.genres.length"> · {{ cd.genres.join(', ') }}</template>

@@ -173,6 +173,16 @@ const COLUMNS: Column[] = [
     },
   },
   {
+    header: 'Coffret',
+    get: (c) => (c.boxSet ? 'oui' : 'non'),
+    set: (d, v) => (d.boxSet = yes(v) || undefined),
+  },
+  {
+    header: 'Contenu du coffret',
+    get: (c) => (c.contents ?? []).join(' | '),
+    set: (d, v) => (d.contents = list(v).length ? list(v) : undefined),
+  },
+  {
     header: 'Sans boîte',
     get: (c) => (c.noBox ? 'oui' : 'non'),
     set: (d, v) => (d.noBox = yes(v) || undefined),
