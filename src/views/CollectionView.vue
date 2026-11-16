@@ -13,6 +13,7 @@ import { shortLocation } from '../services/layout'
 import { currentMedia, layoutAppliedAtFor, rulesFor } from '../services/settings'
 import { seriesLabel } from '../classification/engine'
 import { VIDEO_FORMAT_LABELS } from '../services/films'
+import { MUSIC_FORMAT_LABELS } from '../lib/musicFormats'
 import { platformLabel } from '../lib/platforms'
 import { mediaInfo, mediaOf } from '../lib/media'
 
@@ -169,6 +170,7 @@ async function confirm(cd: Cd) {
             <div class="artist">
               <template v-if="cd.media === 'jeu'">{{ platformLabel(cd.platform) }} · </template>
               <template v-if="cd.videoFormat">{{ VIDEO_FORMAT_LABELS[cd.videoFormat] }} · </template>
+              <template v-if="cd.musicFormat">{{ MUSIC_FORMAT_LABELS[cd.musicFormat] }} · </template>
               <template v-if="cd.boxSet">Coffret<template v-if="cd.contents?.length"> de {{ cd.contents.length }} films</template> · </template>
               <template v-if="cd.series && !cd.videoFormat">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>

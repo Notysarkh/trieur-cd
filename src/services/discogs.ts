@@ -78,7 +78,7 @@ export async function searchByText(
   if (masters.results?.length) return masters.results
   const releases = await get<{ results?: DgSearchResult[] }>(
     '/database/search',
-    { ...params, type: 'release', format: 'CD' },
+    { ...params, type: 'release' },
     priority,
   )
   return releases.results ?? []

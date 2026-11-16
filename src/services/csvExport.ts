@@ -1,6 +1,7 @@
 import { UNCLASSIFIED_THEME } from '../classification/engine'
 import { db } from '../db/database'
-import type { BookKind, Cd, CdDraft, CdFormat, CdStatus, Platform, VideoFormat } from '../db/types'
+import type { BookKind, Cd, CdDraft, CdFormat, CdStatus, MusicFormat, Platform, VideoFormat } from '../db/types'
+import { MUSIC_FORMAT_LABELS, musicSize } from '../lib/musicFormats'
 import { digitsOnly } from '../lib/barcode'
 import { parseCsv, toCsv } from '../lib/csv'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
@@ -157,6 +158,14 @@ const COLUMNS: Column[] = [
   { header: 'Collection', get: (c) => c.bookCollection, set: (d, v) => (d.bookCollection = v) },
   { header: 'Pages', get: (c) => c.pages, set: (d, v) => (d.pages = num(v)) },
   {
+    header: 'Support musique',
+    get: (c) => ((c.media ?? 'cd') === 'cd' ? MUSIC_FORMAT_LABELS[c.musicFormat ?? 'cd'] : ''),
+    set: (d, v) => {
+      const k = findKey<MusicFormat>(MUSIC_FORMAT_LABELS, v)
+      if (k) d.musicFormat = k === 'cd' ? undefined : k
+    },
+  },
+  {
     header: 'Support vidéo',
     get: (c) => (c.videoFormat ? VIDEO_FORMAT_LABELS[c.videoFormat] : ''),
     set: (d, v) => {
@@ -266,7 +275,7 @@ export async function importCsv(file: File): Promise<CsvReport> {
     } else if (changes.title || changes.artist) {
       const artist = changes.artist ?? 'Inconnu'
       const format = changes.format ?? (media === 'cd' ? 'standard' : 'autre')
-      // Épaisseur et hauteur par défaut selon l'univers (boîtier CD, livre, film, boîte de jeu).
+      // Épaisseur et hauteur par défaut selon l'univers et le support (CD, vinyle, livre, film, boîte de jeu).
       const size =
         media === 'livre'
           ? { thicknessMm: 25, heightCm: 20 }
@@ -274,7 +283,7 @@ export async function importCsv(file: File): Promise<CsvReport> {
             ? videoSize(changes.videoFormat ?? 'dvd', changes.discCount ?? 1)
             : media === 'jeu'
               ? gameSize(changes.platform, changes.discCount ?? 1)
-              : { thicknessMm: settings.thickness[format] }
+              : (musicSize(changes.musicFormat, changes.discCount ?? 1) ?? { thicknessMm: settings.thickness[format] })
       const draft = {
         artist,
         artistSort: changes.artistSort ?? guessSortName(artist),

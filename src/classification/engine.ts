@@ -364,7 +364,7 @@ export function buildPlan(
           ? `Console : ${platformLabel(first.platform)}`
           : n === 1
           ? `Genre : ${[...first.genres, ...first.styles].slice(0, 3).join(', ')}`
-          : `${Math.round(agreement * 100)} % des voix de ses ${n} ${({ cd: 'CD', livre: 'livres', video: 'films', jeu: 'jeux' } as const)[mediaOf(first)]}`
+          : `${Math.round(agreement * 100)} % des voix de ses ${n} ${({ cd: 'disques', livre: 'livres', video: 'films', jeu: 'jeux' } as const)[mediaOf(first)]}`
     }
 
     // Compilations : thème « Compilations », sauf si ce sont des BO, du classique ou pour enfants.

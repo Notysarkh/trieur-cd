@@ -2,6 +2,7 @@ import type { Cd } from '../db/types'
 import { mediaOf, type MediaKind } from '../lib/media'
 import { platformInfo } from '../lib/platforms'
 import { VIDEO_FORMATS } from '../lib/videoFormats'
+import { musicFormatInfo } from '../lib/musicFormats'
 
 // Les meubles et leurs « cases ».
 //
@@ -268,9 +269,10 @@ export function furnitureFor(furniture: Furniture[], media: MediaKind): Furnitur
   })
 }
 
-/** Hauteur d'un objet en cm (CD sans hauteur connue : boîtier standard de 12,5 cm). */
+/** Hauteur d'un objet en cm (musique sans hauteur connue : selon le support ; CD : boîtier standard de 12,5 cm). */
 export function heightOf(cd: Cd): number {
-  return cd.heightCm && cd.heightCm > 0 ? cd.heightCm : mediaOf(cd) === 'cd' ? CD_HEIGHT_MM / 10 : 0
+  if (cd.heightCm && cd.heightCm > 0) return cd.heightCm
+  return mediaOf(cd) === 'cd' ? musicFormatInfo(cd.musicFormat).heightCm : 0
 }
 
 /**
@@ -279,7 +281,7 @@ export function heightOf(cd: Cd): number {
  */
 export function widthOf(cd: Cd): number {
   const media = mediaOf(cd)
-  if (media === 'cd') return CD_DEPTH_MM / 10
+  if (media === 'cd') return musicFormatInfo(cd.musicFormat).widthCm
   if (media === 'video') return VIDEO_FORMATS[cd.videoFormat ?? 'dvd']?.widthCm ?? 0
   if (media === 'jeu') return platformInfo(cd.platform ?? 'autre')?.widthCm ?? 0
   return 0

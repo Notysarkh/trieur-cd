@@ -3,6 +3,7 @@ import { enrichFilm } from './films'
 import { enrichGame } from './games'
 import { canonicalBarcode, sameBarcode } from '../lib/barcode'
 import { formatFromDiscogs, formatFromMusicBrainz } from '../lib/formats'
+import { musicFormatFromMb, musicFormatFromText, musicSize } from '../lib/musicFormats'
 import { cleanDiscogsArtist, guessSortName } from '../lib/sortName'
 import { isJunkTag, latinArtistName } from '../lib/cleanup'
 import { normalizeText, similarity, titleCase, yearFrom } from '../lib/text'
@@ -128,6 +129,9 @@ export function draftFromMbRelease(r: mb.MbRelease, barcode?: string): CdDraft {
   const isCompilation = credits.some((c) => c.artist.id === mb.VARIOUS_ARTISTS_ID)
   const discCount = Math.max(1, r.media?.length ?? 1)
   const format = formatFromMusicBrainz(r.packaging, discCount)
+  // Vinyle, cassette… : dimensions du support (CD et SA-CD : selon le boîtier).
+  const musicFormat = musicFormatFromMb(r.media)
+  const size = musicSize(musicFormat, discCount)
   const labelInfo = r['label-info']?.find((l) => l.label?.name)
   const credited = mb.creditText(credits) || 'Artiste inconnu'
   const artistSort = first?.['sort-name'] || guessSortName(credited)
@@ -150,6 +154,8 @@ export function draftFromMbRelease(r: mb.MbRelease, barcode?: string): CdDraft {
     format,
     discCount,
     thicknessMm: settings.thickness[format],
+    ...(musicFormat && musicFormat !== 'cd' ? { musicFormat } : {}),
+    ...(size ?? {}),
     coverUrls: mb.coverArtUrls(r.id, r['release-group']?.id),
     isCompilation,
     language: r['text-representation']?.language ?? undefined,
@@ -190,6 +196,8 @@ export function draftFromDiscogs(d: discogs.DgSearchResult, barcode?: string): C
   const artist = isCompilation ? 'Various Artists' : cleanDiscogsArtist(split.artist) || 'Artiste inconnu'
   const discCount = Math.max(1, d.format_quantity ?? 1)
   const format = formatFromDiscogs(d.format, discCount)
+  const musicFormat = musicFormatFromText((d.format ?? []).join(' '))
+  const size = musicSize(musicFormat, discCount)
   const cover = discogs.usableCover(d.cover_image)
   return {
     ...emptyDraft(),
@@ -207,6 +215,8 @@ export function draftFromDiscogs(d: discogs.DgSearchResult, barcode?: string): C
     format,
     discCount,
     thicknessMm: settings.thickness[format],
+    ...(musicFormat && musicFormat !== 'cd' ? { musicFormat } : {}),
+    ...(size ?? {}),
     coverUrls: cover ? [cover] : [],
     isCompilation,
     source: 'discogs',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { BookKind, CdDraft, CdFormat, Platform, VideoFormat } from '../db/types'
+import type { BookKind, CdDraft, CdFormat, MusicFormat, Platform, VideoFormat } from '../db/types'
+import { MUSIC_FORMAT_LABELS, musicFormatInfo, musicSize } from '../lib/musicFormats'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
@@ -62,6 +63,19 @@ function setKind(kind: BookKind) {
 function setFormat(format: CdFormat) {
   model.value.format = format
   model.value.thicknessMm = settings.thickness[format]
+}
+
+// Musique : le support (vinyle, cassette…) décide des dimensions ; CD et SA-CD : selon le conditionnement.
+const cdCase = computed(() => musicFormatInfo(model.value.musicFormat).cdCase)
+function setMusic(f: MusicFormat, discCount = model.value.discCount) {
+  model.value.musicFormat = f === 'cd' ? undefined : f
+  model.value.discCount = discCount
+  const size = musicSize(f, discCount)
+  if (size) Object.assign(model.value, size)
+  else {
+    model.value.thicknessMm = settings.thickness[model.value.format]
+    model.value.heightCm = undefined
+  }
 }
 
 // Compilation perso (CD gravé, mix…) : pas d'artiste, seulement un nom (le titre).
@@ -372,18 +386,28 @@ function toNumber(text: string): number | undefined {
       />
     </label>
     <label class="field">
-      Format
+      Support
+      <select :value="model.musicFormat ?? 'cd'" @change="setMusic(($event.target as HTMLSelectElement).value as MusicFormat)">
+        <option v-for="(label, key) in MUSIC_FORMAT_LABELS" :key="key" :value="key">{{ label }}</option>
+      </select>
+    </label>
+    <label v-if="cdCase" class="field">
+      Boîtier
       <select :value="model.format" @change="setFormat(($event.target as HTMLSelectElement).value as CdFormat)">
         <option v-for="(label, key) in FORMAT_LABELS" :key="key" :value="key">{{ label }}</option>
       </select>
     </label>
+    <label v-else class="field">
+      Hauteur (cm)
+      <input :value="model.heightCm ?? ''" inputmode="decimal" @input="model.heightCm = toNumber(($event.target as HTMLInputElement).value)" />
+    </label>
     <div class="row">
       <label class="field grow">
-        Nombre de disques
+        {{ model.musicFormat === 'cassette' ? 'Nombre de cassettes' : 'Nombre de disques' }}
         <input
           :value="model.discCount"
           inputmode="numeric"
-          @input="model.discCount = toNumber(($event.target as HTMLInputElement).value) ?? 1"
+          @input="cdCase ? (model.discCount = toNumber(($event.target as HTMLInputElement).value) ?? 1) : setMusic(model.musicFormat ?? 'cd', toNumber(($event.target as HTMLInputElement).value) ?? 1)"
         />
       </label>
       <label class="field grow">

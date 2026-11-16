@@ -22,6 +22,9 @@ export type CdFormat =
 export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary' | 'rawg'
 
 /** Support d'un film (v2) : DVD et Blu-ray sont rangés ensemble. */
+/** Support d'un disque de musique (absent = CD). */
+export type MusicFormat = 'cd' | 'vinyle' | 'vinyle45' | 'cassette' | 'minidisc' | 'sacd' | 'dvda' | 'bdaudio'
+
 export type VideoFormat = 'dvd' | 'bluray' | 'uhd' | 'hddvd' | 'usb' | 'laserdisc' | 'vhs' | 'betamax'
 
 /** Type de livre : chacun a sa place (BD, mangas et comics à part). */
@@ -75,6 +78,8 @@ export interface Cd {
   isCompilation: boolean
   /** CD sans code-barres (ancien pressage, promo, import, CD gravé…). */
   noBarcode?: boolean
+  /** Musique : support (vinyle, cassette…) ; absent = CD. */
+  musicFormat?: MusicFormat
   /** Sans boîte (jeu ou disque en vrac) : rangé à part, il ne prend pas de place dans les meubles. */
   noBox?: boolean
   /** Compilation personnelle (CD gravé, mix…) : rangée à la fin de son thème, sous le nom donné (titre). */

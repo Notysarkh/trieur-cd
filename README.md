@@ -115,7 +115,7 @@ Onglet **Rangement** : l'appli répartit la collection dans tes meubles en suiva
 
 ## Version 2 : Mediamwa
 
-Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, 📚 Livres / BD, 🎬 Films, 🎮 Jeux vidéo. Chaque univers a sa collection, son scanner, son classement et son rangement ; les réglages et la sauvegarde sont communs. Au démarrage, l'appli rouvre le dernier univers utilisé ; le bandeau en haut de l'écran ramène à l'accueil.
+Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musique, 📚 Livres / BD, 🎬 Films, 🎮 Jeux vidéo. Chaque univers a sa collection, son scanner, son classement et son rangement ; les réglages et la sauvegarde sont communs. Au démarrage, l'appli rouvre le dernier univers utilisé ; le bandeau en haut de l'écran ramène à l'accueil.
 
 | Étape | Contenu | État |
 |---|---|---|
@@ -134,6 +134,10 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 💿 CD, �
 - **Livre sans ISBN** (« + Livre sans ISBN ») : recherche par titre et auteur dans le catalogue de la BnF (même les livres anciens), ou saisie à la main.
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
+
+### Musique (16/11/2026)
+
+- L’univers « CD » s’appelle **« Musique »** (un objet = un « disque »). Supports : CD, vinyle 33 tours, vinyle 45 tours, cassette, MiniDisc, SA-CD, DVD-Audio, Blu-ray Pure Audio. Le support est lu dans MusicBrainz (« 12" Vinyl », « Cassette »…) et Discogs. CD et SA-CD : épaisseur selon le boîtier (standard, digipak…) ; autres supports : dimensions par défaut (HYPOTHÈSES, `src/lib/musicFormats.ts`), multipliées par le nombre de disques pour les vinyles et cassettes. Colonne « Support musique » dans le CSV.
 
 ### Étape C : Films (DVD, Blu-ray…)
 
