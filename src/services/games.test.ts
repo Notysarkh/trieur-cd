@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPlan } from '../classification/engine'
-import { defaultGameRules, withPlatforms } from '../classification/themes'
+import { defaultGameRules, withNewPlatforms, withPlatforms } from '../classification/themes'
 import type { Cd, Platform } from '../db/types'
 import { platformFromRawg, platformFromText } from '../lib/platforms'
 import { parseSru } from './books'
@@ -156,6 +156,43 @@ describe('jeux : classement (console puis titre)', () => {
     const plan = buildPlan([game('Uncharted 4', 'ps4'), game('Mario Kart 8', 'wiiu')], rules)
     expect(plan.placement.get(plan.themes.find((t) => t.theme.id === 'ps4')!.cds[0].id)?.themeId).toBe('ps4')
     expect(plan.themes.find((t) => t.theme.id === 'autres')!.cds.map((c) => c.title)).toEqual(['Mario Kart 8'])
+  })
+})
+
+describe('consoles ajoutées le 16/11/2026', () => {
+  it('reconnaît les consoles rétro, les plus précises d’abord', () => {
+    expect(platformFromText('1 cartouche Game Boy Color')).toBe('gbc')
+    expect(platformFromText('1 cartouche Game Boy')).toBe('gb')
+    expect(platformFromText('1 HuCard (PC Engine)')).toBe('pce')
+    expect(platformFromText('1 disque optique numérique (PC Engine CD-ROM²)')).toBe('pcecd')
+    expect(platformFromText('1 cartouche Neo Geo Pocket Color')).toBe('ngpc')
+    expect(platformFromText('1 disque (Neo Geo CD)')).toBe('neogeocd')
+    expect(platformFromText('1 cartouche Neo-Geo')).toBe('neogeo')
+    expect(platformFromText('1 cartouche WonderSwan Color')).toBe('wsc')
+    expect(platformFromText('1 disque optique numérique (Sega Saturn)')).toBe('saturn')
+    expect(platformFromText('1 disque (Mega-CD)')).toBe('megacd')
+    expect(platformFromText('1 cartouche Mega Drive 32X')).toBe('s32x')
+    expect(platformFromText('1 cartouche Mega Drive')).toBe('md')
+    expect(platformFromText('1 disque (Amiga CD32)')).toBe('cd32')
+    expect(platformFromText('2 disquettes Amiga')).toBe('amiga')
+    expect(platformFromText('1 disque compact interactif (CD-i)')).toBe('cdi')
+    expect(platformFromText('1 cartouche Videopac')).toBe('odyssey')
+    expect(platformFromText('1 cartouche Nokia N-Gage')).toBe('ngage')
+    expect(platformFromText('1 cédérom (PC)')).toBe('pc')
+    expect(platformFromRawg('sega-saturn')).toBe('saturn')
+    expect(platformFromRawg('game-boy-color')).toBe('gbc')
+  })
+
+  it('tes thèmes existants : les nouvelles consoles rejoignent « Autres consoles »', () => {
+    const old = defaultGameRules()
+    const autres = old.themes.find((t) => t.id === 'autres')!
+    autres.keywords = autres.keywords.filter((k) => !['Saturn', 'Game Boy Color'].includes(k))
+    const after = withNewPlatforms(old)
+    expect(after.themes.find((t) => t.id === 'autres')!.keywords).toEqual(expect.arrayContaining(['Saturn', 'Game Boy Color']))
+    expect(after.themes.map((t) => t.id)).toEqual(old.themes.map((t) => t.id))
+    // Même sans ce rattrapage (sauvegarde d'un ancien appareil), un jeu Saturn va dans « Autres consoles ».
+    const saturn = { id: 'sat1', media: 'jeu', platform: 'saturn', title: 'Panzer Dragoon', artist: 'Sega', artistSort: 'Sega', genres: [], styles: [] } as unknown as Cd
+    expect(buildPlan([saturn], old).placement.get('sat1')?.themeId).toBe('autres')
   })
 })
 

@@ -273,6 +273,19 @@ export function withPlatforms(rules: ClassificationRules, platforms: Platform[])
   return { ...rules, themes: [...mine, others, ...custom] }
 }
 
+/**
+ * Consoles ajoutées à l'appli après la création de tes thèmes : chacune rejoint « Autres consoles »
+ * si aucun thème ne cite déjà son nom. Rien d'autre ne change (ordre, noms, couleurs).
+ */
+export function withNewPlatforms(rules: ClassificationRules): ClassificationRules {
+  const autres = rules.themes.find((t) => t.id === 'autres')
+  if (!autres) return rules
+  const known = new Set(rules.themes.flatMap((t) => t.keywords.map(normalizeKeyword)))
+  const missing = PLATFORMS.map((p) => p.label).filter((l) => !known.has(normalizeKeyword(l)))
+  if (!missing.length) return rules
+  return { ...rules, themes: rules.themes.map((t) => (t.id === 'autres' ? { ...t, keywords: [...t.keywords, ...missing] } : t)) }
+}
+
 const normalizeKeyword = (k: string) => k.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 /** Crée un identifiant de thème lisible à partir de son nom. */

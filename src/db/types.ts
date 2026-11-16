@@ -30,8 +30,13 @@ export type BookKind = 'livre' | 'bd' | 'manga' | 'comics'
 /** Console d'un jeu vidéo (v2) : les jeux sont rangés par console, puis par titre. */
 export type Platform =
   | 'ps1' | 'ps2' | 'ps3' | 'ps4' | 'ps5' | 'psp' | 'vita'
-  | 'nds' | '3ds' | 'switch' | 'switch2' | 'snes' | 'nes' | 'n64' | 'gc' | 'wii' | 'wiiu' | 'gb' | 'gba'
-  | 'xbox' | 'x360' | 'xone' | 'xsx' | 'pc' | 'md' | 'autre'
+  | 'nds' | '3ds' | 'switch' | 'switch2' | 'snes' | 'nes' | 'n64' | 'gc' | 'wii' | 'wiiu' | 'gb' | 'gbc' | 'gba' | 'vb'
+  | 'xbox' | 'x360' | 'xone' | 'xsx'
+  | 'sg1000' | 'sms' | 'md' | 'megacd' | 's32x' | 'saturn' | 'dc' | 'gg'
+  | 'pce' | 'pcecd' | 'sgx' | 'pcfx' | 'neogeo' | 'neogeocd' | 'ngp' | 'ngpc' | 'ws' | 'wsc' | 'playdia'
+  | 'a2600' | 'a7800' | 'lynx' | 'jaguar' | 'atarist' | 'amiga' | 'cd32' | 'c64'
+  | '3do' | 'cdi' | 'fmtowns' | 'vectrex' | 'odyssey' | 'coleco' | 'intv' | 'pippin' | 'loopy' | 'ngage'
+  | 'cpc' | 'msx' | 'zx' | 'pc' | 'autre'
 
 /** Un objet de la collection (CD, et en v2 : livre, film, jeu). */
 export interface Cd {

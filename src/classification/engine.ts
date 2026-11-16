@@ -222,6 +222,9 @@ export function cdVotes(cd: Cd, rules: ClassificationRules, matcher: Matcher): V
     const ids = cd.platform ? themesForTag(platformLabel(cd.platform), matcher) : []
     const own = ids.filter((id) => rules.themes.find((t) => t.id === id)?.special !== 'divers')
     for (const id of own.length ? own : ids) votes.set(id, 1)
+    // Console inconnue de tes thèmes (ajoutée à l'appli depuis) : « Autres consoles ».
+    const divers = rules.themes.find((t) => t.special === 'divers')?.id
+    if (!ids.length && cd.platform && cd.platform !== 'autre' && divers) votes.set(divers, 1)
     return votes
   }
   addTags(votes, cd.genres, 1, matcher)

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Platform } from '../db/types'
-import { PLATFORMS, platformLabel } from '../lib/platforms'
+import { byMaker, PLATFORMS, platformLabel } from '../lib/platforms'
 import { setMyPlatforms } from '../services/classification'
 import { settings } from '../services/settings'
 
@@ -15,7 +15,7 @@ const route = useRoute()
 const router = useRouter()
 const firstTime = !settings.platformsSetupDone
 const chosen = ref<Platform[]>(firstTime ? [] : [...settings.myPlatforms])
-const available = computed(() => PLATFORMS.filter((p) => p.id !== 'autre' && !chosen.value.includes(p.id)))
+const available = computed(() => byMaker(PLATFORMS.filter((p) => p.id !== 'autre' && !chosen.value.includes(p.id))))
 
 function add(id: Platform) {
   chosen.value.push(id)
@@ -73,14 +73,18 @@ async function save() {
 
     <section class="card stack">
       <h2>Ajouter une console</h2>
-      <div class="choices">
-        <button v-for="p in available" :key="p.id" class="chip" @click="add(p.id)">+ {{ p.label }}</button>
+      <div v-for="g in available" :key="g.maker" class="group">
+        <h3 class="small muted">{{ g.maker }}</h3>
+        <div class="choices">
+          <button v-for="p in g.platforms" :key="p.id" class="chip" @click="add(p.id)">+ {{ p.label }}</button>
+        </div>
       </div>
     </section>
 
     <button class="btn btn-primary btn-big" :disabled="!chosen.length || saving" @click="save">
       <template v-if="!chosen.length">Choisis au moins une console</template>
-      <template v-else>✓ Valider mes {{ chosen.length }} console{{ chosen.length > 1 ? 's' : '' }}</template>
+      <template v-else-if="chosen.length === 1">✓ Valider ma console</template>
+      <template v-else>✓ Valider mes {{ chosen.length }} consoles</template>
     </button>
   </main>
 </template>
@@ -96,6 +100,10 @@ async function save() {
 }
 .chosen li {
   flex-wrap: nowrap;
+}
+.group h3 {
+  margin: 0 0 4px;
+  font-weight: 600;
 }
 .choices {
   display: flex;

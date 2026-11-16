@@ -1,10 +1,10 @@
 import { reactive } from 'vue'
 import { db } from '../db/database'
-import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, migrateRules, type ClassificationRules } from '../classification/themes'
+import { defaultBookRules, defaultGameRules, defaultRules, defaultVideoRules, migrateRules, withNewPlatforms, type ClassificationRules } from '../classification/themes'
 import { DEFAULT_THICKNESS, type ThicknessTable } from '../lib/formats'
 import type { MediaKind } from '../lib/media'
 import type { Platform } from '../db/types'
-import { MY_PLATFORMS, PLATFORMS } from '../lib/platforms'
+import { MY_PLATFORMS, PLATFORMS, PLATFORMS_VERSION } from '../lib/platforms'
 import { addV2Furniture, DEFAULT_LAYOUT_OPTIONS, defaultFurniture, type Furniture, type LayoutOptions } from '../layout/furniture'
 
 // Les réglages de l'appli, gardés dans la base locale.
@@ -61,6 +61,8 @@ export interface Settings {
   gameLayoutAppliedAt: number
   /** Meubles des livres, films et jeux ajoutés (v2, étape E) : 0 = pas encore fait sur cet appareil. */
   furnitureV2: number
+  /** Version de la liste des consoles déjà intégrée aux thèmes des jeux (2 = 60 consoles, le 16/11/2026). */
+  platformsVersion: number
 }
 
 const DEFAULTS: Settings = {
@@ -93,6 +95,7 @@ const DEFAULTS: Settings = {
   videoLayoutAppliedAt: 0,
   gameLayoutAppliedAt: 0,
   furnitureV2: 0,
+  platformsVersion: 0,
 }
 
 /** Les réglages en mémoire ; l'interface se met à jour toute seule quand ils changent. */
@@ -134,6 +137,12 @@ export function loadSettings(): Promise<void> {
     if (!settings.furnitureV2) {
       await saveSetting('furniture', addV2Furniture(settings.furniture))
       await saveSetting('furnitureV2', 1)
+    }
+    // Consoles ajoutées à l'appli (Saturn, Neo Geo, PC Engine…) : leur nom rejoint « Autres consoles »
+    // si aucun de tes thèmes ne le cite. Une seule fois (tu peux ensuite retirer un nom à la main).
+    if (settings.platformsVersion < PLATFORMS_VERSION) {
+      await saveSetting('gameClassification', withNewPlatforms(settings.gameClassification))
+      await saveSetting('platformsVersion', PLATFORMS_VERSION)
     }
   })()
   return loaded
