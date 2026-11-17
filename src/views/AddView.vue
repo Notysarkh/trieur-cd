@@ -19,6 +19,8 @@ import { gameSize, searchGames } from '../services/games'
 import { hasRawgKey } from '../services/rawg'
 import { platformLabel } from '../lib/platforms'
 import PlatformSelect from '../components/PlatformSelect.vue'
+import BoxSetBuilder, { type BoxSetResult } from '../components/BoxSetBuilder.vue'
+import { canonicalBarcode } from '../lib/barcode'
 import { mediaOf, type MediaKind } from '../lib/media'
 
 // Plan B quand le code-barres ne suffit pas :
@@ -143,6 +145,38 @@ function manual() {
   window.scrollTo(0, 0)
 }
 
+// --- Coffret de films : une seule fiche, films choisis depuis la recherche ---
+const boxBuilder = ref(false)
+function fromBoxSet(b: BoxSetResult) {
+  boxBuilder.value = false
+  draft.value = {
+    media: 'video',
+    videoFormat: b.videoFormat,
+    boxSet: true,
+    contents: b.contents,
+    series: b.saga,
+    barcode: barcode ? canonicalBarcode(barcode) : undefined,
+    noBarcode: !barcode || undefined,
+    artist: b.artist,
+    artistSort: b.artistSort,
+    title: b.name,
+    year: b.year,
+    genres: b.genres,
+    styles: [],
+    format: 'autre',
+    discCount: b.contents.length,
+    ...videoSize(b.videoFormat, b.contents.length),
+    coverUrls: b.coverUrls,
+    coverPhoto: photo.value,
+    isCompilation: false,
+    status: 'identifie',
+    confidence: 90,
+    confidenceReasons: ['Coffret créé par toi depuis la recherche'],
+    source: 'manuel',
+  }
+  window.scrollTo(0, 0)
+}
+
 const canSave = computed(() => !!draft.value?.artist.trim() && !!draft.value?.title.trim())
 
 async function save() {
@@ -167,7 +201,14 @@ async function save() {
     <h1 v-else>{{ cdId ? 'Corriger un CD' : 'Ajouter un CD sans code-barres' }}</h1>
     <p v-if="barcode" class="muted small">{{ isBook ? 'ISBN' : 'Code-barres' }} : {{ barcode }}</p>
 
-    <template v-if="!draft">
+    <BoxSetBuilder v-if="boxBuilder && !draft" @done="fromBoxSet" @cancel="boxBuilder = false" />
+
+    <template v-if="!draft && !boxBuilder">
+      <section v-if="isVideo && !cdId" class="card stack">
+        <h2>📦 Un coffret ?</h2>
+        <p class="muted small">Plusieurs films dans une seule boîte : une seule fiche, avec les films choisis depuis la recherche.</p>
+        <button class="btn" @click="boxBuilder = true">📦 Créer un coffret</button>
+      </section>
       <section class="card stack">
         <h2>1. Photo {{ isBook ? 'de la couverture' : isVideo ? 'de la jaquette' : isGame ? 'de la boîte' : 'de la pochette' }} (facultatif)</h2>
         <p class="muted small">Elle te servira de repère et remplacera la pochette si aucune n'est trouvée en ligne.</p>
@@ -261,7 +302,7 @@ async function save() {
       </section>
     </template>
 
-    <template v-else>
+    <template v-else-if="draft">
       <div class="row">
         <CoverImage :urls="draft.coverUrls" :photo="draft.coverPhoto" :label="draft.title" :size="96" />
         <p class="muted small grow">

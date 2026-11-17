@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { BookKind, CdDraft, CdFormat, MusicFormat, Platform, VideoFormat } from '../db/types'
 import { MUSIC_FORMAT_LABELS, musicFormatInfo, musicSize } from '../lib/musicFormats'
 import RatingInput from './RatingInput.vue'
+import BoxSetBuilder, { type BoxSetResult } from './BoxSetBuilder.vue'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
@@ -27,6 +28,16 @@ function setPlatform(platform: Platform | undefined) {
 }
 
 // Films : changer de support (DVD, Blu-ray, VHS…) ou de nombre de disques met à jour épaisseur et hauteur.
+/** Coffret : choisir ses films depuis la recherche (saga TMDB + recherche par titre). */
+const boxBuilder = ref(false)
+function fromBoxSet(b: BoxSetResult) {
+  boxBuilder.value = false
+  model.value.contents = b.contents
+  model.value.series ||= b.saga
+  if (!model.value.genres.length) model.value.genres = b.genres
+  if (!model.value.coverUrls.length) model.value.coverUrls = b.coverUrls
+}
+
 /** Coffret : une ligne par film (lignes vides ignorées). */
 function setContents(text: string) {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -235,6 +246,18 @@ function toNumber(text: string): number | undefined {
           Le coffret est rangé comme un seul objet, en tête de sa saga. Chercher un de ces films trouve le coffret.
         </span>
       </label>
+      <div v-if="model.boxSet" class="full">
+        <button v-if="!boxBuilder" type="button" class="btn btn-small" @click="boxBuilder = true">🔎 Choisir les films depuis la recherche</button>
+        <BoxSetBuilder
+          v-else
+          :initial-name="model.title"
+          :initial-contents="model.contents"
+          :initial-format="model.videoFormat"
+          done-label="Mettre à jour la liste"
+          @done="fromBoxSet"
+          @cancel="boxBuilder = false"
+        />
+      </div>
       <label class="field">
         Réalisateur
         <input v-model="model.artist" required autocomplete="off" />
