@@ -190,6 +190,26 @@ const COLUMNS: Column[] = [
     },
   },
   {
+    header: 'Ma valeur (€)',
+    get: (c) => (c.myValue != null ? String(c.myValue).replace('.', ',') : ''),
+    set: (d, v) => {
+      const n = num(v)
+      if (n !== undefined && n >= 0) d.myValue = n
+    },
+  },
+  {
+    header: 'Prix conseillé Discogs (VG+)',
+    get: (c) => (c.market?.suggested != null ? `${String(c.market.suggested).replace('.', ',')} ${c.market.suggestedCurrency ?? 'EUR'}` : ''),
+  },
+  {
+    header: 'Prix le plus bas Discogs (€)',
+    get: (c) => (c.market?.lowest != null ? String(c.market.lowest).replace('.', ',') : ''),
+  },
+  {
+    header: 'En vente sur Discogs',
+    get: (c) => c.market?.forSale,
+  },
+  {
     header: 'Metacritic',
     get: (c) => c.scores?.metacritic,
   },

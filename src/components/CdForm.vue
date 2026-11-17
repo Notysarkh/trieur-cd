@@ -157,6 +157,15 @@ function toNumber(text: string): number | undefined {
       Ma note
       <RatingInput v-model="model.rating" />
     </div>
+    <label class="field">
+      Ma valeur (€)
+      <input
+        :value="model.myValue ?? ''"
+        inputmode="decimal"
+        placeholder="estimation Discogs si vide"
+        @change="model.myValue = toNumber(($event.target as HTMLInputElement).value)"
+      />
+    </label>
     <label class="field full">
       Thème
       <select :value="model.themeOverride ?? ''" @change="model.themeOverride = ($event.target as HTMLSelectElement).value || undefined">

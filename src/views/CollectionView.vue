@@ -4,6 +4,7 @@ import CoverImage from '../components/CoverImage.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import ScoreChips from '../components/ScoreChips.vue'
 import { seasonsLabel } from '../lib/seasons'
+import { estimatedValue, money, totalValue } from '../services/prices'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
@@ -103,6 +104,9 @@ const filtered = computed(() => {
 // Affichage progressif : 100 CD d'abord, puis « afficher plus » (fluide même avec 750 CD).
 const limit = ref(100)
 const visible = computed(() => filtered.value.slice(0, limit.value))
+/** Valeur de chaque objet (la mienne, sinon l'estimation Discogs) et total de la liste affichée. */
+const valueOf = (cd: Cd) => estimatedValue(cd)
+const total = computed(() => totalValue(filtered.value))
 
 async function confirm(cd: Cd) {
   await updateCd(cd.id, { status: 'identifie', confidenceReasons: [...cd.confidenceReasons, 'Vérifié par toi'] })
@@ -166,7 +170,12 @@ async function confirm(cd: Cd) {
       </select>
     </div>
 
-    <p v-if="!media.comingInStep" class="muted small">{{ filtered.length }} {{ filtered.length > 1 ? media.many : media.one }}</p>
+    <p v-if="!media.comingInStep" class="muted small">
+      {{ filtered.length }} {{ filtered.length > 1 ? media.many : media.one }}
+      <template v-if="total.counted">
+        · valeur estimée <strong>{{ money(total.eur) }}</strong> ({{ total.counted }} avec un prix<template v-if="total.counted < filtered.length">, les autres comptés à 0</template>)
+      </template>
+    </p>
 
     <ul class="cd-list">
       <li v-for="cd in visible" :key="cd.id">
@@ -200,6 +209,9 @@ async function confirm(cd: Cd) {
           <div class="side">
             <span class="score" :class="scoreClass(cd.rating)" :title="cd.rating === undefined ? 'Pas encore noté' : 'Ma note'">
               {{ cd.rating ?? '–' }}<small>/100</small>
+            </span>
+            <span v-if="valueOf(cd)" class="small value" :title="valueOf(cd)!.source === 'moi' ? 'Ma valeur' : 'Estimation Discogs'">
+              {{ valueOf(cd)!.source === 'moi' ? '' : '≈ ' }}{{ money(valueOf(cd)!.value, valueOf(cd)!.currency) }}
             </span>
             <StatusBadge v-if="cd.status === 'a_verifier'" :status="cd.status" />
           </div>
@@ -259,6 +271,10 @@ async function confirm(cd: Cd) {
 .score.low {
   background: var(--warn-bg);
   color: var(--warn);
+}
+.value {
+  white-space: nowrap;
+  color: var(--muted);
 }
 .score.none {
   color: var(--muted);

@@ -89,6 +89,29 @@ export function getMaster(id: number, priority: Priority = 'normal'): Promise<Dg
   return get<DgMaster>(`/masters/${id}`, {}, priority)
 }
 
+// --- Marché Discogs (valeur des disques) ---
+
+/** Sans jeton, Discogs n'accepte que 25 demandes par minute. */
+const dgPublicThrottle = new Throttle(2500)
+
+export interface DgMarketStats {
+  num_for_sale?: number
+  lowest_price?: { value: number; currency: string } | null
+  blocked_from_sale?: boolean
+}
+
+/** Prix le plus bas en vente (en euros) et nombre d'exemplaires en vente. Marche aussi sans jeton. */
+export function marketStats(releaseId: number, priority: Priority = 'normal'): Promise<DgMarketStats> {
+  if (hasDiscogsToken()) return get<DgMarketStats>(`/marketplace/stats/${releaseId}`, { curr_abbr: 'EUR' }, priority)
+  return throttledJson<DgMarketStats>(dgPublicThrottle, `${API}/marketplace/stats/${releaseId}?curr_abbr=EUR`, {}, priority)
+}
+
+/** Prix conseillés selon l'état (« Very Good Plus (VG+) »…). Jeton + paramètres de vendeur remplis sur Discogs. */
+export type DgPriceSuggestions = Record<string, { currency: string; value: number }>
+export function priceSuggestions(releaseId: number, priority: Priority = 'normal'): Promise<DgPriceSuggestions> {
+  return get<DgPriceSuggestions>(`/marketplace/price_suggestions/${releaseId}`, {}, priority)
+}
+
 /** Vérifie que le jeton fonctionne (utilisé dans les Réglages). */
 export async function testToken(): Promise<boolean> {
   try {

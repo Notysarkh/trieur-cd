@@ -137,6 +137,7 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musiqu
 
 ### Nouveautés du 17/11/2026 (suite)
 
+- **Valeur de la musique (Discogs, phase 1)** : Réglages → « Valeur de ta musique » → « Mettre à jour les prix ». Pour chaque disque relié à son édition Discogs : prix le plus bas en vente (en euros) et nombre en vente, sans clé. Avec le jeton : édition retrouvée par le code-barres, et **prix conseillé état VG+** (demande d’avoir rempli ses paramètres de vendeur Discogs). « Ma valeur » (fiche, tous univers) passe avant l’estimation. Valeur affichée sur la fiche et dans la collection (« ≈ 12 € »), valeur totale de la liste, colonnes CSV. Jeux, films, livres : pas de source gratuite (phase 2 éventuelle : eBay via un petit serveur, ou PriceCharting payant).
 - **Caméra arrière principale** : au premier usage, l’appli repère la caméra arrière principale (pas l’ultra grand-angle, le téléobjectif ni la caméra avant) d’après le nom des caméras, la retient sur l’appareil et l’ouvre directement ensuite.
 - **Numéro de version** (bas des Réglages) : version_majeure.AAMMJJ.hhmm, heure de Paris au moment de la mise en ligne (ex. 1.261117.2150) ; la version majeure vient de `package.json` (1).
 - **Caméra occupée** (« Could not start video source ») : avant d’ouvrir la caméra, l’appli referme tout ce qu’elle tenait encore ouvert ; si la caméra est occupée, elle réessaie puis passe à des réglages plus simples ; message clair et bouton « Réessayer » sinon (`src/lib/camera.ts`).

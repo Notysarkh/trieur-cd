@@ -6,6 +6,7 @@ import CoverImage from '../components/CoverImage.vue'
 import PhotoCapture from '../components/PhotoCapture.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import ScoreChips from '../components/ScoreChips.vue'
+import { estimatedValue, money } from '../services/prices'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
 import { deleteCd, shelvedDate, updateCd } from '../services/collection'
@@ -51,6 +52,9 @@ async function setPhoto(photo: string | undefined) {
   for (const r of [original, edited]) if (r.value) r.value.coverPhoto = photo
   photoOpen.value = false
 }
+
+/** Valeur retenue (la mienne, sinon l'estimation Discogs), lue en direct. */
+const estimate = computed(() => (live.value ? estimatedValue(live.value) : undefined))
 
 const dirty = computed(() => JSON.stringify(original.value) !== JSON.stringify(edited.value))
 
@@ -142,6 +146,21 @@ async function remove() {
           <StatusBadge :status="edited.status" :confidence="edited.confidence" />
           <p v-if="edited.rating !== undefined" class="my-rating">Ma note : <strong>{{ edited.rating }}</strong>/100</p>
           <ScoreChips :cd="edited" links />
+          <p v-if="live && (live.myValue != null || live.market)" class="value small">
+            💶
+            <template v-if="estimate">
+              <strong>{{ money(estimate.value, estimate.currency) }}</strong>
+              <span class="muted">
+                ({{ estimate.source === 'moi' ? 'ma valeur' : estimate.source === 'conseille' ? 'prix conseillé Discogs, état VG+' : 'le moins cher sur Discogs' }})</span>
+            </template>
+            <template v-else>Pas de prix sur Discogs</template>
+            <template v-if="live.market?.lowest != null && estimate?.source !== 'plus-bas'">
+              · le moins cher {{ money(live.market.lowest) }}</template>
+            <template v-if="live.market?.forSale != null"> · {{ live.market.forSale }} en vente</template>
+            <template v-if="live.market?.at"> · le {{ new Date(live.market.at).toLocaleDateString('fr-FR') }}</template>
+            <a v-if="live.discogsReleaseId" :href="`https://www.discogs.com/sell/release/${live.discogsReleaseId}`" target="_blank" rel="noopener">
+              · voir sur Discogs ↗</a>
+          </p>
         </div>
       </div>
 

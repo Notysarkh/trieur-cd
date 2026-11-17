@@ -22,6 +22,18 @@ export type CdFormat =
 export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary' | 'rawg'
 
 /** Support d'un film (v2) : DVD et Blu-ray sont rangés ensemble. */
+/** Valeur sur le marché (Discogs), au moment de la dernière mise à jour. */
+export interface MarketPrice {
+  /** Prix conseillé par Discogs pour un exemplaire en très bon état (VG+). */
+  suggested?: number
+  suggestedCurrency?: string
+  /** Prix le plus bas actuellement en vente, en euros. */
+  lowest?: number
+  /** Nombre d'exemplaires en vente. */
+  forSale?: number
+  at: number
+}
+
 /** Avis extérieurs, tels que donnés par chaque source. */
 export interface ExternalScores {
   /** Metacritic, sur 100 (jeux : via RAWG ; films : via OMDb). */
@@ -93,6 +105,10 @@ export interface Cd {
   noBarcode?: boolean
   /** Ma note personnelle, sur 100. */
   rating?: number
+  /** Ma valeur (en euros), saisie à la main : prioritaire sur l'estimation. */
+  myValue?: number
+  /** Valeur sur le marché (Discogs, musique). */
+  market?: MarketPrice
   /** Avis extérieurs (Metacritic, IMDb, Rotten Tomatoes, MusicBrainz). */
   scores?: ExternalScores
   /** Date de la dernière recherche des avis extérieurs (pour ne pas refaire la demande). */

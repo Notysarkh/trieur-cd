@@ -13,6 +13,7 @@ import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
 import ScoresPanel from '../components/ScoresPanel.vue'
+import PricesPanel from '../components/PricesPanel.vue'
 import VisionKeyPanel from '../components/VisionKeyPanel.vue'
 import { APP_VERSION } from '../version'
 
@@ -251,6 +252,8 @@ async function wipeAll() {
     <VisionKeyPanel />
 
     <ScoresPanel />
+
+    <PricesPanel />
 
     <section class="card stack">
       <h2>Sauvegarde et transfert vers le PC</h2>
