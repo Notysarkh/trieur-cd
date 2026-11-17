@@ -31,9 +31,9 @@ async function run() {
         ? ' Prix conseillés (état VG+) récupérés.'
         : '')
 }
-/** Durée approximative : 1 s par demande avec le jeton (2 demandes par disque), 2,5 s sans. */
+/** Durée approximative : 2,5 s par demande (limite Discogs mesurée : 25 par minute), 2 demandes par disque avec le jeton. */
 const disques = (n: number) => `${n} disque${n > 1 ? 's' : ''}`
-const minutes = computed(() => Math.max(1, Math.round((priceable.value * (hasDiscogsToken() ? 2 : 2.5)) / 60)))
+const minutes = computed(() => Math.max(1, Math.round((priceable.value * (hasDiscogsToken() ? 5 : 2.5)) / 60)))
 </script>
 
 <template>
@@ -56,6 +56,10 @@ const minutes = computed(() => Math.max(1, Math.round((priceable.value * (hasDis
     <template v-if="running && progress">
       <progress :value="progress.done" :max="progress.total || 1"></progress>
       <p class="small">{{ progress.done }} / {{ progress.total }} · {{ progress.found }} avec un prix</p>
+      <p v-if="progress.pausedUntil" class="notice small">
+        ⏸️ Pause d'une minute : Discogs limite le nombre de demandes. Reprise automatique vers
+        {{ new Date(progress.pausedUntil).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}, puis à un rythme plus lent.
+      </p>
       <p v-if="progress.suggestions === 'refuse'" class="notice notice-warn small">
         Discogs refuse le prix conseillé : remplis tes paramètres de vendeur (lien ci-dessus). Les prix les plus bas continuent d'être récupérés.
       </p>

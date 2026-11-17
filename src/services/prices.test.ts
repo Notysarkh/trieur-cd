@@ -17,7 +17,7 @@ vi.mock('./discogs', () => ({
   searchByBarcode: dg.searchByBarcode,
 }))
 
-import { estimatedValue, money, priceFor, totalValue, type PriceRun } from './prices'
+import { estimatedValue, isRateLimited, money, priceFor, totalValue, type PriceRun } from './prices'
 
 const disc = (extra: Partial<Cd>) => ({ id: 'x', media: undefined, title: 'T', ...extra }) as Cd
 
@@ -70,5 +70,15 @@ describe('valeur des disques', () => {
     expect(c.market).toMatchObject({ lowest: 1, forSale: 5 })
     expect(dg.priceSuggestions).not.toHaveBeenCalled()
     dg.token = true
+  })
+})
+
+describe('limite de Discogs (25 demandes par minute)', () => {
+  it('refus 429, ou « erreur réseau » en ligne (429 sans autorisation de lecture) : c’est la limite', () => {
+    expect(isRateLimited(new HttpError(429, 'trop'))).toBe(true)
+    expect(isRateLimited(new Error('Pas de réponse du service (connexion internet ?)'), true)).toBe(true)
+    // Vraiment hors ligne, ou autre erreur : pas une limite.
+    expect(isRateLimited(new Error('Pas de réponse du service (connexion internet ?)'), false)).toBe(false)
+    expect(isRateLimited(new HttpError(404, 'absent'))).toBe(false)
   })
 })

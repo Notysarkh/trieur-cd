@@ -93,7 +93,25 @@ export interface PricesProgress {
   total: number
   found: number
   suggestions: PriceRun['suggestions']
+  /** Pause imposée par Discogs (trop de demandes en une minute) : reprise à cette heure. */
+  pausedUntil?: number
 }
+
+/**
+ * Discogs limite le nombre de demandes par minute (mesuré le 17/11/2026 : 25 par minute sans jeton).
+ * Au-delà, il répond « 429 » SANS l'autorisation qui permet à une page web de lire la réponse :
+ * le navigateur ne voit alors qu'une erreur réseau. On traite donc les deux comme « trop de demandes ».
+ */
+export function isRateLimited(e: unknown, online = typeof navigator === 'undefined' || navigator.onLine): boolean {
+  if (e instanceof HttpError) return e.status === 429
+  return online && e instanceof Error && /Pas de réponse du service/.test(e.message)
+}
+
+/** Pause après un refus de Discogs (un peu plus d'une minute, le temps que sa fenêtre se vide). */
+export const RATE_PAUSE_MS = 62_000
+/** Rythme prudent ensuite : 25 demandes par minute au plus (2,5 s par demande). */
+export const SAFE_MS_PER_REQUEST = 2500
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Met à jour le prix de tous les disques (musique). */
 export async function refreshPrices(
@@ -104,14 +122,32 @@ export async function refreshPrices(
   const run: PriceRun = { suggestions: 'inconnu' }
   const p: PricesProgress = { done: 0, total: items.length, found: 0, suggestions: run.suggestions }
   onProgress({ ...p })
+  /** Rythme prudent : activé au premier refus de Discogs (2 demandes par disque avec le jeton). */
+  let slow = false
   for (const cd of items) {
     if (options.shouldStop?.()) break
-    try {
-      const changes = await priceFor(cd, run)
-      if (changes.market?.lowest != null || changes.market?.suggested != null) p.found++
-      await db.cds.update(cd.id, JSON.parse(JSON.stringify({ ...changes, updatedAt: Date.now() })))
-    } catch {
-      // Discogs injoignable pour ce disque : il garde son ancien prix.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const started = Date.now()
+      try {
+        const changes = await priceFor(cd, run)
+        if (changes.market?.lowest != null || changes.market?.suggested != null) p.found++
+        await db.cds.update(cd.id, JSON.parse(JSON.stringify({ ...changes, updatedAt: Date.now() })))
+        if (slow) {
+          // Une ou deux demandes par disque : on attend de quoi rester sous 25 par minute.
+          const requests = discogs.hasDiscogsToken() && run.suggestions !== 'refuse' ? 2 : 1
+          await sleep(Math.max(0, requests * SAFE_MS_PER_REQUEST - (Date.now() - started)))
+        }
+        break
+      } catch (e) {
+        if (!isRateLimited(e)) break // Discogs injoignable pour ce disque : il garde son ancien prix.
+        // Trop de demandes : pause d'une minute (affichée), rythme prudent, puis on réessaie ce disque.
+        slow = true
+        p.pausedUntil = Date.now() + RATE_PAUSE_MS
+        onProgress({ ...p })
+        for (let waited = 0; waited < RATE_PAUSE_MS && !options.shouldStop?.(); waited += 1000) await sleep(1000)
+        p.pausedUntil = undefined
+        if (options.shouldStop?.()) break
+      }
     }
     p.done++
     p.suggestions = run.suggestions
