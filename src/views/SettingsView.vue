@@ -12,6 +12,7 @@ import { testRawgKey } from '../services/rawg'
 import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
+import ScoresPanel from '../components/ScoresPanel.vue'
 
 // Réglages : jeton Discogs, épaisseurs, sauvegarde, effacement.
 
@@ -244,6 +245,8 @@ async function wipeAll() {
         RAWG refuse cette clé (ou est injoignable). Vérifie qu'elle est complète.
       </p>
     </section>
+
+    <ScoresPanel />
 
     <section class="card stack">
       <h2>Sauvegarde et transfert vers le PC</h2>

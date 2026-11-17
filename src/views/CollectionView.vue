@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import CoverImage from '../components/CoverImage.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import ScoreChips from '../components/ScoreChips.vue'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
@@ -181,6 +182,7 @@ async function confirm(cd: Cd) {
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>
               <template v-if="cd.genres.length"> · {{ cd.genres.join(', ') }}</template>
             </div>
+            <ScoreChips :cd="cd" />
             <div v-if="cd.themeId" class="small theme">
               <span class="dot" :style="{ background: themeColor(cd.themeId) }"></span>{{ themeLabel(cd.themeId) }}
             </div>

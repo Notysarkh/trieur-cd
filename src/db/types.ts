@@ -22,6 +22,19 @@ export type CdFormat =
 export type CdSource = 'musicbrainz' | 'discogs' | 'manuel' | 'bnf' | 'openlibrary' | 'rawg'
 
 /** Support d'un film (v2) : DVD et Blu-ray sont rangés ensemble. */
+/** Avis extérieurs, tels que donnés par chaque source. */
+export interface ExternalScores {
+  /** Metacritic, sur 100 (jeux : via RAWG ; films : via OMDb). */
+  metacritic?: number
+  /** IMDb, sur 10. */
+  imdb?: number
+  /** Rotten Tomatoes, en %. */
+  rottenTomatoes?: number
+  /** MusicBrainz : note des utilisateurs ramenée sur 100, et nombre de votes. */
+  musicbrainz?: number
+  musicbrainzVotes?: number
+}
+
 /** Support d'un disque de musique (absent = CD). */
 export type MusicFormat = 'cd' | 'vinyle' | 'vinyle45' | 'cassette' | 'minidisc' | 'sacd' | 'dvda' | 'bdaudio'
 
@@ -80,6 +93,12 @@ export interface Cd {
   noBarcode?: boolean
   /** Ma note personnelle, sur 100. */
   rating?: number
+  /** Avis extérieurs (Metacritic, IMDb, Rotten Tomatoes, MusicBrainz). */
+  scores?: ExternalScores
+  /** Date de la dernière recherche des avis extérieurs (pour ne pas refaire la demande). */
+  scoresAt?: number
+  /** Film : identifiant IMDb (« tt0078748 »), pour les notes OMDb. */
+  imdbId?: string
   /** Musique : support (vinyle, cassette…) ; absent = CD. */
   musicFormat?: MusicFormat
   /** Sans boîte (jeu ou disque en vrac) : rangé à part, il ne prend pas de place dans les meubles. */

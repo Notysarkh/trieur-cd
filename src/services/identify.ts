@@ -122,6 +122,13 @@ function emptyDraft(): CdDraft {
   }
 }
 
+/** Note MusicBrainz d'un album, ramenée sur 100 (rien s'il n'a pas de vote). */
+export function mbScores(rg: Pick<mb.MbReleaseGroup, 'rating'>): { musicbrainz?: number; musicbrainzVotes?: number } {
+  const r = rg.rating
+  if (!r || r.value == null || !r['votes-count']) return {}
+  return { musicbrainz: Math.round(r.value * 20), musicbrainzVotes: r['votes-count'] }
+}
+
 /** Fiche CD à partir d'une édition MusicBrainz. */
 export function draftFromMbRelease(r: mb.MbRelease, barcode?: string): CdDraft {
   const credits = r['artist-credit'] ?? []
@@ -360,6 +367,8 @@ export async function enrichCandidate(c: Candidate, priority: Priority = 'normal
     if (rg['secondary-types']?.length) draft.releaseTypes = rg['secondary-types']
     if (!draft.genres.length) draft.genres = topNames(rg.genres, 3)
     if (!draft.styles.length) draft.styles = topNames(rg.tags, 5)
+    draft.scores = { ...draft.scores, ...mbScores(rg) }
+    draft.scoresAt = Date.now()
   }
   if (master) draft.year = master.year || draft.year
   if (dgText) applyDiscogsText(draft, dgText)

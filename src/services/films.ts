@@ -3,7 +3,8 @@ import { canonicalBarcode } from '../lib/barcode'
 import { normalizeText } from '../lib/text'
 import type { Priority } from '../lib/throttle'
 import { all, bnfRecords, cleanResponsibility, cql, first, invertPersonName, num, person, type BnfRecord } from './books'
-import { bestTmdbMatch, hasTmdbKey, sagaName, searchTmdb, searchTmdbSaga, tmdbDirector, tmdbSagaOfMovie, type TmdbResult } from './tmdb'
+import { bestTmdbMatch, hasTmdbKey, sagaName, searchTmdb, searchTmdbSaga, tmdbDirector, tmdbMovieDetails, tmdbSagaOfMovie, type TmdbResult } from './tmdb'
+import { hasOmdbKey, omdbScores } from './omdb'
 
 // Films : DVD, Blu-ray, HD DVD, VHS, LaserDisc… (v2, étape C).
 //
@@ -197,7 +198,30 @@ export function filmDraftFromTmdb(t: TmdbResult): CdDraft {
  * affiche, genres si la BnF n'en donne pas, réalisateur s'il manque.
  */
 export async function enrichFilm(draft: CdDraft, priority: Priority = 'normal'): Promise<CdDraft> {
-  if (!hasTmdbKey()) return draft
+  const d = hasTmdbKey() ? await enrichWithTmdb(draft, priority) : { ...draft }
+  return d.boxSet ? d : withOmdbScores(d, priority)
+}
+
+/**
+ * Notes Metacritic, IMDb et Rotten Tomatoes (OMDb, si une clé est configurée) : par l'identifiant IMDb
+ * donné par TMDB, sinon par le titre et l'année.
+ */
+export async function withOmdbScores(draft: CdDraft, priority: Priority = 'normal'): Promise<CdDraft> {
+  if (!hasOmdbKey()) return draft
+  const d: CdDraft = { ...draft }
+  if (!d.imdbId && d.tmdbId?.startsWith('movie:') && hasTmdbKey()) {
+    const details = await tmdbMovieDetails(Number(d.tmdbId.split(':')[1]), priority).catch(() => undefined)
+    if (details?.imdb_id) d.imdbId = details.imdb_id
+  }
+  const s = await omdbScores(d.imdbId ? { imdbId: d.imdbId } : { title: d.title, year: d.year }, priority).catch(() => undefined)
+  d.scoresAt = Date.now()
+  if (!s) return d
+  if (s.imdbId) d.imdbId = s.imdbId
+  d.scores = { ...d.scores, metacritic: s.metacritic, imdb: s.imdb, rottenTomatoes: s.rottenTomatoes }
+  return d
+}
+
+async function enrichWithTmdb(draft: CdDraft, priority: Priority): Promise<CdDraft> {
   const d: CdDraft = { ...draft }
   if (d.boxSet) return enrichBoxSet(d, priority)
   let match: TmdbResult | undefined

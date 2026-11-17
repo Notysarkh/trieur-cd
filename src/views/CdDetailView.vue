@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import CdForm from '../components/CdForm.vue'
 import CoverImage from '../components/CoverImage.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import ScoreChips from '../components/ScoreChips.vue'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
 import { deleteCd, shelvedDate, updateCd } from '../services/collection'
@@ -121,6 +122,8 @@ async function remove() {
           <h1>{{ edited.title }}</h1>
           <p class="muted">{{ edited.artist }}<template v-if="edited.year"> · {{ edited.year }}</template></p>
           <StatusBadge :status="edited.status" :confidence="edited.confidence" />
+          <p v-if="edited.rating !== undefined" class="my-rating">Ma note : <strong>{{ edited.rating }}</strong>/100</p>
+          <ScoreChips :cd="edited" links />
         </div>
       </div>
 

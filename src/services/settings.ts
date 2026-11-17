@@ -19,6 +19,8 @@ export interface Settings {
   tmdbKey: string
   /** Clé personnelle RAWG (jeux vidéo) : jamais dans le code ni dans les sauvegardes. */
   rawgKey: string
+  /** Clé OMDb (notes Metacritic, IMDb, Rotten Tomatoes des films) : reste sur l'appareil. */
+  omdbKey: string
   thickness: ThicknessTable
   /** Mode rafale : la caméra reste allumée et les scans s'enchaînent. */
   burstMode: boolean
@@ -70,6 +72,7 @@ const DEFAULTS: Settings = {
   discogsToken: '',
   tmdbKey: '',
   rawgKey: '',
+  omdbKey: '',
   thickness: { ...DEFAULT_THICKNESS },
   burstMode: true,
   feedback: true,

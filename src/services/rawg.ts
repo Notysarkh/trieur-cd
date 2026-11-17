@@ -32,6 +32,8 @@ export interface RawgResult {
   /** Nos consoles parmi celles du jeu. */
   platforms: Platform[]
   imageUrl?: string
+  /** Note Metacritic (sur 100), si RAWG la connaît. */
+  metacritic?: number
 }
 
 interface RawGame {
@@ -41,6 +43,7 @@ interface RawGame {
   background_image?: string | null
   genres?: { name: string }[]
   platforms?: { platform: { slug: string } }[] | null
+  metacritic?: number | null
 }
 
 /** Image plus légère : RAWG propose des miniatures (« /media/crop/600/400/… »). */
@@ -57,6 +60,7 @@ export function toRawgResult(g: RawGame): RawgResult {
     genres: (g.genres ?? []).map((x) => x.name),
     platforms: [...new Set((g.platforms ?? []).map((p) => platformFromRawg(p.platform.slug)).filter((p): p is Platform => !!p))],
     imageUrl: smallImage(g.background_image),
+    metacritic: g.metacritic ?? undefined,
   }
 }
 
@@ -86,6 +90,11 @@ export async function searchRawg(title: string, platform?: Platform, priority: P
 export function bestRawgMatch(results: RawgResult[], title: string): RawgResult | undefined {
   const t = normalizeText(title)
   return results.find((r) => normalizeText(r.title) === t) ?? results.find((r) => normalizeText(r.title).includes(t) || t.includes(normalizeText(r.title)))
+}
+
+/** Un jeu RAWG par son identifiant (pour relire sa note Metacritic). */
+export async function getRawgGame(id: number, priority: Priority = 'normal'): Promise<RawgResult> {
+  return toRawgResult(await get<RawGame>(`games/${id}`, {}, priority))
 }
 
 /** Vérifie la clé (bouton « Tester » des Réglages). */

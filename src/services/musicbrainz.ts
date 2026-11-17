@@ -56,6 +56,8 @@ export interface MbReleaseGroup {
   releases?: { id: string; title: string; status?: string }[]
   tags?: MbTag[]
   genres?: MbTag[]
+  /** Note des utilisateurs (sur 5) et nombre de votes. */
+  rating?: { value: number | null; 'votes-count': number }
 }
 
 function get<T>(path: string, params: Record<string, string>, priority: Priority = 'normal'): Promise<T> {
@@ -91,7 +93,7 @@ export async function searchReleaseGroups(artist: string, title: string): Promis
 
 /** Détails d'un album : date de première sortie et genres. */
 export function lookupReleaseGroup(id: string, priority: Priority = 'normal'): Promise<MbReleaseGroup> {
-  return get<MbReleaseGroup>(`release-group/${id}`, { inc: 'genres+tags+artist-credits' }, priority)
+  return get<MbReleaseGroup>(`release-group/${id}`, { inc: 'genres+tags+artist-credits+ratings' }, priority)
 }
 
 export interface MbArtist {

@@ -150,6 +150,7 @@ export function gameDraftFromRawg(g: RawgResult, platform?: Platform): CdDraft {
     confidenceReasons: ['Choisi par toi (RAWG)', ...(p ? [] : ['Console à choisir sur la fiche'])],
     source: 'rawg',
     rawgId: g.id,
+    ...(g.metacritic ? { scores: { metacritic: g.metacritic }, scoresAt: Date.now() } : {}),
   }
 }
 
@@ -160,7 +161,8 @@ export async function enrichGame(draft: CdDraft, priority: Priority = 'normal'):
   const results = await searchRawg(draft.title, draft.platform, priority).catch(() => [])
   const match = bestRawgMatch(results, draft.title)
   if (!match) return draft
-  const d: CdDraft = { ...draft, rawgId: match.id }
+  const d: CdDraft = { ...draft, rawgId: match.id, scoresAt: Date.now() }
+  if (match.metacritic) d.scores = { ...d.scores, metacritic: match.metacritic }
   if (match.year) d.year = match.year
   if (!d.genres.length) d.genres = match.genres
   if (match.imageUrl) d.coverUrls = [...d.coverUrls, match.imageUrl]

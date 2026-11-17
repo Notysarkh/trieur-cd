@@ -143,9 +143,22 @@ export function toSaga(c: RawCollection, names: Map<number, string> = new Map())
   return { id: c.id, name: c.name, posterUrl: c.poster_path ? `https://image.tmdb.org/t/p/w185${c.poster_path}` : undefined, parts }
 }
 
+const movieDetails = new Map<number, Promise<{ imdb_id?: string | null; belongs_to_collection?: { id: number } | null }>>()
+
+/** Détails d'un film (identifiant IMDb, saga), lus une seule fois par film. */
+export function tmdbMovieDetails(movieId: number, priority: Priority = 'normal') {
+  let p = movieDetails.get(movieId)
+  if (!p) {
+    p = get<{ imdb_id?: string | null; belongs_to_collection?: { id: number } | null }>(`movie/${movieId}`, {}, priority)
+    p.catch(() => movieDetails.delete(movieId))
+    movieDetails.set(movieId, p)
+  }
+  return p
+}
+
 /** La saga d'un film (si TMDB en connaît une). */
 export async function tmdbSagaOfMovie(movieId: number, priority: Priority = 'normal'): Promise<TmdbSaga | undefined> {
-  const movie = await get<{ belongs_to_collection?: { id: number } | null }>(`movie/${movieId}`, {}, priority)
+  const movie = await tmdbMovieDetails(movieId, priority)
   if (!movie.belongs_to_collection) return undefined
   return toSaga(await get<RawCollection>(`collection/${movie.belongs_to_collection.id}`, {}, priority), await genres(priority))
 }

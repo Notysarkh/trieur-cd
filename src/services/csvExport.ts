@@ -190,6 +190,22 @@ const COLUMNS: Column[] = [
     },
   },
   {
+    header: 'Metacritic',
+    get: (c) => c.scores?.metacritic,
+  },
+  {
+    header: 'IMDb',
+    get: (c) => (c.scores?.imdb != null ? String(c.scores.imdb).replace('.', ',') : ''),
+  },
+  {
+    header: 'Rotten Tomatoes',
+    get: (c) => c.scores?.rottenTomatoes,
+  },
+  {
+    header: 'Note MusicBrainz',
+    get: (c) => c.scores?.musicbrainz,
+  },
+  {
     header: 'Coffret',
     get: (c) => (c.boxSet ? 'oui' : 'non'),
     set: (d, v) => (d.boxSet = yes(v) || undefined),
