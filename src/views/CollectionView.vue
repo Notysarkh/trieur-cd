@@ -29,7 +29,9 @@ const media = computed(() => mediaInfo(currentMedia()))
 
 const search = ref('')
 const statusFilter = ref<CdStatus | 'tous'>('tous')
-const sort = ref<'artiste' | 'recent' | 'rangement'>('artiste')
+const sort = ref<'artiste' | 'recent' | 'rangement' | 'note'>('artiste')
+/** Couleur de ma note : verte à partir de 80, bleue de 50 à 79, orange en dessous ; grise sans note. */
+const scoreClass = (r: number | undefined) => (r === undefined ? 'none' : r >= 80 ? 'high' : r >= 50 ? 'mid' : 'low')
 const themeFilter = ref<string>('tous')
 /** Filtres v1.1 : CD sans code-barres, CD pas encore posés dans les meubles, CD rangés. */
 const extraFilter = ref<'aucun' | 'sansCode' | 'aRanger' | 'ranges'>('aucun')
@@ -86,6 +88,8 @@ const filtered = computed(() => {
   return [...list].sort((a, b) =>
     sort.value === 'recent'
       ? b.createdAt - a.createdAt
+      : sort.value === 'note'
+        ? (b.rating ?? -1) - (a.rating ?? -1) || a.title.localeCompare(b.title, 'fr')
       : sort.value === 'rangement'
         ? (a.shelfOrder ?? Infinity) - (b.shelfOrder ?? Infinity)
         : a.artistSort.localeCompare(b.artistSort, 'fr', { sensitivity: 'base' }) ||
@@ -149,6 +153,7 @@ async function confirm(cd: Cd) {
       <select v-model="sort" class="sort" aria-label="Trier">
         <option value="artiste">Tri : {{ isBook ? 'auteur' : isVideo ? 'réalisateur' : isGame ? 'éditeur' : 'artiste' }}</option>
         <option value="recent">Tri : derniers ajouts</option>
+        <option value="note">Tri : ma note</option>
         <option value="rangement">Tri : ordre de rangement</option>
       </select>
       <select v-model="themeFilter" class="sort" aria-label="Filtrer par thème">
@@ -188,7 +193,12 @@ async function confirm(cd: Cd) {
             <span v-if="withoutBarcode(cd)" class="badge badge-info nocode">sans code-barres</span>
             <div v-if="reviewMode" class="muted small reasons">{{ cd.confidenceReasons.join(' · ') }}</div>
           </div>
-          <StatusBadge :status="cd.status" :confidence="cd.confidence" />
+          <div class="side">
+            <span class="score" :class="scoreClass(cd.rating)" :title="cd.rating === undefined ? 'Pas encore noté' : 'Ma note'">
+              {{ cd.rating ?? '–' }}<small>/100</small>
+            </span>
+            <StatusBadge v-if="cd.status === 'a_verifier'" :status="cd.status" />
+          </div>
         </RouterLink>
         <div v-if="reviewMode && cd.artist !== 'Inconnu'" class="row confirm">
           <button class="btn btn-small" @click="confirm(cd)">✓ C'est bon</button>
@@ -216,6 +226,39 @@ async function confirm(cd: Cd) {
 </template>
 
 <style scoped>
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.score {
+  font-weight: 700;
+  font-size: 1.05rem;
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.score small {
+  font-weight: 400;
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+.score.high {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.score.mid {
+  background: var(--info-bg, var(--surface-2));
+  color: var(--info, var(--text));
+}
+.score.low {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.score.none {
+  color: var(--muted);
+}
 .chips.full {
   flex: 1 1 100%;
 }

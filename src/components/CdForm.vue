@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { BookKind, CdDraft, CdFormat, MusicFormat, Platform, VideoFormat } from '../db/types'
 import { MUSIC_FORMAT_LABELS, musicFormatInfo, musicSize } from '../lib/musicFormats'
+import RatingInput from './RatingInput.vue'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
@@ -121,6 +122,10 @@ function toNumber(text: string): number | undefined {
         <input type="checkbox" :checked="!!model.personalCompilation" @change="setPersonal(($event.target as HTMLInputElement).checked)" />
         Compilation perso (CD gravé, mix…)
       </label>
+    </div>
+    <div class="field full">
+      Ma note
+      <RatingInput v-model="model.rating" />
     </div>
     <label class="field full">
       Thème

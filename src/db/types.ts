@@ -78,6 +78,8 @@ export interface Cd {
   isCompilation: boolean
   /** CD sans code-barres (ancien pressage, promo, import, CD gravé…). */
   noBarcode?: boolean
+  /** Ma note personnelle, sur 100. */
+  rating?: number
   /** Musique : support (vinyle, cassette…) ; absent = CD. */
   musicFormat?: MusicFormat
   /** Sans boîte (jeu ou disque en vrac) : rangé à part, il ne prend pas de place dans les meubles. */

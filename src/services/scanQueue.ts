@@ -8,7 +8,8 @@ import { currentMedia, settings } from './settings'
 import { identifyBook, isIsbn } from './books'
 import { identifyFilm, videoSize } from './films'
 import { gameSize, identifyGame } from './games'
-import type { Platform } from '../db/types'
+import type { MusicFormat, Platform, VideoFormat } from '../db/types'
+import { musicSize } from '../lib/musicFormats'
 import type { MediaKind } from '../lib/media'
 
 // La file d'attente du scan en rafale.
@@ -180,12 +181,36 @@ export async function setScanPlatform(itemId: string, platform: Platform): Promi
   await db.scans.update(itemId, { platform, candidates })
 }
 
+/** Film ou musique : le support choisi (DVD, Blu-ray, VHS… ; CD, vinyle…) et les dimensions qui vont avec. */
+export function withSupport(d: CdDraft, support: VideoFormat | MusicFormat): CdDraft {
+  if (d.media === 'video') return { ...d, videoFormat: support as VideoFormat, ...videoSize(support as VideoFormat, d.discCount) }
+  if ((d.media ?? 'cd') === 'cd') {
+    const f = support as MusicFormat
+    const size = musicSize(f, d.discCount)
+    return { ...d, musicFormat: f === 'cd' ? undefined : f, ...(size ?? { thicknessMm: settings.thickness[d.format], heightCm: undefined }) }
+  }
+  return d
+}
+
+/** Film ou musique de la file : tu changes le support (il s'applique à toutes les propositions de ce code). */
+export async function setScanSupport(itemId: string, support: VideoFormat | MusicFormat): Promise<void> {
+  const item = await db.scans.get(itemId)
+  if (!item) return
+  const candidates = item.candidates.map((c) => ({ ...c, draft: withSupport(c.draft, support) }))
+  await db.scans.update(itemId, { candidates })
+}
+
 /**
  * Code introuvable : tu as cherché l'objet par son titre directement dans la file et choisi un résultat.
  * Il prend la place de la proposition, AVEC le code-barres scanné (la prochaine fois, ce code sera reconnu
  * comme déjà dans ta collection). Jeu sans console connue : celle choisie pour la recherche.
  */
-export async function useSearchResult(itemId: string, picked: Candidate, platform?: Platform): Promise<void> {
+export async function useSearchResult(
+  itemId: string,
+  picked: Candidate,
+  platform?: Platform,
+  support?: VideoFormat | MusicFormat,
+): Promise<void> {
   const item = await db.scans.get(itemId)
   if (!item) return
   // Copie simple : le résultat affiché est un objet « réactif » de Vue, que la base ne sait pas enregistrer.
@@ -193,7 +218,7 @@ export async function useSearchResult(itemId: string, picked: Candidate, platfor
   const d = c.draft
   const fixPlatform = d.media === 'jeu' && !d.platform && platform ? { platform, ...gameSize(platform, d.discCount) } : {}
   const draft = {
-    ...d,
+    ...(support ? withSupport(d, support) : d),
     ...fixPlatform,
     barcode: item.barcode,
     noBarcode: undefined,

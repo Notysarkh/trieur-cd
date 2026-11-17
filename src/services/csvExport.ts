@@ -182,6 +182,14 @@ const COLUMNS: Column[] = [
     },
   },
   {
+    header: 'Ma note',
+    get: (c) => c.rating,
+    set: (d, v) => {
+      const n = num(v)
+      if (n !== undefined && n >= 0 && n <= 100) d.rating = Math.round(n)
+    },
+  },
+  {
     header: 'Coffret',
     get: (c) => (c.boxSet ? 'oui' : 'non'),
     set: (d, v) => (d.boxSet = yes(v) || undefined),

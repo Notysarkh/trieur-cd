@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { Candidate, Platform, ScanItem } from '../db/types'
+import type { Candidate, MusicFormat, Platform, ScanItem, VideoFormat } from '../db/types'
+import { MUSIC_FORMAT_LABELS } from '../lib/musicFormats'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { VIDEO_FORMAT_LABELS } from '../services/films'
 import { CONFIDENCE_THRESHOLD } from '../services/identify'
-import { chooseCandidate, finalDraft, isBookScan, isReady, removeScan, retryErrors, setInclude, setScanPlatform, useSearchResult } from '../services/scanQueue'
+import { chooseCandidate, finalDraft, isBookScan, isReady, removeScan, retryErrors, setInclude, setScanPlatform, setScanSupport, useSearchResult } from '../services/scanQueue'
 import { searchBooks } from '../services/books'
 import { searchFilms } from '../services/films'
 import { searchGames } from '../services/games'
@@ -51,6 +52,11 @@ const query = ref('')
 /** Auteur (livres) ou artiste (CD). */
 const who = ref('')
 const searchPlatform = ref<Platform | undefined>(props.item.platform ?? (settings.scanPlatform || undefined))
+/** Films et musique : le support (un film inconnu n'est pas forcément un DVD). */
+const searchSupport = ref<string>(props.item.media === 'video' ? 'dvd' : 'cd')
+const supportLabels = computed<Record<string, string>>(() => (media.value === 'video' ? VIDEO_FORMAT_LABELS : MUSIC_FORMAT_LABELS))
+const hasSupport = computed(() => media.value === 'video' || media.value === 'cd')
+const currentSupport = computed(() => (media.value === 'video' ? (draft.value?.videoFormat ?? 'dvd') : (draft.value?.musicFormat ?? 'cd')))
 const results = ref<Candidate[] | null>(null)
 const searching = ref(false)
 const searchError = ref('')
@@ -74,7 +80,7 @@ async function searchTitle() {
 async function pick(c: Candidate) {
   picking.value = c.key
   try {
-    await useSearchResult(props.item.id, c, searchPlatform.value)
+    await useSearchResult(props.item.id, c, searchPlatform.value, hasSupport.value ? (searchSupport.value as VideoFormat | MusicFormat) : undefined)
     results.value = null
   } finally {
     picking.value = ''
@@ -129,6 +135,12 @@ const otherEdition = computed(
       La BnF n'indique pas la console de ce jeu : laquelle ?
       <PlatformSelect :model-value="undefined" @update:model-value="$event && setScanPlatform(item.id, $event)" />
     </label>
+    <label v-if="hasSupport && draft && (item.state === 'trouve' || item.state === 'a_choisir')" class="row small support">
+      Support :
+      <select :value="currentSupport" aria-label="Support" @change="setScanSupport(item.id, ($event.target as HTMLSelectElement).value as VideoFormat | MusicFormat)">
+        <option v-for="(label, key) in supportLabels" :key="key" :value="key">{{ label }}</option>
+      </select>
+    </label>
     <p v-if="item.state === 'erreur'" class="notice notice-danger small">{{ item.error }}</p>
     <!-- Code introuvable : on cherche par le titre, sans quitter la file -->
     <form v-if="item.state === 'introuvable'" class="stack find" @submit.prevent="searchTitle">
@@ -146,6 +158,9 @@ const otherEdition = computed(
           autocomplete="off"
         />
         <PlatformSelect v-if="media === 'jeu'" v-model="searchPlatform" class="grow" empty-label="Toutes les consoles" />
+        <select v-if="hasSupport" v-model="searchSupport" aria-label="Support" class="support-select">
+          <option v-for="(label, key) in supportLabels" :key="key" :value="key">{{ label }}</option>
+        </select>
         <button class="btn btn-small btn-primary" type="submit" :disabled="searching || (!query.trim() && !who.trim())">
           {{ searching ? 'Recherche…' : '🔎 Chercher' }}
         </button>
@@ -256,6 +271,10 @@ const otherEdition = computed(
 }
 .actions {
   justify-content: flex-end;
+}
+.support select {
+  min-height: 32px;
+  padding: 2px 6px;
 }
 .find {
   gap: 8px;
