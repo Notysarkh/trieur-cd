@@ -26,6 +26,11 @@ export function bestGameCandidate(cands: Candidate[], title: string): Candidate 
   return scored[0] && scored[0].s >= 0.6 ? scored[0].c : undefined
 }
 
+/** Deux jeux lus sont-ils le même (même titre, même console ou console inconnue) ? */
+export function sameGame(a: { title: string; platform?: Platform }, b: { title: string; platform?: Platform }): boolean {
+  return key(a.title) === key(b.title) && (!a.platform || !b.platform || a.platform === b.platform)
+}
+
 /** Ce jeu (même titre, même console) est-il déjà dans la collection ? */
 export function alreadyOwned(all: Cd[], title: string, platform: Platform | undefined): Cd | undefined {
   const t = key(title)

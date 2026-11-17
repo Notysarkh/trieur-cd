@@ -81,7 +81,10 @@ async function run(media: MediaKind, everything = false) {
         <span class="muted">{{ todo.get(u.id) ?? 0 }} à vérifier</span>
         <span v-if="!scoresAvailable(u.id)" class="muted"> · {{ u.need }}</span>
       </span>
-      <button class="btn btn-small" :disabled="!!running || !scoresAvailable(u.id) || !todo.get(u.id)" @click="run(u.id)">Récupérer</button>
+      <span class="stack actions">
+        <button class="btn btn-small" :disabled="!!running || !scoresAvailable(u.id) || !todo.get(u.id)" @click="run(u.id)">Récupérer</button>
+        <button class="linkish small" :disabled="!!running || !scoresAvailable(u.id)" @click="run(u.id, true)">Tout revérifier</button>
+      </span>
     </div>
     <template v-if="running && progress">
       <progress :value="progress.done" :max="progress.total || 1"></progress>
@@ -102,5 +105,21 @@ h3 {
 }
 progress {
   width: 100%;
+}
+.actions {
+  gap: 2px;
+  align-items: flex-end;
+}
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.linkish:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 </style>

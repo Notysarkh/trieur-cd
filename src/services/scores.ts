@@ -37,7 +37,7 @@ async function scoresFor(cd: Cd): Promise<Partial<Cd>> {
     return { rawgId: g.id, ...(g.metacritic ? { scores: { ...cd.scores, metacritic: g.metacritic } } : {}) }
   }
   if (media === 'video') {
-    const d = await withOmdbScores(cd)
+    const d = await withOmdbScores(cd, 'normal', true)
     return { imdbId: d.imdbId, scores: d.scores }
   }
   const rg = await mb.lookupReleaseGroup(cd.mbReleaseGroupId!)

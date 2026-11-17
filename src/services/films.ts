@@ -206,14 +206,22 @@ export async function enrichFilm(draft: CdDraft, priority: Priority = 'normal'):
  * Notes Metacritic, IMDb et Rotten Tomatoes (OMDb, si une clé est configurée) : par l'identifiant IMDb
  * donné par TMDB, sinon par le titre et l'année.
  */
-export async function withOmdbScores(draft: CdDraft, priority: Priority = 'normal'): Promise<CdDraft> {
+export async function withOmdbScores(draft: CdDraft, priority: Priority = 'normal', throwOnError = false): Promise<CdDraft> {
   if (!hasOmdbKey()) return draft
   const d: CdDraft = { ...draft }
   if (!d.imdbId && d.tmdbId?.startsWith('movie:') && hasTmdbKey()) {
     const details = await tmdbMovieDetails(Number(d.tmdbId.split(':')[1]), priority).catch(() => undefined)
     if (details?.imdb_id) d.imdbId = details.imdb_id
   }
-  const s = await omdbScores(d.imdbId ? { imdbId: d.imdbId } : { title: d.title, year: d.year }, priority).catch(() => undefined)
+  let s: Awaited<ReturnType<typeof omdbScores>>
+  try {
+    s = await omdbScores(d.imdbId ? { imdbId: d.imdbId } : { title: d.title, year: d.year }, priority)
+  } catch (e) {
+    // Erreur réseau ou clé refusée (pas encore activée…) : pas de « vérifié », on retentera plus tard.
+    if (throwOnError) throw e
+    return d
+  }
+  // Réponse d'OMDb (avec ou sans note) : le film est vérifié.
   d.scoresAt = Date.now()
   if (!s) return d
   if (s.imdbId) d.imdbId = s.imdbId

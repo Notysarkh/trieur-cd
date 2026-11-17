@@ -8,7 +8,7 @@ import { itemsOf } from '../db/database'
 import type { Candidate, Cd, Platform } from '../db/types'
 import { platformLabel } from '../lib/platforms'
 import { addCd } from '../services/collection'
-import { alreadyOwned, draftForPhotoGame, resolveSeenGame, type PhotoGame } from '../services/photoGames'
+import { alreadyOwned, draftForPhotoGame, resolveSeenGame, sameGame, type PhotoGame } from '../services/photoGames'
 import { saveSetting, settings } from '../services/settings'
 import { hasAnthropicKey, readGamesFromPhoto } from '../services/vision'
 
@@ -20,8 +20,12 @@ interface Row extends PhotoGame {
   platform?: Platform
   add: boolean
   owned?: Cd
+  /** Déjà dans la liste (même jeu sur une photo précédente) : décoché. */
+  twin?: boolean
   resolving: boolean
 }
+
+const titleOf = (r: Row) => r.chosen?.draft.title ?? r.seen.title
 
 const all = useLiveQuery(() => itemsOf('jeu'), [] as Cd[])
 const rows = reactive<Row[]>([])
@@ -51,8 +55,9 @@ async function onPhoto(dataUrl: string) {
       row.chosen = r.chosen
       row.error = r.error
       row.platform ??= r.chosen?.draft.platform
-      row.owned = alreadyOwned(all.value, row.chosen?.draft.title ?? row.seen.title, row.platform)
-      row.add = !row.owned && (!!row.chosen || row.seen.confidence !== 'basse')
+      row.owned = alreadyOwned(all.value, titleOf(row), row.platform)
+      row.twin = rows.some((o) => o !== row && !o.resolving && sameGame({ title: titleOf(o), platform: o.platform }, { title: titleOf(row), platform: row.platform }))
+      row.add = !row.owned && !row.twin && (!!row.chosen || row.seen.confidence !== 'basse')
       row.resolving = false
     }
   } catch (e) {
@@ -119,6 +124,7 @@ async function addAll() {
             </span>
             <span v-if="row.resolving" class="small muted">Recherche…</span>
             <span v-else-if="row.owned" class="small badge badge-info">Déjà dans ta collection</span>
+            <span v-else-if="row.twin" class="small badge badge-info">Déjà dans la liste (photo précédente)</span>
             <span v-else-if="!row.chosen" class="small muted">Pas trouvé : il sera ajouté « à vérifier ».</span>
             <select v-if="row.candidates.length > 1" :value="row.chosen?.key ?? ''" class="small" aria-label="Autre résultat" @change="choose(row, ($event.target as HTMLSelectElement).value)">
               <option value="">— garder le titre lu —</option>

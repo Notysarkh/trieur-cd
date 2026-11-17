@@ -135,6 +135,14 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musiqu
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
 
+### Nouveautés du 17/11/2026
+
+- **Support choisi dans la file du scanner** (films, musique) : un film au code-barres inconnu n’est plus forcément un DVD ; le support se choisit aussi pour un résultat trouvé.
+- **Ma note** : note personnelle sur 100 (curseur sur la fiche), affichée dans la collection à la place du pourcentage d’identification (verte à partir de 80) ; tri « ma note » ; colonne CSV « Ma note ».
+- **Coffret de films depuis la recherche** : Ajouter → « 📦 Créer un coffret » (et « Choisir les films depuis la recherche » sur la fiche d’un coffret) : nom du coffret → films de la saga proposés cochés (clé TMDB) + recherche par titre → une seule fiche (liste, saga, genre, année, affiche).
+- **Avis extérieurs** : Metacritic des jeux (via RAWG, sans nouvelle clé) ; Metacritic + IMDb + Rotten Tomatoes des films (via OMDb, clé gratuite) ; note MusicBrainz de la musique (affichée à partir de 3 votes). Reçus au scan ; Réglages → « Avis extérieurs » complète la collection existante. Une erreur réseau ou une clé non activée ne marque pas l’objet comme vérifié.
+- **Jeux par photo** (Scanner → « 📸 Jeux par photo ») : photo d’une jaquette ou d’une rangée de tranches ; Claude Haiku 5.5 lit titres et consoles, l’appli cherche chaque jeu (RAWG + BnF), tu coches puis ajoutes. Doublons (déjà dans la collection, ou sur une photo précédente) décochés. Un code-barres inconnu peut aussi se compléter par « 📷 Lire la jaquette ». Clé API Anthropic personnelle (payante), restée sur l’appareil ; les photos sont envoyées à Anthropic. Non testé avec une vraie clé ; taux de réussite à mesurer sur de vraies rangées.
+
 ### Musique (16/11/2026)
 
 - L’univers « CD » s’appelle **« Musique »** (un objet = un « disque »). Supports : CD, vinyle 33 tours, vinyle 45 tours, cassette, MiniDisc, SA-CD, DVD-Audio, Blu-ray Pure Audio. Le support est lu dans MusicBrainz (« 12" Vinyl », « Cassette »…) et Discogs. CD et SA-CD : épaisseur selon le boîtier (standard, digipak…) ; autres supports : dimensions par défaut (HYPOTHÈSES, `src/lib/musicFormats.ts`), multipliées par le nombre de disques pour les vinyles et cassettes. Colonne « Support musique » dans le CSV.

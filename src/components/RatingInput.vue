@@ -5,7 +5,8 @@ const props = defineProps<{ modelValue: number | undefined }>()
 const emit = defineEmits<{ 'update:modelValue': [number | undefined] }>()
 
 function set(v: string) {
-  const n = Math.round(Number(v))
+  if (!v.trim()) return emit('update:modelValue', undefined)
+  const n = Math.round(Number(v.replace(',', '.')))
   emit('update:modelValue', Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : undefined)
 }
 </script>
