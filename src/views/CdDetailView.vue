@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CdForm from '../components/CdForm.vue'
 import CoverImage from '../components/CoverImage.vue'
+import PhotoCapture from '../components/PhotoCapture.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import ScoreChips from '../components/ScoreChips.vue'
 import { db } from '../db/database'
@@ -41,6 +42,15 @@ watch(
 
 // --- Emplacement dans les meubles (lu en direct : se met à jour après « C'est rangé ») ---
 const live = useLiveQuery(() => db.cds.get(props.id), undefined as Cd | undefined)
+
+// --- Image de la fiche : ta propre photo remplace l'image trouvée automatiquement ---
+const photoOpen = ref(false)
+/** Enregistre tout de suite ta photo (ou la retire pour revenir à l'image trouvée). */
+async function setPhoto(photo: string | undefined) {
+  await db.cds.update(props.id, { coverPhoto: photo, updatedAt: Date.now() })
+  for (const r of [original, edited]) if (r.value) r.value.coverPhoto = photo
+  photoOpen.value = false
+}
 
 const dirty = computed(() => JSON.stringify(original.value) !== JSON.stringify(edited.value))
 
@@ -117,7 +127,15 @@ async function remove() {
 
     <template v-if="edited">
       <div class="row head">
-        <CoverImage :urls="edited.coverUrls" :photo="edited.coverPhoto" :label="edited.title" :size="120" />
+        <div class="stack cover-col">
+          <CoverImage :urls="edited.coverUrls" :photo="edited.coverPhoto" :label="edited.title" :size="120" />
+          <button v-if="!photoOpen" class="btn btn-small" @click="photoOpen = true">
+            📷 {{ edited.coverPhoto ? 'Changer ma photo' : 'Ma photo' }}
+          </button>
+          <button v-if="edited.coverPhoto && !photoOpen && edited.coverUrls.length" class="linkish small" @click="setPhoto(undefined)">
+            Remettre l'image trouvée
+          </button>
+        </div>
         <div class="grow">
           <h1>{{ edited.title }}</h1>
           <p class="muted">{{ edited.artist }}<template v-if="edited.year"> · {{ edited.year }}</template></p>
@@ -126,6 +144,13 @@ async function remove() {
           <ScoreChips :cd="edited" links />
         </div>
       </div>
+
+      <section v-if="photoOpen" class="card stack">
+        <h2>Ma photo pour cette fiche</h2>
+        <p class="small muted">Elle remplace l'image trouvée automatiquement (tu pourras la remettre).</p>
+        <PhotoCapture :has-photo="!!edited.coverPhoto" :max-size="480" @photo="setPhoto" />
+        <button class="btn btn-small" @click="photoOpen = false">Annuler</button>
+      </section>
 
       <details v-if="live && (live.location || live.noBox || layoutAppliedAtFor(mediaOf(live)))" class="card" :open="!live.shelvedAt">
         <summary>
@@ -191,6 +216,19 @@ async function remove() {
 </template>
 
 <style scoped>
+.cover-col {
+  gap: 6px;
+  align-items: center;
+  flex: none;
+}
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .head {
   align-items: flex-start;
   flex-wrap: nowrap;

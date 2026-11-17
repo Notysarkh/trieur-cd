@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { canonicalBarcode, isValidGtin } from '../lib/barcode'
 import { unlockAudio } from '../lib/feedback'
 import { perf, recordScanFrame } from '../services/perf'
+import { cameraErrorMessage, closeCamera, openCamera } from '../lib/camera'
 
 // Lecteur de code-barres par la caméra.
 //
@@ -54,6 +55,8 @@ const torchOn = ref(false)
 const flash = ref('')
 
 let stream: MediaStream | null = null
+/** Augmente à chaque arrêt : une ouverture qui aboutit après un arrêt est aussitôt refermée. */
+let generation = 0
 let timer: ReturnType<typeof setTimeout> | undefined
 let pending: { code: string; at: number } | null = null
 const recentlySent = new Map<string, number>()
@@ -63,20 +66,25 @@ async function start() {
   unlockAudio()
   status.value = 'starting'
   errorMessage.value = ''
+  const mine = ++generation
   try {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error(
-        "Ce navigateur ne donne pas accès à la caméra. L'appli doit être ouverte via une adresse sécurisée (https).",
-      )
+    const s = await openCamera({ width: 1280, height: 720 })
+    // Arrêté (ou écran quitté) pendant l'ouverture : on referme tout de suite, sinon la caméra resterait prise.
+    if (mine !== generation || !video.value) {
+      closeCamera(s)
+      return
     }
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    })
-    const v = video.value!
+    stream = s
+    const v = video.value
     v.srcObject = stream
     await v.play()
     const track = stream.getVideoTracks()[0]
+    // Caméra reprise par une autre appli (appareil photo…) : on s'arrête proprement et on la rallumera au retour.
+    track.addEventListener('ended', () => {
+      if (stream !== s) return
+      stop()
+      resumeOnVisible = true
+    })
     const caps = (track.getCapabilities?.() ?? {}) as { torch?: boolean }
     torchAvailable.value = !!caps.torch
     await getDetector()
@@ -85,21 +93,14 @@ async function start() {
   } catch (e) {
     stop()
     status.value = 'error'
-    const name = e instanceof DOMException ? e.name : ''
-    errorMessage.value =
-      name === 'NotAllowedError'
-        ? "L'accès à la caméra a été refusé. Autorise-le dans les réglages du navigateur, puis réessaie."
-        : name === 'NotFoundError'
-          ? 'Aucune caméra trouvée sur cet appareil. Tu peux taper le code-barres à la main.'
-          : e instanceof Error
-            ? e.message
-            : 'Impossible de démarrer la caméra.'
+    errorMessage.value = cameraErrorMessage(e)
   }
 }
 
 function stop() {
+  generation++
   clearTimeout(timer)
-  stream?.getTracks().forEach((t) => t.stop())
+  closeCamera(stream)
   stream = null
   torchOn.value = false
   if (status.value !== 'error') status.value = 'idle'
@@ -188,7 +189,8 @@ function onVisibility() {
     stop()
   } else if (!document.hidden && resumeOnVisible) {
     resumeOnVisible = false
-    void start()
+    // Petite pause : l'appareil photo du téléphone met parfois un instant à relâcher la caméra.
+    setTimeout(() => void start(), 400)
   }
 }
 
@@ -218,7 +220,7 @@ defineExpose({ start, stop })
     </div>
 
     <button v-if="status === 'idle' || status === 'error'" class="btn btn-primary btn-big" @click="start">
-      📷 Démarrer la caméra
+      📷 {{ status === 'error' ? 'Réessayer' : 'Démarrer la caméra' }}
     </button>
     <p v-if="status === 'error'" class="notice notice-danger">{{ errorMessage }}</p>
 

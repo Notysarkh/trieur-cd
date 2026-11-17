@@ -137,6 +137,8 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musiqu
 
 ### Nouveautés du 18/11/2026
 
+- **Caméra occupée** (« Could not start video source ») : avant d’ouvrir la caméra, l’appli referme tout ce qu’elle tenait encore ouvert ; si la caméra est occupée, elle réessaie puis passe à des réglages plus simples ; message clair et bouton « Réessayer » sinon (`src/lib/camera.ts`).
+- **Ma photo sur une fiche** : bouton « 📷 Ma photo » sous l’image de la fiche ; elle remplace l’image trouvée automatiquement (« Remettre l’image trouvée » pour revenir).
 - **Coffrets de séries** : « Créer un coffret » propose « 🎬 Films (saga) » ou « 📺 Série TV (saisons) ». Série : recherche TMDB de la série puis saisons à cocher (sans clé TMDB : nombre de saisons, toutes cochées au départ). La fiche d’un coffret de série a des cases « Saisons dans le coffret » ; il se range à la place de sa première saison, avec les saisons achetées à part. La BnF donne parfois les saisons dans le titre (« l’intégrale des saisons 1 à 3 »).
 - **Avis extérieurs** : « Récupérer toutes les notes » met à jour toutes les notes d’un univers (date de la dernière mise à jour affichée) ; un objet ajouté à la main reçoit ses notes tout de suite.
 - **Scanner** : gros bouton « 🔎 Recherche par titre » en haut, pour tous les univers (films : « ou coffret » ; jeux : « 📸 Par photo »).

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from 'vue'
 import { photoToThumbnail, videoToThumbnail } from '../lib/image'
+import { cameraErrorMessage, closeCamera, openCamera } from '../lib/camera'
 
 // Photo de pochette : ouvre directement la caméra DANS l'appli (au lieu du sélecteur de fichiers,
 // que certains téléphones Android affichent même quand on demande la caméra).
@@ -12,40 +13,43 @@ const props = defineProps<{
   hd?: boolean
   /** Texte du bouton (par défaut « Prendre une photo »). */
   label?: string
+  /** Taille maximale de l'image (pixels) ; par défaut 320 (vignette), 1568 avec hd. */
+  maxSize?: number
 }>()
-const maxSize = () => (props.hd ? 1568 : 320)
+const maxSize = () => props.maxSize ?? (props.hd ? 1568 : 320)
 const emit = defineEmits<{ photo: [dataUrl: string] }>()
 
 const video = ref<HTMLVideoElement>()
 const open = ref(false)
 const error = ref('')
 let stream: MediaStream | null = null
+let generation = 0
 
 async function start() {
   error.value = ''
   open.value = true
+  const mine = ++generation
   try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Caméra non disponible sur ce navigateur.')
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: props.hd ? 1920 : 1280 }, height: { ideal: props.hd ? 1920 : 1280 } },
-      audio: false,
-    })
+    const s = await openCamera({ width: props.hd ? 1920 : 1280, height: props.hd ? 1920 : 1280 })
     await nextTick()
-    video.value!.srcObject = stream
+    // Annulé (ou écran quitté) pendant l'ouverture : on referme tout de suite.
+    if (mine !== generation || !video.value) {
+      closeCamera(s)
+      return
+    }
+    stream = s
+    video.value.srcObject = stream
     await video.value!.play()
   } catch (e) {
     stop()
     open.value = false
-    const name = e instanceof DOMException ? e.name : ''
-    error.value =
-      name === 'NotAllowedError'
-        ? "L'accès à la caméra a été refusé. Autorise-le dans les réglages du navigateur, ou choisis une image existante."
-        : "Impossible d'ouvrir la caméra. Tu peux choisir une image existante."
+    error.value = `${cameraErrorMessage(e)} Tu peux aussi choisir une image existante.`
   }
 }
 
 function stop() {
-  stream?.getTracks().forEach((t) => t.stop())
+  generation++
+  closeCamera(stream)
   stream = null
 }
 
