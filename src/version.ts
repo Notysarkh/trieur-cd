@@ -1,0 +1,4 @@
+// Numéro de version de l'appli (version_majeure.AAMMJJ.hhmm, heure de Paris), calculé à la construction (vite.config.ts).
+declare const __APP_VERSION__: string
+
+export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'

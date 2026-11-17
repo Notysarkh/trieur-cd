@@ -14,6 +14,7 @@ import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
 import ScoresPanel from '../components/ScoresPanel.vue'
 import VisionKeyPanel from '../components/VisionKeyPanel.vue'
+import { APP_VERSION } from '../version'
 
 // Réglages : jeton Discogs, épaisseurs, sauvegarde, effacement.
 
@@ -340,6 +341,8 @@ async function wipeAll() {
         <button class="btn btn-danger" @click="wipeAll">Effacer toute la collection</button>
       </div>
     </section>
+
+    <p class="small" style="text-align: center; margin: 0">Mediamwa · version <strong>{{ APP_VERSION }}</strong></p>
 
     <p class="small muted">
       Données : MusicBrainz (CC0), Discogs, Cover Art Archive, catalogue de la BnF, Open Library, TMDB (ce produit

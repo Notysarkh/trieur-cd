@@ -3,12 +3,38 @@ import vue from '@vitejs/plugin-vue'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+
+/**
+ * Numéro de version : version_majeure.AAMMJJ.hhmm (heure de Paris au moment de la construction),
+ * ex. 1.261118.1432. La version majeure vient de package.json (à augmenter pour les grands changements).
+ */
+function appVersion(date = new Date()): string {
+  const major = String(JSON.parse(readFileSync('package.json', 'utf8')).version ?? '1').split('.')[0]
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris',
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value]),
+  )
+  return `${major}.${parts.year}${parts.month}${parts.day}.${parts.hour}${parts.minute}`
+}
 
 // Configuration de Vite (l'outil qui lance l'appli en développement et la "construit" pour la mise en ligne).
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   // Sur GitHub Pages, l'appli vit dans un sous-dossier (ex. /trieur-cd/) : on le reçoit via BASE_PATH.
   base: process.env.BASE_PATH ?? '/',
+
+  // Numéro de version affiché dans les Réglages.
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
 
   plugins: [
     vue(),

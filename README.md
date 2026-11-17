@@ -135,8 +135,10 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musiqu
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
 
-### Nouveautés du 18/11/2026
+### Nouveautés du 17/11/2026 (suite)
 
+- **Caméra arrière principale** : au premier usage, l’appli repère la caméra arrière principale (pas l’ultra grand-angle, le téléobjectif ni la caméra avant) d’après le nom des caméras, la retient sur l’appareil et l’ouvre directement ensuite.
+- **Numéro de version** (bas des Réglages) : version_majeure.AAMMJJ.hhmm, heure de Paris au moment de la mise en ligne (ex. 1.261117.2150) ; la version majeure vient de `package.json` (1).
 - **Caméra occupée** (« Could not start video source ») : avant d’ouvrir la caméra, l’appli referme tout ce qu’elle tenait encore ouvert ; si la caméra est occupée, elle réessaie puis passe à des réglages plus simples ; message clair et bouton « Réessayer » sinon (`src/lib/camera.ts`).
 - **Ma photo sur une fiche** : bouton « 📷 Ma photo » sous l’image de la fiche ; elle remplace l’image trouvée automatiquement (« Remettre l’image trouvée » pour revenir).
 - **Coffrets de séries** : « Créer un coffret » propose « 🎬 Films (saga) » ou « 📺 Série TV (saisons) ». Série : recherche TMDB de la série puis saisons à cocher (sans clé TMDB : nombre de saisons, toutes cochées au départ). La fiche d’un coffret de série a des cases « Saisons dans le coffret » ; il se range à la place de sa première saison, avec les saisons achetées à part. La BnF donne parfois les saisons dans le titre (« l’intégrale des saisons 1 à 3 »).
