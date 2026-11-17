@@ -43,6 +43,7 @@ export const router = createRouter({
     { path: '/imprimer/plan', name: 'imprimer-plan', component: () => import('./views/PrintPlanView.vue'), meta: cdOnly },
     { path: '/imprimer/etiquettes', name: 'etiquettes', component: () => import('./views/LabelsView.vue'), meta: cdOnly },
     { path: '/reglages', name: 'reglages', component: () => import('./views/SettingsView.vue') },
+    { path: '/jeux/photo', name: 'jeux-photo', component: () => import('./views/PhotoGamesView.vue'), meta: { onlyFor: ['jeu'] } },
     { path: '/consoles', name: 'consoles', component: () => import('./views/ConsolesView.vue'), meta: { onlyFor: ['jeu'] } },
   ],
   scrollBehavior: () => ({ top: 0 }),

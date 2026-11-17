@@ -6,7 +6,14 @@ import { photoToThumbnail, videoToThumbnail } from '../lib/image'
 // que certains téléphones Android affichent même quand on demande la caméra).
 // En secours, on peut toujours choisir une image existante.
 
-const props = defineProps<{ hasPhoto: boolean }>()
+const props = defineProps<{
+  hasPhoto: boolean
+  /** Grande image (lecture des titres par l'IA) au lieu d'une petite vignette. */
+  hd?: boolean
+  /** Texte du bouton (par défaut « Prendre une photo »). */
+  label?: string
+}>()
+const maxSize = () => (props.hd ? 1568 : 320)
 const emit = defineEmits<{ photo: [dataUrl: string] }>()
 
 const video = ref<HTMLVideoElement>()
@@ -20,7 +27,7 @@ async function start() {
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('Caméra non disponible sur ce navigateur.')
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: props.hd ? 1920 : 1280 }, height: { ideal: props.hd ? 1920 : 1280 } },
       audio: false,
     })
     await nextTick()
@@ -45,7 +52,7 @@ function stop() {
 function shoot() {
   const v = video.value
   if (!v?.videoWidth) return
-  emit('photo', videoToThumbnail(v))
+  emit('photo', videoToThumbnail(v, maxSize()))
   stop()
   open.value = false
 }
@@ -57,7 +64,7 @@ function cancel() {
 
 async function onFile(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) emit('photo', await photoToThumbnail(file))
+  if (file) emit('photo', await photoToThumbnail(file, maxSize()))
 }
 
 onBeforeUnmount(stop)
@@ -73,7 +80,7 @@ onBeforeUnmount(stop)
       </div>
     </div>
     <div v-else class="row">
-      <button class="btn" @click="start">📷 {{ props.hasPhoto ? 'Reprendre la photo' : 'Prendre une photo' }}</button>
+      <button class="btn" @click="start">📷 {{ props.label ?? (props.hasPhoto ? 'Reprendre la photo' : 'Prendre une photo') }}</button>
       <label class="btn btn-small">
         🖼️ Choisir une image
         <input type="file" accept="image/*" hidden @change="onFile" />

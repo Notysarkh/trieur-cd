@@ -13,6 +13,7 @@ import { saveSetting, settings } from '../services/settings'
 import { startProcessing } from '../services/scanQueue'
 import DiagnosticPanel from '../components/DiagnosticPanel.vue'
 import ScoresPanel from '../components/ScoresPanel.vue'
+import VisionKeyPanel from '../components/VisionKeyPanel.vue'
 
 // Réglages : jeton Discogs, épaisseurs, sauvegarde, effacement.
 
@@ -245,6 +246,8 @@ async function wipeAll() {
         RAWG refuse cette clé (ou est injoignable). Vérifie qu'elle est complète.
       </p>
     </section>
+
+    <VisionKeyPanel />
 
     <ScoresPanel />
 

@@ -14,6 +14,8 @@ import { settings } from '../services/settings'
 import { platformLabel } from '../lib/platforms'
 import CoverImage from './CoverImage.vue'
 import PlatformSelect from './PlatformSelect.vue'
+import { hasAnthropicKey, readGamesFromPhoto } from '../services/vision'
+import { photoToThumbnail } from '../lib/image'
 
 // Un code-barres dans la file d'attente, avec son état et les actions possibles.
 
@@ -77,6 +79,29 @@ async function searchTitle() {
     searching.value = false
   }
 }
+/** Jeu au code-barres inconnu : Claude lit la jaquette, puis la recherche se lance avec le titre lu. */
+const readingPhoto = ref(false)
+async function readCover(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  readingPhoto.value = true
+  searchError.value = ''
+  try {
+    const [g] = await readGamesFromPhoto(await photoToThumbnail(file, 1568), searchPlatform.value)
+    if (!g) {
+      searchError.value = 'Aucun jeu reconnu sur la photo : tape le titre.'
+      return
+    }
+    query.value = g.title
+    if (g.platform) searchPlatform.value = g.platform
+    await searchTitle()
+  } catch (e) {
+    searchError.value = e instanceof Error ? e.message : 'Lecture de la photo impossible.'
+  } finally {
+    readingPhoto.value = false
+  }
+}
+
 async function pick(c: Candidate) {
   picking.value = c.key
   try {
@@ -165,6 +190,10 @@ const otherEdition = computed(
           {{ searching ? 'Recherche…' : '🔎 Chercher' }}
         </button>
       </div>
+      <label v-if="media === 'jeu' && hasAnthropicKey()" class="btn btn-small photo-btn">
+        {{ readingPhoto ? 'Lecture de la jaquette…' : '📷 Lire la jaquette (photo)' }}
+        <input type="file" accept="image/*" capture="environment" hidden :disabled="readingPhoto" @change="readCover" />
+      </label>
       <p v-if="searchError" class="notice notice-danger small">{{ searchError }}</p>
       <p v-if="results && !results.length" class="small muted">Aucun résultat : essaie avec moins de mots, ou une autre console.</p>
       <div v-if="results?.length" class="choices">

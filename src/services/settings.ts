@@ -21,6 +21,8 @@ export interface Settings {
   rawgKey: string
   /** Clé OMDb (notes Metacritic, IMDb, Rotten Tomatoes des films) : reste sur l'appareil. */
   omdbKey: string
+  /** Clé API Anthropic (reconnaissance des jeux sur photo) : reste sur l'appareil. */
+  anthropicKey: string
   thickness: ThicknessTable
   /** Mode rafale : la caméra reste allumée et les scans s'enchaînent. */
   burstMode: boolean
@@ -73,6 +75,7 @@ const DEFAULTS: Settings = {
   tmdbKey: '',
   rawgKey: '',
   omdbKey: '',
+  anthropicKey: '',
   thickness: { ...DEFAULT_THICKNESS },
   burstMode: true,
   feedback: true,

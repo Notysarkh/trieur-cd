@@ -139,6 +139,7 @@ async function unknownToReview() {
         <RouterLink to="/reglages">Réglages</RouterLink></template>. Jeu non reconnu (ou sans boîte) :
         <RouterLink to="/ajouter">recherche par titre</RouterLink>.
       </p>
+      <RouterLink to="/jeux/photo" class="btn">📸 Jeux par photo (jaquette ou rangée de tranches)</RouterLink>
       <label class="stack console-pick">
         <span class="small"><strong>Console des jeux que tu scannes</strong> (sert quand la BnF ne l'indique pas)</span>
         <PlatformSelect
