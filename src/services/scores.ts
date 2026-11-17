@@ -44,6 +44,18 @@ async function scoresFor(cd: Cd): Promise<Partial<Cd>> {
   return { scores: { ...cd.scores, ...mbScores(rg) } }
 }
 
+/** Notes d'un seul objet, juste après son ajout à la main (sans attendre ; une erreur est ignorée). */
+export async function refreshScoresOf(id: string): Promise<void> {
+  const cd = await db.cds.get(id)
+  if (!cd || !scoresAvailable(cd.media ?? 'cd') || !needsScores(cd, true)) return
+  try {
+    const changes = await scoresFor(cd)
+    await db.cds.update(id, JSON.parse(JSON.stringify({ ...changes, scoresAt: Date.now(), updatedAt: Date.now() })))
+  } catch {
+    // Source injoignable : le bouton des Réglages pourra le refaire.
+  }
+}
+
 export interface ScoresProgress {
   done: number
   total: number

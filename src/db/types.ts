@@ -160,6 +160,8 @@ export interface Cd {
   boxSet?: boolean
   /** Coffret : titres des films qu'il contient, dans l'ordre (servent à la recherche). */
   contents?: string[]
+  /** Coffret de série : numéros des saisons qu'il contient (0 = épisodes spéciaux). */
+  seasons?: number[]
   /** Film ou série sur TMDB (« movie:194 », « tv:1399 »). */
   tmdbId?: string
 

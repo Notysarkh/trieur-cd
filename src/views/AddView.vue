@@ -8,6 +8,7 @@ import { db } from '../db/database'
 import type { Candidate, CdDraft, Platform } from '../db/types'
 import { FORMAT_LABELS } from '../lib/formats'
 import { addCd, updateCd } from '../services/collection'
+import { refreshScoresOf } from '../services/scores'
 import { hasDiscogsToken } from '../services/discogs'
 import { enrichCandidate, searchByText } from '../services/identify'
 import { removeScan } from '../services/scanQueue'
@@ -155,6 +156,8 @@ function fromBoxSet(b: BoxSetResult) {
     boxSet: true,
     contents: b.contents,
     series: b.saga,
+    // Coffret de série : ses saisons ; il se range à la place de sa première saison.
+    ...(b.seasons?.length ? { seasons: b.seasons, volume: Math.min(...b.seasons.filter((n) => n > 0)) || undefined } : {}),
     barcode: barcode ? canonicalBarcode(barcode) : undefined,
     noBarcode: !barcode || undefined,
     artist: b.artist,
@@ -184,6 +187,8 @@ async function save() {
   let id = cdId
   if (cdId) await updateCd(cdId, draft.value)
   else id = await addCd(draft.value)
+  // Notes extérieures (Metacritic, IMDb…) récupérées en arrière-plan.
+  if (id) void refreshScoresOf(id)
   if (scanId) {
     await removeScan(scanId)
     await router.push('/scan')
@@ -206,7 +211,10 @@ async function save() {
     <template v-if="!draft && !boxBuilder">
       <section v-if="isVideo && !cdId" class="card stack">
         <h2>📦 Un coffret ?</h2>
-        <p class="muted small">Plusieurs films dans une seule boîte : une seule fiche, avec les films choisis depuis la recherche.</p>
+        <p class="muted small">
+          Plusieurs films (une saga) ou plusieurs saisons d'une série dans une seule boîte : une seule fiche, avec les films
+          ou les saisons choisis depuis la recherche.
+        </p>
         <button class="btn" @click="boxBuilder = true">📦 Créer un coffret</button>
       </section>
       <section class="card stack">

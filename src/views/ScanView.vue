@@ -121,25 +121,35 @@ async function unknownToReview() {
   <main class="page stack">
     <h1>Scanner mes {{ media.many }}</h1>
 
+    <!-- Plan B bien visible : sans code-barres, code inconnu, coffret… -->
+    <section v-if="mode === 'ajouter'" class="card stack by-title">
+      <div class="row">
+        <RouterLink to="/ajouter" class="btn btn-primary btn-big grow">
+          🔎 Recherche par titre{{ media.id === 'video' ? ' ou coffret' : '' }}
+        </RouterLink>
+        <RouterLink v-if="media.id === 'jeu'" to="/jeux/photo" class="btn btn-big grow">📸 Par photo</RouterLink>
+      </div>
+      <p class="small muted">
+        {{ media.id === 'livre' ? 'Livre sans ISBN' : 'Pas de code-barres' }}, code inconnu<template v-if="media.id === 'video'">, coffret de films ou de série</template><template v-if="media.id === 'jeu'">, jeu sans boîte, ou toute une rangée de tranches en photo</template> :
+        ajoute-le par son titre.
+      </p>
+    </section>
+
     <p v-if="media.id === 'livre'" class="notice small">
       Scanne le code-barres au dos du livre (l'ISBN, qui commence par 978 ou 979). L'appli le cherche dans le
-      catalogue de la BnF, puis sur Open Library. Livre sans code-barres :
-      <RouterLink to="/ajouter">recherche par titre et auteur</RouterLink>.
+      catalogue de la BnF, puis sur Open Library.
     </p>
     <p v-if="media.id === 'video'" class="notice small">
       Scanne le code-barres au dos du boîtier. L'appli le cherche dans le catalogue de la BnF (DVD et Blu-ray édités en
       France)<template v-if="!hasTmdbKey()">, puis complète avec TMDB si tu ajoutes ta clé dans les
-      <RouterLink to="/reglages">Réglages</RouterLink></template>. Film non reconnu :
-      <RouterLink to="/ajouter">recherche par titre</RouterLink>.
+      <RouterLink to="/reglages">Réglages</RouterLink></template>.
     </p>
     <template v-if="media.id === 'jeu'">
       <p class="notice small">
         Scanne le code-barres au dos de la boîte. L'appli le cherche dans le catalogue de la BnF (jeux édités en
         France)<template v-if="!hasRawgKey()">, puis complète avec RAWG si tu ajoutes ta clé dans les
-        <RouterLink to="/reglages">Réglages</RouterLink></template>. Jeu non reconnu (ou sans boîte) :
-        <RouterLink to="/ajouter">recherche par titre</RouterLink>.
+        <RouterLink to="/reglages">Réglages</RouterLink></template>.
       </p>
-      <RouterLink to="/jeux/photo" class="btn">📸 Jeux par photo (jaquette ou rangée de tranches)</RouterLink>
       <label class="stack console-pick">
         <span class="small"><strong>Console des jeux que tu scannes</strong> (sert quand la BnF ne l'indique pas)</span>
         <PlatformSelect
@@ -231,5 +241,16 @@ async function unknownToReview() {
 .modes .chip {
   padding: 10px;
   font-weight: 600;
+}
+.by-title {
+  border: 2px solid var(--primary);
+  gap: 6px;
+}
+.by-title p {
+  margin: 0;
+}
+.by-title .btn {
+  text-align: center;
+  justify-content: center;
 }
 </style>

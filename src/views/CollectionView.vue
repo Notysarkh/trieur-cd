@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import CoverImage from '../components/CoverImage.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import ScoreChips from '../components/ScoreChips.vue'
+import { seasonsLabel } from '../lib/seasons'
 import { useLiveQuery } from '../composables/useLiveQuery'
 import { db } from '../db/database'
 import type { Cd, CdStatus } from '../db/types'
@@ -177,7 +178,8 @@ async function confirm(cd: Cd) {
               <template v-if="cd.media === 'jeu'">{{ platformLabel(cd.platform) }} · </template>
               <template v-if="cd.videoFormat">{{ VIDEO_FORMAT_LABELS[cd.videoFormat] }} · </template>
               <template v-if="cd.musicFormat">{{ MUSIC_FORMAT_LABELS[cd.musicFormat] }} · </template>
-              <template v-if="cd.boxSet">Coffret<template v-if="cd.contents?.length"> de {{ cd.contents.length }} films</template> · </template>
+              <template v-if="cd.boxSet && cd.seasons?.length">Coffret {{ seasonsLabel(cd.seasons) }} · </template>
+              <template v-else-if="cd.boxSet">Coffret<template v-if="cd.contents?.length"> de {{ cd.contents.length }} films</template> · </template>
               <template v-if="cd.series && !cd.videoFormat">{{ seriesLabel(cd.series) }}<template v-if="cd.volume"> {{ cd.volume }}</template> · </template>
               {{ cd.artist }}<template v-if="cd.year"> · {{ cd.year }}</template>
               <template v-if="cd.genres.length"> · {{ cd.genres.join(', ') }}</template>

@@ -4,6 +4,7 @@ import type { BookKind, CdDraft, CdFormat, MusicFormat, Platform, VideoFormat } 
 import { MUSIC_FORMAT_LABELS, musicFormatInfo, musicSize } from '../lib/musicFormats'
 import RatingInput from './RatingInput.vue'
 import BoxSetBuilder, { type BoxSetResult } from './BoxSetBuilder.vue'
+import { seasonContent } from '../lib/seasons'
 import { BOOK_KIND_LABELS, FORMAT_LABELS } from '../lib/formats'
 import { mediaOf } from '../lib/media'
 import { guessSortName } from '../lib/sortName'
@@ -34,8 +35,26 @@ function fromBoxSet(b: BoxSetResult) {
   boxBuilder.value = false
   model.value.contents = b.contents
   model.value.series ||= b.saga
+  if (b.seasons?.length) setSeasons(b.seasons)
   if (!model.value.genres.length) model.value.genres = b.genres
   if (!model.value.coverUrls.length) model.value.coverUrls = b.coverUrls
+}
+
+// Coffret de série : les saisons qu'il contient (cases à cocher). La liste du coffret et sa place
+// (celle de sa première saison) suivent.
+const isSeriesBox = computed(() => !!model.value.boxSet && (!!model.value.seasons?.length || model.value.genres.includes('Série TV')))
+const seasonMax = ref(Math.max(10, ...(model.value.seasons ?? [])))
+function setSeasons(list: number[]) {
+  const seasons = [...new Set(list)].sort((a, b) => a - b)
+  const series = model.value.series?.trim() || model.value.title.replace(/\s*[,:\-–].*$/, '').trim()
+  model.value.seasons = seasons.length ? seasons : undefined
+  model.value.contents = seasons.length ? seasons.map((n) => seasonContent(series, n)) : undefined
+  const first = seasons.filter((n) => n > 0)[0]
+  model.value.volume = first
+  seasonMax.value = Math.max(seasonMax.value, ...seasons)
+}
+function toggleSeason(n: number, on: boolean) {
+  setSeasons(on ? [...(model.value.seasons ?? []), n] : (model.value.seasons ?? []).filter((x) => x !== n))
 }
 
 /** Coffret : une ligne par film (lignes vides ignorées). */
@@ -232,9 +251,20 @@ function toNumber(text: string): number | undefined {
       </label>
       <label class="row small full">
         <input type="checkbox" :checked="!!model.boxSet" @change="model.boxSet = ($event.target as HTMLInputElement).checked || undefined" />
-        Coffret (plusieurs films dans une seule boîte)
+        Coffret (plusieurs films ou saisons dans une seule boîte)
       </label>
-      <label v-if="model.boxSet" class="field full">
+      <div v-if="isSeriesBox" class="field full">
+        Saisons dans le coffret
+        <div class="season-grid">
+          <label v-for="n in seasonMax" :key="n" class="season-box" :class="{ on: model.seasons?.includes(n) }">
+            <input type="checkbox" :checked="model.seasons?.includes(n)" @change="toggleSeason(n, ($event.target as HTMLInputElement).checked)" />
+            {{ n }}
+          </label>
+          <button type="button" class="btn btn-small" @click="seasonMax += 1">+ saison</button>
+        </div>
+        <span class="hint">Le coffret se range à la place de sa première saison, avec les saisons achetées à part.</span>
+      </div>
+      <label v-if="model.boxSet && !isSeriesBox" class="field full">
         Films du coffret (un par ligne, dans l'ordre)
         <textarea
           :value="(model.contents ?? []).join('\n')"
@@ -247,12 +277,16 @@ function toNumber(text: string): number | undefined {
         </span>
       </label>
       <div v-if="model.boxSet" class="full">
-        <button v-if="!boxBuilder" type="button" class="btn btn-small" @click="boxBuilder = true">🔎 Choisir les films depuis la recherche</button>
+        <button v-if="!boxBuilder" type="button" class="btn btn-small" @click="boxBuilder = true">
+          🔎 {{ isSeriesBox ? 'Retrouver la série et ses saisons (TMDB)' : 'Choisir les films depuis la recherche' }}
+        </button>
         <BoxSetBuilder
           v-else
           :initial-name="model.title"
           :initial-contents="model.contents"
           :initial-format="model.videoFormat"
+          :initial-series="model.series"
+          :initial-seasons="model.seasons"
           done-label="Mettre à jour la liste"
           @done="fromBoxSet"
           @cancel="boxBuilder = false"
@@ -477,5 +511,25 @@ function toNumber(text: string): number | undefined {
 .compil {
   align-self: end;
   min-height: 44px;
+}
+.season-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.season-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  opacity: 0.6;
+  font-weight: 400;
+}
+.season-box.on {
+  opacity: 1;
+  font-weight: 600;
 }
 </style>

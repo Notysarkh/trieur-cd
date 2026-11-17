@@ -90,7 +90,7 @@ export async function searchTmdb(title: string, priority: Priority = 'high'): Pr
     get<{ results: RawResult[] }>('search/movie', { query: title, include_adult: 'false' }, priority),
     get<{ results: RawResult[] }>('search/tv', { query: title, include_adult: 'false' }, priority),
   ])
-  return [...movies.results.slice(0, 8).map((r) => toResult(r, 'movie', names)), ...tv.results.slice(0, 4).map((r) => toResult(r, 'tv', names))]
+  return [...movies.results.slice(0, 8).map((r) => toResult(r, 'movie', names)), ...tv.results.slice(0, 6).map((r) => toResult(r, 'tv', names))]
 }
 
 /** Le réalisateur d'un film (ou le créateur d'une série). */
@@ -171,6 +171,55 @@ export async function searchTmdbSaga(name: string, priority: Priority = 'normal'
   const best = found.results.find((r) => normalizeText(sagaName(r.name)) === t) ?? found.results[0]
   if (!best) return undefined
   return toSaga(await get<RawCollection>(`collection/${best.id}`, {}, priority), await genres(priority))
+}
+
+// --- Séries TV (coffrets de saisons) ---
+
+export interface TmdbShow {
+  id: number
+  name: string
+  year?: number
+  posterUrl?: string
+  genres: string[]
+  creator?: string
+  /** Les saisons (la saison 0 = épisodes spéciaux), dans l'ordre. */
+  seasons: { number: number; name: string; year?: number; episodes?: number }[]
+}
+
+interface RawShow {
+  id: number
+  name: string
+  first_air_date?: string
+  poster_path?: string | null
+  genres?: { name: string }[]
+  created_by?: { name: string }[]
+  seasons?: { season_number: number; name: string; air_date?: string | null; episode_count?: number }[]
+}
+
+export function toShow(r: RawShow): TmdbShow {
+  const y = (d?: string | null) => (d ? Number(d.slice(0, 4)) || undefined : undefined)
+  return {
+    id: r.id,
+    name: r.name.trim(),
+    year: y(r.first_air_date),
+    posterUrl: r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : undefined,
+    genres: (r.genres ?? []).map((g) => g.name),
+    creator: r.created_by?.[0]?.name,
+    seasons: (r.seasons ?? [])
+      .map((x) => ({ number: x.season_number, name: x.name, year: y(x.air_date), episodes: x.episode_count }))
+      .sort((a, b) => a.number - b.number),
+  }
+}
+
+/** Séries dont le titre correspond (pour un coffret de saisons). */
+export async function searchTmdbShows(name: string, priority: Priority = 'high'): Promise<TmdbResult[]> {
+  if (!hasTmdbKey() || !name.trim()) return []
+  return (await searchTmdb(name, priority)).filter((r) => r.kind === 'tv')
+}
+
+/** Une série et ses saisons. */
+export async function tmdbShow(id: number, priority: Priority = 'high'): Promise<TmdbShow> {
+  return toShow(await get<RawShow>(`tv/${id}`, {}, priority))
 }
 
 /** Vérifie la clé (bouton « Tester » des Réglages). */

@@ -135,6 +135,12 @@ Une seule appli, quatre **univers** choisis sur l'écran d'accueil : 🎵 Musiqu
 - **Hypothèses à vérifier sur tes livres** : le genre est deviné (type BnF « Bandes dessinées », langue d'origine japonaise, sens de lecture japonais, éditeurs de mangas / comics, collection « Policier » ou « Science-fiction », cadre de classement BnF 803 = roman, 809 = jeunesse, 640 = pratique, 9xx = histoire, mots nets du résumé) ; épaisseurs estimées : poche ≈ 0,055 mm / page + 1 mm, grand format ≈ 0,07 mm / page + 3 mm, manga ≈ 0,065 mm / page + 1 mm, album de BD ≈ 10 mm.
 - **Pas encore** : rangement des livres dans les meubles, « Où est ce livre ? » et « pile triée » des livres sans ISBN → étape E.
 
+### Nouveautés du 18/11/2026
+
+- **Coffrets de séries** : « Créer un coffret » propose « 🎬 Films (saga) » ou « 📺 Série TV (saisons) ». Série : recherche TMDB de la série puis saisons à cocher (sans clé TMDB : nombre de saisons, toutes cochées au départ). La fiche d’un coffret de série a des cases « Saisons dans le coffret » ; il se range à la place de sa première saison, avec les saisons achetées à part. La BnF donne parfois les saisons dans le titre (« l’intégrale des saisons 1 à 3 »).
+- **Avis extérieurs** : « Récupérer toutes les notes » met à jour toutes les notes d’un univers (date de la dernière mise à jour affichée) ; un objet ajouté à la main reçoit ses notes tout de suite.
+- **Scanner** : gros bouton « 🔎 Recherche par titre » en haut, pour tous les univers (films : « ou coffret » ; jeux : « 📸 Par photo »).
+
 ### Nouveautés du 17/11/2026
 
 - **Support choisi dans la file du scanner** (films, musique) : un film au code-barres inconnu n’est plus forcément un DVD ; le support se choisit aussi pour un résultat trouvé.

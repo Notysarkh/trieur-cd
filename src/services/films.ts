@@ -16,6 +16,7 @@ import { hasOmdbKey, omdbScores } from './omdb'
 
 // Supports et dimensions : voir lib/videoFormats.ts.
 import { videoSize } from '../lib/videoFormats'
+import { seasonContent } from '../lib/seasons'
 export { VIDEO_FORMAT_LABELS, videoSize } from '../lib/videoFormats'
 
 /**
@@ -81,6 +82,15 @@ export function sagaFromBoxTitle(title: string): string {
     .trim()
 }
 
+/** Saisons citées dans le titre d'un coffret : « saisons 1 à 3 », « saisons 1 et 2 », « saisons 1-4 ». */
+export function seasonsOf(text: string): { seasons?: number[] } {
+  const m = text.match(/saisons?\s*(\d+)\s*(?:à|a|-|–|et)\s*(\d+)/i)
+  if (!m) return {}
+  const [from, to] = [Number(m[1]), Number(m[2])]
+  if (!(to >= from) || to - from > 60) return {}
+  return { seasons: Array.from({ length: to - from + 1 }, (_, i) => from + i) }
+}
+
 export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
   // Réalisateur : rôle 300 ; sinon auteur (070) ; sinon la mention de responsabilité du titre.
   const people = r.fields.filter((f) => /^70[012]$/.test(f.tag))
@@ -110,7 +120,9 @@ export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
   const baseTitle = partTitle ? `${mainTitle} — ${partTitle}` : partNumber ? `${mainTitle}, saison ${partNumber}` : mainTitle
   const title = boxSet && subtitles.length ? `${baseTitle} : ${subtitles.join(' : ')}` : baseTitle
   // La saga d'un coffret : celle de la BnF, sinon le titre sans « l'intégrale »… (pour le ranger avec les films de la saga).
-  const saga = series ?? (boxSet && !genres.includes('Série TV') ? sagaFromBoxTitle(mainTitle) || undefined : undefined)
+  const saga = series ?? (boxSet ? sagaFromBoxTitle(mainTitle) || undefined : undefined)
+  // Coffret de série : ses saisons (d'après le titre), et la place de sa première saison.
+  const boxSeasons = boxSet ? seasonsOf(boxText).seasons : undefined
   const year = num(first(r, '100', 'a')?.slice(9, 13))
   const code = ean ?? first(r, '073', 'a')
   const hasCover = all(r, '856', 'b').some((b) => /couverture|jaquette/i.test(b))
@@ -127,8 +139,14 @@ export function filmDraftFromBnf(r: BnfRecord, ean?: string): CdDraft {
     styles: [],
     videoFormat: format,
     series: saga?.replace(/[\s.,;:]+$/, '').trim() || undefined,
-    volume: series ? volume : undefined,
-    ...(boxSet ? { boxSet: true, contents } : {}),
+    volume: series ? volume : boxSeasons?.[0],
+    ...(boxSet
+      ? {
+          boxSet: true,
+          contents: contents.length || !boxSeasons || !saga ? contents : boxSeasons.map((n) => seasonContent(saga, n)),
+          ...(boxSeasons ? { seasons: boxSeasons } : {}),
+        }
+      : {}),
     format: 'autre',
     discCount,
     ...videoSize(format, discCount),

@@ -29,17 +29,25 @@ const UNIVERSES: { id: MediaKind; label: string; source: string; need: string }[
   { id: 'video', label: '🎬 Films', source: 'Metacritic, IMDb, Rotten Tomatoes (via OMDb)', need: 'Il faut une clé OMDb (ci-dessus).' },
   { id: 'cd', label: '🎵 Musique', source: 'note MusicBrainz', need: '' },
 ]
-const todo = computed(() => {
-  const m = new Map<MediaKind, number>()
-  for (const cd of all.value) if (needsScores(cd)) m.set(mediaOf(cd), (m.get(mediaOf(cd)) ?? 0) + 1)
+/** Par univers : objets qui peuvent avoir une note, et date de la dernière mise à jour. */
+const stats = computed(() => {
+  const m = new Map<MediaKind, { count: number; last: number }>()
+  for (const cd of all.value) {
+    if (!needsScores(cd, true)) continue
+    const st = m.get(mediaOf(cd)) ?? { count: 0, last: 0 }
+    st.count++
+    st.last = Math.max(st.last, cd.scoresAt ?? 0)
+    m.set(mediaOf(cd), st)
+  }
   return m
 })
+const dateOf = (t: number) => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
 
 const running = ref<MediaKind | null>(null)
 const progress = ref<ScoresProgress | null>(null)
 const lastResult = ref('')
 let stop = false
-async function run(media: MediaKind, everything = false) {
+async function run(media: MediaKind, everything = true) {
   running.value = media
   lastResult.value = ''
   stop = false
@@ -74,17 +82,18 @@ async function run(media: MediaKind, everything = false) {
     <p v-if="status === 'ko'" class="notice notice-danger small">OMDb refuse cette clé (ou est injoignable). As-tu cliqué le lien d'activation reçu par e-mail ?</p>
 
     <h3>Récupérer les notes de ta collection</h3>
-    <p class="small muted">Les nouveaux objets reçoivent leurs notes au scan ; ce bouton complète ceux qui sont déjà là. Garde cet écran ouvert pendant la recherche.</p>
+    <p class="small muted">Les nouveaux objets reçoivent leurs notes au scan. Ce bouton récupère les notes de TOUS les objets de l'univers (les notes évoluent avec le temps). Garde cet écran ouvert pendant la recherche.</p>
     <div v-for="u in UNIVERSES" :key="u.id" class="row universe">
       <span class="grow small">
         <strong>{{ u.label }}</strong> · {{ u.source }}<br />
-        <span class="muted">{{ todo.get(u.id) ?? 0 }} à vérifier</span>
+        <span class="muted">
+          {{ stats.get(u.id)?.count ?? 0 }} à noter<template v-if="stats.get(u.id)?.last"> · dernière mise à jour le {{ dateOf(stats.get(u.id)!.last) }}</template>
+        </span>
         <span v-if="!scoresAvailable(u.id)" class="muted"> · {{ u.need }}</span>
       </span>
-      <span class="stack actions">
-        <button class="btn btn-small" :disabled="!!running || !scoresAvailable(u.id) || !todo.get(u.id)" @click="run(u.id)">Récupérer</button>
-        <button class="linkish small" :disabled="!!running || !scoresAvailable(u.id)" @click="run(u.id, true)">Tout revérifier</button>
-      </span>
+      <button class="btn btn-small" :disabled="!!running || !scoresAvailable(u.id) || !stats.get(u.id)?.count" @click="run(u.id)">
+        Récupérer toutes les notes
+      </button>
     </div>
     <template v-if="running && progress">
       <progress :value="progress.done" :max="progress.total || 1"></progress>
